@@ -1,4 +1,4 @@
-![Uploading 4392f0ae780a685812812fa1df82f1dfaf6f04cd_0.webp…]()
+
 
 **Create Warnautics** expands Create Big Cannons with placeable aerial ordnance built for Create machines, moving vehicles, bombing runs, and destructive multiplayer battles.
 
