@@ -7,10 +7,10 @@ Place a bomb, point its nose, give it a redstone signal, and let CBC projectile 
 # Main features
 Aerial bombs
 
-    - Small Bomb — compact general-purpose bomb suitable for dispensers and cassette drops.
-    - Medium Bomb — stronger blast with a larger crater and heavier visual effects.
-    - Large Bomb — the main heavy payload, with the strongest blast, flash, smoke column, knockback, and distant rumble.
-    - Sea Bomb — water-capable ordnance with an animated rear propeller, splash effects, underwater movement, and a dedicated water shockwave.
+ - Small Bomb — compact general-purpose bomb suitable for dispensers and cassette drops.
+ - Medium Bomb — stronger blast with a larger crater and heavier visual effects.
+ - Large Bomb — the main heavy payload, with the strongest blast, flash, smoke column, knockback, and distant rumble.
+ - Sea Bomb — water-capable ordnance with an animated rear propeller, splash effects, underwater movement, and a dedicated water shockwave.
 
 Bombs are placeable directional blocks. Their nose faces the side used during placement and can be rotated with a Create wrench. A rising redstone signal launches the bomb along its nose direction, including downward drops, horizontal releases, and upward launches.
 
