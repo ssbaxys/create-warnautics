@@ -1,4 +1,5 @@
 ![Uploading 4392f0ae780a685812812fa1df82f1dfaf6f04cd_0.webp…]()
+
 **Create Warnautics** expands Create Big Cannons with placeable aerial ordnance built for Create machines, moving vehicles, bombing runs, and destructive multiplayer battles.
 
 Place a bomb, point its nose, give it a redstone signal, and let CBC projectile physics handle the rest. Every bomb tier has its own model, flight behaviour, blast power, sound profile, flash, smoke, and terrain response.
