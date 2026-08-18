@@ -42,7 +42,10 @@ repo/
 ### Scratch ###
 tmp/
 
-### Vendored third-party source ###
-# A full copy of the Create Big Cannons tree kept locally for reference. It is
-# someone else's code under its own licence and does not belong in this history.
-tex/CreateBigCannons-*/
+### Local authoring workspace ###
+# Source models, textures and audio being worked on, plus the generator scripts
+# and their output. Only the finished assets under src/main/resources ship, and
+# tex/ additionally holds a vendored copy of the Create Big Cannons tree, which
+# is someone else's code under its own licence.
+tex/
+tools/
