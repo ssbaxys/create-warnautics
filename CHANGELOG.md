@@ -2,56 +2,10 @@
 
 ## 1.0.3
 
-Create Warnautics 1.0.3: bombs now hurt, cover now matters, surviving a near miss leaves you concussed, and torpedoes actually part the water!
-
-NOTE: Blast damage was badly under-applied on servers running Sable, and cover is now scored by material and thickness. Bombs hit far harder than in 1.0.2, and anyone relying on the old numbers should re-check their builds.
-
-### Added
-
-* Added shell shock for players who live through a near miss
-   * A Veil post pass drives the white-out, loss of focus, chromatic separation and white noise, all easing back as the player recovers
-   * A ringing track plays as a UI sound, so it sits inside the affected player's head and bystanders never hear someone else's concussion
-   * Strength and duration scale with proximity and payload
-* Added blast cover evaluation
-   * Twenty-seven sample rays per target charge the explosion resistance of everything they pass through, so a pane of glass and a metre of obsidian no longer protect equally
-   * Cover the same blast is about to destroy is excluded: the wall that fails absorbs its share, breaks, and the rest carries through
-   * A single block passes 97.6% through glass, 66.7% through stone and 1.0% through obsidian; a four-block stone wall passes 33.3%
-
-### Changed
-
-* Changed the settings dial to always cover the whole contiguous rack
-   * The "Whole rack" toggle is gone; a rack only makes sense with one shared interval
-* Changed bombs to no longer list their release interval in the tooltip; the dial is the one place it lives
-* Removed sneak + right-click interval handling entirely, leaving the Settings Key as the only way in
-* Changed the torpedo wake to read as parted water rather than a trail of bubbles left behind
-   * A bow wave seeded ahead of the nose and pushed outward into a widening V, a bubble sheet down each flank, a screw cavitation helix and a collapse zone where the water folds back in
-   * Every emitter carries outward velocity, which is what makes it read as displacement
-   * On the surface, foam is thrown out to either side of the track
-* Changed the sub-level break budget to scale with payload instead of sitting at Sable Destructive's flat per-explosion figure
-* Changed the world break ceiling to follow `maxBlocksPerDetonation` rather than a hardcoded 1024
-* Changed the fracture model to charge resistance sub-linearly, so payload size decides what a bomb can breach
+Create Warnautics 1.0.3, a compatibility fix for the animated creative-tab banner.
 
 ### Fixed
 
-* Fixed bombs doing almost no damage to players
-   * The ship-adjacent path, which is nearly every detonation on a Sable server, used its own formula worth about a tenth of the damage the same bomb does elsewhere
-   * Every path now uses the Create Big Cannons damage curve
-* Fixed underwater blasts punching permanent air pockets into the sea
-   * Blocks are cleared without neighbour updates, deliberately, so no fluid tick was ever scheduled to close the hole; kelp made it obvious because every kelp block carries water
-   * Submerged positions are now filled with water directly, which is what the fluid tick would have produced
-* Fixed heavy payloads barely marking hardened blocks
-   * Vanilla charges resistance linearly, so obsidian costs two hundred times stone and a large bomb behaved exactly like TNT against it
-   * A large bomb now breaches obsidian at close range; medium and smaller still cannot at any distance
-* Fixed large craters collapsing to a fraction of their radius, from a flat block ceiling that kept only the innermost tenth of the sphere
-* Fixed concussion never firing at point-blank range, the one case that should hit hardest
-   * The survivor check ran after damage was applied, so a lethal blast killed the player before the cue was sent
-   * Bombs bury their detonation point inside whatever they struck, so the cover rays ran through the ground the charge was sitting in and reported near-total shielding; close range now bypasses cover entirely
-* Fixed concussion not extending during a bombing run
-   * Any blast weaker than 75% of the one in progress was discarded outright, so the first and closest detonation set the bar and the effect expired while bombs were still landing
-   * A later blast now tops the level up and pushes recovery out, and can only extend the effect, never cut it short
-* Fixed concussion permanently ceasing to appear after leaving and rejoining a world, from state left stranded in client statics
-* Fixed the ringing stacking copies of itself, since the previous sound handle was dropped without being stopped
-* Fixed sound being muffled almost to silence behind cover; a wall now passes 70% of the ringing, because sound reaches around cover even when the blast does not
 * [GeckoLib] Fixed the animated creative-tab banner rendering incorrectly
    * The strip lived in `textures/gui/sprites/`, which is stitched into the shared GUI atlas, and its animation mcmeta told the stitcher it was a twelve-frame sprite — so the file was live as both an atlas sprite and a directly blitted texture, and which one won depended on texture init order
    * Fixed the highlight clip being applied with a raw GL scissor around batched GuiGraphics draws, so it was lifted before the text it was meant to clip was ever submitted
@@ -60,6 +14,8 @@ NOTE: Blast damage was badly under-applied on servers running Sable, and cover i
 ## 1.0.2
 
 Create Warnautics 1.0.2: a proper settings screen for bomb racks, the sea bomb becomes the Sea Torpedo, and submerged blasts finally damage ordinary underwater structures instead of only Sable hulls!
+
+NOTE: Blast damage was badly under-applied on servers running Sable, and cover is now scored by material and thickness. Bombs hit far harder than in 1.0.1, and anyone relying on the old numbers should re-check their builds.
 
 ### Added
 
@@ -77,6 +33,11 @@ Create Warnautics 1.0.2: a proper settings screen for bomb racks, the sea bomb b
    * The interval always covers the whole contiguous rack, so a deep bomb bay is configured in one click, and it stays with those bombs until they are released, broken or destroyed
    * Styled after Simulated's instrument screens, drawn from this mod's own atlas and palette
 
+* Added blast cover evaluation
+   * Twenty-seven sample rays per target charge the explosion resistance of everything they pass through, so a pane of glass and a metre of obsidian no longer protect equally
+   * Cover the same blast is about to destroy is excluded: the wall that fails absorbs its share, breaks, and the rest carries through
+   * A single block passes 97.6% through glass, 66.7% through stone and 1.0% through obsidian; a four-block stone wall passes 33.3%
+
 ### Changed
 
 * Renamed the Sea Bomb to the Sea Torpedo in English, Russian, German, Spanish, French, Japanese and Chinese (Simplified)
@@ -86,6 +47,14 @@ Create Warnautics 1.0.2: a proper settings screen for bomb racks, the sea bomb b
    * Sneak-and-click on a bomb now does nothing at all; the key is the only way in
 * Removed the release interval from bomb tooltips
    * The interval belongs to a rack standing in the world, not to an item in an inventory
+* Changed the settings dial to drop its "Whole rack" toggle; a rack only makes sense with one shared interval
+* Changed the torpedo wake to read as parted water rather than a trail of bubbles left behind
+   * A bow wave seeded ahead of the nose and pushed outward into a widening V, a bubble sheet down each flank, a screw cavitation helix and a collapse zone where the water folds back in
+   * Every emitter carries outward velocity, which is what makes it read as displacement
+   * On the surface, foam is thrown out to either side of the track
+* Changed the sub-level break budget to scale with payload instead of sitting at Sable Destructive's flat per-explosion figure
+* Changed the world break ceiling to follow `maxBlocksPerDetonation` rather than a hardcoded 1024
+* Changed the fracture model to charge resistance sub-linearly, so payload size decides what a bomb can breach
 
 ### Fixed
 
@@ -102,6 +71,23 @@ Create Warnautics 1.0.2: a proper settings screen for bomb racks, the sea bomb b
    * Applies to every munition, so a large bomb dropped into a lake now craters the lakebed
 * Fixed the new underwater damage pass being able to bypass claim protection
    * Blocks added after the explosion posted `ExplosionEvent.Detonate` are now run past the event separately, sharing the filter introduced for the Sable path in 1.0.1
+
+* Fixed underwater blasts punching permanent air pockets into the sea
+   * Blocks are cleared without neighbour updates, deliberately, so no fluid tick was ever scheduled to close the hole; kelp made it obvious because every kelp block carries water
+   * Submerged positions are now filled with water directly, which is what the fluid tick would have produced
+* Fixed heavy payloads barely marking hardened blocks
+   * Vanilla charges resistance linearly, so obsidian costs two hundred times stone and a large bomb behaved exactly like TNT against it
+   * A large bomb now breaches obsidian at close range; medium and smaller still cannot at any distance
+* Fixed large craters collapsing to a fraction of their radius, from a flat block ceiling that kept only the innermost tenth of the sphere
+* Fixed concussion never firing at point-blank range, the one case that should hit hardest
+   * The survivor check ran after damage was applied, so a lethal blast killed the player before the cue was sent
+   * Bombs bury their detonation point inside whatever they struck, so the cover rays ran through the ground the charge was sitting in and reported near-total shielding; close range now bypasses cover entirely
+* Fixed concussion not extending during a bombing run
+   * Any blast weaker than 75% of the one in progress was discarded outright, so the first and closest detonation set the bar and the effect expired while bombs were still landing
+   * A later blast now tops the level up and pushes recovery out, and can only extend the effect, never cut it short
+* Fixed concussion permanently ceasing to appear after leaving and rejoining a world, from state left stranded in client statics
+* Fixed the ringing stacking copies of itself, since the previous sound handle was dropped without being stopped
+* Fixed sound being muffled almost to silence behind cover; a wall now passes 70% of the ringing, because sound reaches around cover even when the blast does not
 
 ## 1.0.1
 
