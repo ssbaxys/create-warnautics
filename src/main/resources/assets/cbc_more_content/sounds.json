@@ -1,0 +1,60 @@
+{
+  "bomb_explosion_small": {
+    "subtitle": "subtitles.cbc_more_content.bomb_explosion_small",
+    "sounds": [
+      { "name": "cbc_more_content:bomb_explosion_small", "volume": 1.0, "pitch": 1.0 },
+      { "name": "cbc_more_content:bomb_explosion_small1", "volume": 1.0, "pitch": 1.05 }
+    ]
+  },
+  "bomb_explosion_medium": {
+    "subtitle": "subtitles.cbc_more_content.bomb_explosion_medium",
+    "sounds": [
+      { "name": "cbc_more_content:bomb_explosion_medium", "volume": 1.0, "pitch": 1.0 },
+      { "name": "cbc_more_content:bomb_explosion_medium1", "volume": 1.0, "pitch": 0.95 }
+    ]
+  },
+  "bomb_explosion_large": {
+    "subtitle": "subtitles.cbc_more_content.bomb_explosion_large",
+    "sounds": [
+      { "name": "cbc_more_content:bomb_explosion_large", "volume": 1.0, "pitch": 1.0 },
+      { "name": "cbc_more_content:bomb_explosion_large1", "volume": 1.0, "pitch": 0.92 }
+    ]
+  },
+  "bomb_explosion_large_rumble": {
+    "subtitle": "subtitles.cbc_more_content.bomb_explosion_large_rumble",
+    "sounds": [
+      { "name": "cbc_more_content:bomb_explosion_large_rumble", "volume": 1.0, "pitch": 0.85 }
+    ]
+  },
+  "bomb_war_rumble": {
+    "subtitle": "subtitles.cbc_more_content.bomb_war_rumble",
+    "sounds": [
+      { "name": "cbc_more_content:bomb_war_rumble", "volume": 1.0, "pitch": 0.78 },
+      { "name": "cbc_more_content:bomb_war_rumble1", "volume": 1.0, "pitch": 0.72 }
+    ]
+  },
+  "bomb_falling": {
+    "subtitle": "subtitles.cbc_more_content.bomb_falling",
+    "sounds": [
+      { "name": "cbc_more_content:bomb_falling_loop", "volume": 1.0, "pitch": 1.0 }
+    ]
+  },
+  "sea_bomb_propeller": {
+    "subtitle": "subtitles.cbc_more_content.sea_bomb_propeller",
+    "sounds": [
+      { "name": "cbc_more_content:sea_bomb_propeller", "volume": 1.0, "pitch": 1.0 }
+    ]
+  },
+  "sea_bomb_splash": {
+    "subtitle": "subtitles.cbc_more_content.sea_bomb_splash",
+    "sounds": [
+      { "name": "cbc_more_content:sea_bomb_splash", "volume": 1.0, "pitch": 1.0 }
+    ]
+  },
+  "bomb_concussion": {
+    "subtitle": "subtitles.cbc_more_content.bomb_concussion",
+    "sounds": [
+      { "name": "cbc_more_content:bomb_concussion", "volume": 1.0, "pitch": 1.0 }
+    ]
+  }
+}

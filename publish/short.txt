@@ -1,0 +1,1 @@
+Create Big Cannons add-on with redstone-launched aerial bombs, multi-bomb cassettes, sea bombs, land mines, cinematic blast effects, and optional Sable ship destruction.

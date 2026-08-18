@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "I": {
+      "tag": "c:plates/iron"
+    },
+    "N": {
+      "tag": "c:nuggets/brass"
+    },
+    "R": {
+      "tag": "createbigcannons:dusts_redstone"
+    }
+  },
+  "pattern": [
+    "N ",
+    "IR",
+    " I"
+  ],
+  "result": {
+    "count": 1,
+    "id": "cbc_more_content:settings_key"
+  }
+}

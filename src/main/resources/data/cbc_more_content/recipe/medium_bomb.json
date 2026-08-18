@@ -1,0 +1,30 @@
+{
+  "type": "create:mechanical_crafting",
+  "accept_mirrored": true,
+  "category": "misc",
+  "key": {
+    "C": {
+      "item": "createbigcannons:powder_charge"
+    },
+    "I": {
+      "tag": "c:plates/iron"
+    },
+    "S": {
+      "tag": "minecraft:wooden_slabs"
+    },
+    "X": {
+      "tag": "createbigcannons:high_explosive_materials"
+    }
+  },
+  "pattern": [
+    " X ",
+    "IXI",
+    "IXI",
+    "ICI",
+    " S "
+  ],
+  "result": {
+    "count": 1,
+    "id": "cbc_more_content:medium_bomb"
+  }
+}

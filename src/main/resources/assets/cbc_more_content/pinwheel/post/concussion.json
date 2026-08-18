@@ -1,0 +1,11 @@
+{
+  "stages": [
+    {
+      "type": "veil:blit",
+      "shader": "cbc_more_content:concussion",
+      "in": "minecraft:main",
+      "clear": false
+    }
+  ],
+  "renderStage": "after_level"
+}

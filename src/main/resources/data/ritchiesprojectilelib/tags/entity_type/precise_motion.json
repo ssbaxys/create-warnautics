@@ -1,0 +1,9 @@
+{
+  "replace": false,
+  "values": [
+    "cbc_more_content:small_bomb",
+    "cbc_more_content:sea_bomb",
+    "cbc_more_content:medium_bomb",
+    "cbc_more_content:large_bomb"
+  ]
+}

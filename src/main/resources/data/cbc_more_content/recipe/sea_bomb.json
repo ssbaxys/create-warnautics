@@ -1,0 +1,33 @@
+{
+  "type": "create:mechanical_crafting",
+  "accept_mirrored": true,
+  "category": "misc",
+  "key": {
+    "C": {
+      "tag": "c:ingots/copper"
+    },
+    "I": {
+      "tag": "c:plates/iron"
+    },
+    "K": {
+      "item": "minecraft:kelp"
+    },
+    "S": {
+      "tag": "minecraft:wooden_slabs"
+    },
+    "X": {
+      "tag": "createbigcannons:high_explosive_materials"
+    }
+  },
+  "pattern": [
+    " K ",
+    "ICI",
+    "IXI",
+    "IXI",
+    " S "
+  ],
+  "result": {
+    "count": 1,
+    "id": "cbc_more_content:sea_bomb"
+  }
+}

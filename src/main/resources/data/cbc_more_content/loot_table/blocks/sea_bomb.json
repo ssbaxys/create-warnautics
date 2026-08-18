@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "cbc_more_content:sea_bomb",
+          "functions": [
+            {
+              "function": "minecraft:copy_state",
+              "block": "cbc_more_content:sea_bomb",
+              "properties": ["cassette"]
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ]
+    }
+  ]
+}

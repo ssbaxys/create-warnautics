@@ -1,0 +1,212 @@
+{
+  "variants": {
+    "facing=up,powered=false,cassette=1": {
+      "model": "cbc_more_content:block/small_bomb"
+    },
+    "facing=down,powered=false,cassette=1": {
+      "model": "cbc_more_content:block/small_bomb",
+      "x": 180
+    },
+    "facing=north,powered=false,cassette=1": {
+      "model": "cbc_more_content:block/small_bomb",
+      "x": 90
+    },
+    "facing=south,powered=false,cassette=1": {
+      "model": "cbc_more_content:block/small_bomb",
+      "x": 90,
+      "y": 180
+    },
+    "facing=west,powered=false,cassette=1": {
+      "model": "cbc_more_content:block/small_bomb",
+      "x": 90,
+      "y": 270
+    },
+    "facing=east,powered=false,cassette=1": {
+      "model": "cbc_more_content:block/small_bomb",
+      "x": 90,
+      "y": 90
+    },
+    "facing=up,powered=true,cassette=1": {
+      "model": "cbc_more_content:block/small_bomb"
+    },
+    "facing=down,powered=true,cassette=1": {
+      "model": "cbc_more_content:block/small_bomb",
+      "x": 180
+    },
+    "facing=north,powered=true,cassette=1": {
+      "model": "cbc_more_content:block/small_bomb",
+      "x": 90
+    },
+    "facing=south,powered=true,cassette=1": {
+      "model": "cbc_more_content:block/small_bomb",
+      "x": 90,
+      "y": 180
+    },
+    "facing=west,powered=true,cassette=1": {
+      "model": "cbc_more_content:block/small_bomb",
+      "x": 90,
+      "y": 270
+    },
+    "facing=east,powered=true,cassette=1": {
+      "model": "cbc_more_content:block/small_bomb",
+      "x": 90,
+      "y": 90
+    },
+    "facing=up,powered=false,cassette=2": {
+      "model": "cbc_more_content:block/small_bomb_cassette_2"
+    },
+    "facing=down,powered=false,cassette=2": {
+      "model": "cbc_more_content:block/small_bomb_cassette_2",
+      "x": 180
+    },
+    "facing=north,powered=false,cassette=2": {
+      "model": "cbc_more_content:block/small_bomb_cassette_2",
+      "x": 90
+    },
+    "facing=south,powered=false,cassette=2": {
+      "model": "cbc_more_content:block/small_bomb_cassette_2",
+      "x": 90,
+      "y": 180
+    },
+    "facing=west,powered=false,cassette=2": {
+      "model": "cbc_more_content:block/small_bomb_cassette_2",
+      "x": 90,
+      "y": 270
+    },
+    "facing=east,powered=false,cassette=2": {
+      "model": "cbc_more_content:block/small_bomb_cassette_2",
+      "x": 90,
+      "y": 90
+    },
+    "facing=up,powered=true,cassette=2": {
+      "model": "cbc_more_content:block/small_bomb_cassette_2"
+    },
+    "facing=down,powered=true,cassette=2": {
+      "model": "cbc_more_content:block/small_bomb_cassette_2",
+      "x": 180
+    },
+    "facing=north,powered=true,cassette=2": {
+      "model": "cbc_more_content:block/small_bomb_cassette_2",
+      "x": 90
+    },
+    "facing=south,powered=true,cassette=2": {
+      "model": "cbc_more_content:block/small_bomb_cassette_2",
+      "x": 90,
+      "y": 180
+    },
+    "facing=west,powered=true,cassette=2": {
+      "model": "cbc_more_content:block/small_bomb_cassette_2",
+      "x": 90,
+      "y": 270
+    },
+    "facing=east,powered=true,cassette=2": {
+      "model": "cbc_more_content:block/small_bomb_cassette_2",
+      "x": 90,
+      "y": 90
+    },
+    "facing=up,powered=false,cassette=3": {
+      "model": "cbc_more_content:block/small_bomb_cassette_3"
+    },
+    "facing=down,powered=false,cassette=3": {
+      "model": "cbc_more_content:block/small_bomb_cassette_3",
+      "x": 180
+    },
+    "facing=north,powered=false,cassette=3": {
+      "model": "cbc_more_content:block/small_bomb_cassette_3",
+      "x": 90
+    },
+    "facing=south,powered=false,cassette=3": {
+      "model": "cbc_more_content:block/small_bomb_cassette_3",
+      "x": 90,
+      "y": 180
+    },
+    "facing=west,powered=false,cassette=3": {
+      "model": "cbc_more_content:block/small_bomb_cassette_3",
+      "x": 90,
+      "y": 270
+    },
+    "facing=east,powered=false,cassette=3": {
+      "model": "cbc_more_content:block/small_bomb_cassette_3",
+      "x": 90,
+      "y": 90
+    },
+    "facing=up,powered=true,cassette=3": {
+      "model": "cbc_more_content:block/small_bomb_cassette_3"
+    },
+    "facing=down,powered=true,cassette=3": {
+      "model": "cbc_more_content:block/small_bomb_cassette_3",
+      "x": 180
+    },
+    "facing=north,powered=true,cassette=3": {
+      "model": "cbc_more_content:block/small_bomb_cassette_3",
+      "x": 90
+    },
+    "facing=south,powered=true,cassette=3": {
+      "model": "cbc_more_content:block/small_bomb_cassette_3",
+      "x": 90,
+      "y": 180
+    },
+    "facing=west,powered=true,cassette=3": {
+      "model": "cbc_more_content:block/small_bomb_cassette_3",
+      "x": 90,
+      "y": 270
+    },
+    "facing=east,powered=true,cassette=3": {
+      "model": "cbc_more_content:block/small_bomb_cassette_3",
+      "x": 90,
+      "y": 90
+    },
+    "facing=up,powered=false,cassette=4": {
+      "model": "cbc_more_content:block/small_bomb_cassette_4"
+    },
+    "facing=down,powered=false,cassette=4": {
+      "model": "cbc_more_content:block/small_bomb_cassette_4",
+      "x": 180
+    },
+    "facing=north,powered=false,cassette=4": {
+      "model": "cbc_more_content:block/small_bomb_cassette_4",
+      "x": 90
+    },
+    "facing=south,powered=false,cassette=4": {
+      "model": "cbc_more_content:block/small_bomb_cassette_4",
+      "x": 90,
+      "y": 180
+    },
+    "facing=west,powered=false,cassette=4": {
+      "model": "cbc_more_content:block/small_bomb_cassette_4",
+      "x": 90,
+      "y": 270
+    },
+    "facing=east,powered=false,cassette=4": {
+      "model": "cbc_more_content:block/small_bomb_cassette_4",
+      "x": 90,
+      "y": 90
+    },
+    "facing=up,powered=true,cassette=4": {
+      "model": "cbc_more_content:block/small_bomb_cassette_4"
+    },
+    "facing=down,powered=true,cassette=4": {
+      "model": "cbc_more_content:block/small_bomb_cassette_4",
+      "x": 180
+    },
+    "facing=north,powered=true,cassette=4": {
+      "model": "cbc_more_content:block/small_bomb_cassette_4",
+      "x": 90
+    },
+    "facing=south,powered=true,cassette=4": {
+      "model": "cbc_more_content:block/small_bomb_cassette_4",
+      "x": 90,
+      "y": 180
+    },
+    "facing=west,powered=true,cassette=4": {
+      "model": "cbc_more_content:block/small_bomb_cassette_4",
+      "x": 90,
+      "y": 270
+    },
+    "facing=east,powered=true,cassette=4": {
+      "model": "cbc_more_content:block/small_bomb_cassette_4",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

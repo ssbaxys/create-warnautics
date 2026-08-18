@@ -1,0 +1,4 @@
+{
+  "vertex": "veil:blit_screen",
+  "fragment": "cbc_more_content:bomb_flash_seed"
+}

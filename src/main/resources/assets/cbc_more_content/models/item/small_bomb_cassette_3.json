@@ -1,0 +1,10 @@
+{
+  "parent": "cbc_more_content:block/small_bomb_cassette_3",
+  "display": {
+    "gui": {
+      "rotation": [30, 225, 0],
+      "translation": [0, 0, 0],
+      "scale": [0.49, 0.49, 0.49]
+    }
+  }
+}

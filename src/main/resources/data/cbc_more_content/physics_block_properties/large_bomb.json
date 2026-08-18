@@ -1,0 +1,7 @@
+{
+  "selector": "cbc_more_content:large_bomb",
+  "priority": 2000,
+  "properties": {
+    "sable:mass": 5.0
+  }
+}

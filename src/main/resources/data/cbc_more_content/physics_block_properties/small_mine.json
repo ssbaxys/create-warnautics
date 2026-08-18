@@ -1,0 +1,7 @@
+{
+  "selector": "cbc_more_content:small_mine",
+  "priority": 2000,
+  "properties": {
+    "sable:mass": 0.5
+  }
+}

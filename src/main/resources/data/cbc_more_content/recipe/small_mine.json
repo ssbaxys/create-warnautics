@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": {
+      "tag": "createbigcannons:gunpowder"
+    },
+    "I": {
+      "tag": "c:plates/iron"
+    },
+    "L": {
+      "item": "createbigcannons:shot_balls"
+    },
+    "P": {
+      "item": "minecraft:stone_pressure_plate"
+    }
+  },
+  "pattern": [
+    " L ",
+    "IPI",
+    "IGI"
+  ],
+  "result": {
+    "count": 1,
+    "id": "cbc_more_content:small_mine"
+  }
+}

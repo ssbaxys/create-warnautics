@@ -1,0 +1,21 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.cbc_more_content.mixin",
+  "plugin": "com.cbc_more_content.mixin.CBCMoreContentMixinPlugin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "compat.sable.DropBombBlockMixin",
+    "compat.sable.LandMineBlockMixin",
+    "compat.offroad.WheelMountBlockEntityMixin"
+  ],
+  "client": [
+    "client.AbstractContainerScreenAccessor",
+    "client.CreativeModeInventoryScreenMixin",
+    "client.CreativeModeTabMixin",
+    "compat.sodium.SodiumShaderLodBiasMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

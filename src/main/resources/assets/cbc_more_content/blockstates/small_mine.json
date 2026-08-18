@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "armed=false": { "model": "cbc_more_content:block/small_mine" },
+    "armed=true": { "model": "cbc_more_content:block/small_mine" }
+  }
+}
