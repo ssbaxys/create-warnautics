@@ -128,6 +128,10 @@ Server config, written to `serverconfig/cbc_more_content-server.toml` on first w
 | `performance.blastFxScale` | `1.0` | Multiplier on blast particles and flash packets sent to clients. |
 | `performance.releaseImpulse` | `1.0` | Multiplier on the release arc. `0.0` gives a pure drop that only inherits carrier velocity. |
 
+# Disclaimer 
+
+Various code comments and changelogs are generated with the assistance of AI due to english being ssbaxys second language. I, Wizardtastic, will be double checking all of them as a native English speaker. If you spot any that I have missed, please report them and/or submit a correction.
+
 # License
 
 Create Warnautics is distributed under the MIT License.
