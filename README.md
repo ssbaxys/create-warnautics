@@ -1,4 +1,4 @@
-<img width="2167" height="726" alt="4392f0ae780a685812812fa1df82f1dfaf6f04cd_0" src="https://cdn.modrinth.com/data/cached_images/9bfd59bcf5d1f6950b16ebc0fd2e518b0c441ff2.png" />
+<img width="2167" height="850" alt="4392f0ae780a685812812fa1df82f1dfaf6f04cd_0" src="https://cdn.modrinth.com/data/cached_images/9bfd59bcf5d1f6950b16ebc0fd2e518b0c441ff2.png" />
 <img width="2167" height="780" alt="4392f0ae780a685812812fa1df82f1dfaf6f04cd_0" src="https://cdn.modrinth.com/data/cached_images/9cb9fb784863499a8a4a4ac318a919fd752a6e30.png" />
 
 **Create Warnautics** expands Create Big Cannons with placeable aerial ordnance built for Create machines, moving vehicles, bombing runs, and destructive multiplayer battles.
