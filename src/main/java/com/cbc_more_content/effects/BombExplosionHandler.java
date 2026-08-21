@@ -12,6 +12,7 @@ import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.compat.RagdollBlastCompat;
 import com.cbc_more_content.compat.SableDropCompat;
 import com.cbc_more_content.config.WarnauticsConfig;
+import com.cbc_more_content.event.WarnauticsBlockDetonateEvent;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -30,6 +31,7 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.ModList;
+import net.neoforged.neoforge.common.NeoForge;
 import rbasamoyai.createbigcannons.config.CBCConfigs;
 import rbasamoyai.createbigcannons.block_hit_effects.BlockImpactTransformationHandler;
 import rbasamoyai.createbigcannons.multiloader.IndexPlatform;
@@ -209,6 +211,7 @@ public final class BombExplosionHandler {
             explosion.explode();
 
             applyBlastToEntities(level, explosion, damageSource, pos, entityPower, size, budget.lod());
+            fireBlockDetonateEvent(level, explosion, pos, size);
             RagdollBlastCompat.onBombBlast(level, pos, entityPower, size);
 
             if (!canDamageTerrain) {
@@ -295,6 +298,14 @@ public final class BombExplosionHandler {
         }
 
         RagdollBlastCompat.onBombBlast(level, pos, entityPower, size);
+    }
+    
+    private static void fireBlockDetonateEvent(
+            ServerLevel level,
+            ShellExplosion explosion,
+            Vec3 pos,
+            BombSize size) {
+        NeoForge.EVENT_BUS.post(new WarnauticsBlockDetonateEvent(level, explosion, pos, size));
     }
 
     /**
