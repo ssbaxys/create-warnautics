@@ -210,8 +210,8 @@ public final class BombExplosionHandler {
         BombSympatheticDetonation.runBombBlast(() -> {
             explosion.explode();
 
-            applyBlastToEntities(level, explosion, damageSource, pos, entityPower, size, budget.lod());
             fireBlockDetonateEvent(level, explosion, pos, size);
+            applyBlastToEntities(level, explosion, damageSource, pos, entityPower, size, budget.lod());
             RagdollBlastCompat.onBombBlast(level, pos, entityPower, size);
 
             if (!canDamageTerrain) {
