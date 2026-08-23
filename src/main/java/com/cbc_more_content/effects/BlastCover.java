@@ -50,20 +50,34 @@ public final class BlastCover {
      * @param destroyed positions this blast is removing; treated as already gone
      */
     public static Result evaluate(Level level, Vec3 center, Entity entity, Set<BlockPos> destroyed) {
-        AABB box = entity.getBoundingBox();
-        // Sample the body rather than a single point: partial cover behind a low wall
-        // should protect the legs and leave the head exposed.
-        double[] xs = {box.minX + 0.1D, (box.minX + box.maxX) * 0.5D, box.maxX - 0.1D};
-        double[] ys = {box.minY + 0.1D, (box.minY + box.maxY) * 0.5D, box.maxY - 0.1D};
-        double[] zs = {box.minZ + 0.1D, (box.minZ + box.maxZ) * 0.5D, box.maxZ - 0.1D};
+        return evaluate(level, center, entity, destroyed, 3);
+    }
 
+    /**
+     * Evaluates cover with a configurable number of samples per body axis. Full-quality
+     * blasts use three samples (27 rays); burst LOD can use two (8 rays) without changing
+     * the normal path or making a single point decide whether a target is exposed.
+     */
+    public static Result evaluate(
+            Level level,
+            Vec3 center,
+            Entity entity,
+            Set<BlockPos> destroyed,
+            int samplesPerAxis) {
+        AABB box = entity.getBoundingBox();
+        int axisSamples = Math.max(1, Math.min(3, samplesPerAxis));
         double transmissionSum = 0.0D;
         int open = 0;
         int samples = 0;
 
-        for (double x : xs) {
-            for (double y : ys) {
-                for (double z : zs) {
+        // Sample the body rather than a single point: partial cover behind a low wall
+        // should protect the legs and leave the head exposed.
+        for (int xi = 0; xi < axisSamples; xi++) {
+            double x = sampleAxis(box.minX, box.maxX, xi, axisSamples);
+            for (int yi = 0; yi < axisSamples; yi++) {
+                double y = sampleAxis(box.minY, box.maxY, yi, axisSamples);
+                for (int zi = 0; zi < axisSamples; zi++) {
+                    double z = sampleAxis(box.minZ, box.maxZ, zi, axisSamples);
                     double absorbed = absorbAlong(level, center, new Vec3(x, y, z), destroyed);
                     if (absorbed <= 0.0D) {
                         open++;
@@ -80,6 +94,13 @@ public final class BlastCover {
         return new Result(
                 Mth.clamp(transmissionSum / samples, 0.0D, 1.0D),
                 open / (double) samples);
+    }
+
+    private static double sampleAxis(double min, double max, int index, int count) {
+        if (count == 1) {
+            return (min + max) * 0.5D;
+        }
+        return min + 0.1D + (max - min - 0.2D) * index / (count - 1.0D);
     }
 
     /** Total explosion resistance standing between two points. */

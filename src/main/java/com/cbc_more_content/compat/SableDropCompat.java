@@ -5,6 +5,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.PriorityQueue;
 
 import com.cbc_more_content.block.DropBombBlock;
 import com.cbc_more_content.config.WarnauticsConfig;
@@ -366,10 +367,7 @@ public final class SableDropCompat {
             }
         }
 
-        targets.sort(Comparator.comparingDouble(WorldBreakTarget::score).reversed());
-        if (targets.size() > cap) {
-            targets = new ArrayList<>(targets.subList(0, cap));
-        }
+        targets = keepBestWorldTargets(targets, cap);
 
         // This path replaces the vanilla explosion entirely, so nothing else posts
         // ExplosionEvent.Detonate for it. Claim protection (FTB Chunks, GriefPrevention,
@@ -573,6 +571,31 @@ public final class SableDropCompat {
             }
         }
         return broken;
+    }
+
+    private static List<WorldBreakTarget> keepBestWorldTargets(
+            List<WorldBreakTarget> targets,
+            int cap) {
+        if (targets.size() <= cap) {
+            targets.sort(Comparator.comparingDouble(WorldBreakTarget::score).reversed());
+            return targets;
+        }
+
+        // Keep only the cap highest-energy blocks while scanning. Sorting a large
+        // candidate volume just to discard its tail was a second O(n log n) pass.
+        PriorityQueue<WorldBreakTarget> best = new PriorityQueue<>(
+                cap + 1, Comparator.comparingDouble(WorldBreakTarget::score));
+        for (WorldBreakTarget target : targets) {
+            if (best.size() < cap) {
+                best.add(target);
+            } else if (target.score() > best.peek().score()) {
+                best.poll();
+                best.add(target);
+            }
+        }
+        List<WorldBreakTarget> selected = new ArrayList<>(best);
+        selected.sort(Comparator.comparingDouble(WorldBreakTarget::score).reversed());
+        return selected;
     }
 
     /**

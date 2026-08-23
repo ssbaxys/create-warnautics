@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.Set;
 
 import javax.annotation.Nullable;
@@ -274,7 +275,8 @@ public final class BombExplosionHandler {
 
             double falloff = 1.0D - (dist / radius);
             // Hull plating shields the crew the same way world terrain does.
-            BlastCover.Result cover = BlastCover.evaluate(level, pos, entity, Set.of());
+            BlastCover.Result cover = BlastCover.evaluate(
+                    level, pos, entity, Set.of(), coverSamples(budget.lod()));
             float damage = (float) (cbcBlastDamage(dist, entityPower) * cover.transmission());
             if (damage > 0.5f) {
                 entity.hurt(damageSource, damage);
@@ -332,10 +334,26 @@ public final class BombExplosionHandler {
             return;
         }
         Vec3 center = explosion.center();
-        List<BlockPos> kept = new ArrayList<>(toBlow);
+        PriorityQueue<BlockPos> nearest = new PriorityQueue<>(
+                cap + 1,
+                Comparator.comparingDouble(p -> -p.distToCenterSqr(center.x, center.y, center.z)));
+        for (BlockPos pos : toBlow) {
+            if (nearest.size() < cap) {
+                nearest.add(pos);
+                continue;
+            }
+            BlockPos farthest = nearest.peek();
+            if (farthest != null
+                    && pos.distToCenterSqr(center.x, center.y, center.z)
+                    < farthest.distToCenterSqr(center.x, center.y, center.z)) {
+                nearest.poll();
+                nearest.add(pos);
+            }
+        }
+        List<BlockPos> kept = new ArrayList<>(nearest);
         kept.sort(Comparator.comparingDouble(p -> p.distToCenterSqr(center.x, center.y, center.z)));
         toBlow.clear();
-        toBlow.addAll(kept.subList(0, cap));
+        toBlow.addAll(kept);
     }
 
     /**
@@ -349,6 +367,10 @@ public final class BombExplosionHandler {
      * <p>
      * Mirrors {@code CustomExplosion.CustomDamageCalculator#getEntityDamageAmount}.
      */
+    private static int coverSamples(BombBurstBudget.Lod lod) {
+        return lod == BombBurstBudget.Lod.REDUCED ? 2 : 3;
+    }
+
     private static float cbcBlastDamage(double distance, float entityPower) {
         float reach = entityPower * 2.0f;
         if (reach <= 0.0f) {
@@ -441,7 +463,7 @@ public final class BombExplosionHandler {
             // is clear. A dirt berm barely helps; a reinforced wall that survives the
             // blast stops it outright.
             BlastCover.Result cover = raycast
-                    ? BlastCover.evaluate(level, center, entity, destroyed)
+                    ? BlastCover.evaluate(level, center, entity, destroyed, coverSamples(lod))
                     : BlastCover.OPEN;
             double exposure = cover.transmission();
             double falloff = 1.0D - (dist / radius);
