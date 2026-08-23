@@ -3,25 +3,31 @@
   "accept_mirrored": true,
   "category": "misc",
   "key": {
-    "C": {
-      "item": "createbigcannons:powder_charge"
+    "N": {
+      "tag": "c:ingots/cast_iron"
+    },
+    "X": {
+      "tag": "createbigcannons:high_explosive_materials"
     },
     "I": {
       "tag": "c:plates/iron"
     },
+    "C": {
+      "item": "createbigcannons:powder_charge"
+    },
     "S": {
       "tag": "minecraft:wooden_slabs"
     },
-    "X": {
-      "tag": "createbigcannons:high_explosive_materials"
+    "F": {
+      "item": "createbigcannons:impact_fuze"
     }
   },
   "pattern": [
-    " X ",
-    "IXI",
-    "IXI",
-    "ICI",
-    " S "
+    " NFN ",
+    "IXXXI",
+    "IXCXI",
+    "IXCXI",
+    " ISI "
   ],
   "result": {
     "count": 1,

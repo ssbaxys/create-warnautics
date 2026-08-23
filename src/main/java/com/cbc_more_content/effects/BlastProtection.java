@@ -14,21 +14,18 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.ExplosionEvent;
 
 /**
- * Claim-protection gate for block destruction that does not go through a vanilla
- * explosion.
- * <p>
- * Protection mods (FTB Chunks, GriefPrevention, …) veto blocks by filtering
- * {@link ExplosionEvent.Detonate}. Any path that carves terrain itself has to post that
- * event on its own, or it silently digs through claimed land.
+ * Claim-protection gate for block destruction that does not run through a vanilla
+ * explosion. Protection mods veto blocks by filtering {@link ExplosionEvent.Detonate},
+ * so any path that carves terrain itself has to post that event or it digs through
+ * claimed land unchallenged.
  */
 public final class BlastProtection {
     private BlastProtection() {
     }
 
     /**
-     * Posts {@link ExplosionEvent.Detonate} for {@code candidates} and returns the
-     * positions still allowed to break. On failure the raw list is returned — a broken
-     * listener must not make explosives inert.
+     * @return the subset of {@code candidates} still allowed to break. On failure the raw
+     *         list comes back — a broken listener must not make explosives inert.
      */
     public static Set<BlockPos> filter(
             ServerLevel level,

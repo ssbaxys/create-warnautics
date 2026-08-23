@@ -1,0 +1,11 @@
+{
+  "type": "cbc_more_content:add_disc",
+  "conditions": [
+    {
+      "condition": "neoforge:loot_table_id",
+      "loot_table_id": "minecraft:chests/village/village_snowy_house"
+    }
+  ],
+  "item": "cbc_more_content:music_disc_breaker_of_skies",
+  "chance": 0.05
+}

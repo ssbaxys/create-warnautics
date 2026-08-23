@@ -1,0 +1,43 @@
+{
+  "type": "create:mechanical_crafting",
+  "accept_mirrored": true,
+  "category": "misc",
+  "key": {
+    "C": {
+      "tag": "c:ingots/cast_iron"
+    },
+    "E": {
+      "item": "create:electron_tube"
+    },
+    "F": {
+      "item": "create:brass_sheet"
+    },
+    "G": {
+      "item": "create:precision_mechanism"
+    },
+    "I": {
+      "item": "createbigcannons:impact_fuze"
+    },
+    "M": {
+      "item": "createbigcannons:powder_charge"
+    },
+    "P": {
+      "item": "create:sturdy_sheet"
+    },
+    "R": {
+      "item": "create:propeller"
+    },
+    "X": {
+      "tag": "createbigcannons:high_explosive_materials"
+    }
+  },
+  "pattern": [
+    " CF   FC ",
+    "GEPXXXIMR",
+    " CF   FC "
+  ],
+  "result": {
+    "count": 1,
+    "id": "cbc_more_content:cruise_missile"
+  }
+}

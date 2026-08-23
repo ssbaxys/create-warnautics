@@ -21,6 +21,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
@@ -31,6 +32,7 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -50,6 +52,9 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class LandMineBlock extends Block implements IWrenchable {
     public static final BooleanProperty ARMED = BooleanProperty.create("armed");
+    /** How far the mine has been dug in: 0 sitting proud, {@link #MAX_BURIAL} flush. */
+    public static final IntegerProperty BURIAL = IntegerProperty.create("burial", 0, 8);
+    public static final int MAX_BURIAL = 8;
     /** Ticks after place before the mine can detonate. */
     public static final int ARM_DELAY_TICKS = 20;
     /**
@@ -70,7 +75,9 @@ public class LandMineBlock extends Block implements IWrenchable {
     public LandMineBlock(Properties properties, MineType type) {
         super(properties);
         this.type = type;
-        this.registerDefaultState(this.stateDefinition.any().setValue(ARMED, false));
+        this.registerDefaultState(this.stateDefinition.any()
+                .setValue(ARMED, false)
+                .setValue(BURIAL, 0));
     }
 
     public MineType getMineType() {
@@ -84,13 +91,13 @@ public class LandMineBlock extends Block implements IWrenchable {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(ARMED);
+        builder.add(ARMED, BURIAL);
     }
 
     @Nullable
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return this.defaultBlockState().setValue(ARMED, false);
+        return this.defaultBlockState().setValue(ARMED, false).setValue(BURIAL, 0);
     }
 
     @Override
@@ -110,7 +117,75 @@ public class LandMineBlock extends Block implements IWrenchable {
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return this.type.shape;
+        return this.buriedShape(state);
+    }
+
+    /**
+     * The outline sinks with the mine, so a fully dug-in charge is flush with the ground
+     * and no longer catches the cursor from across the field.
+     */
+    private VoxelShape buriedShape(BlockState state) {
+        int burial = state.getValue(BURIAL);
+        if (burial <= 0) {
+            return this.type.shape;
+        }
+        var bounds = this.type.shape.bounds();
+        double top = Math.max(0.05D, bounds.maxY - burial / (double) MAX_BURIAL * bounds.maxY);
+        return Block.box(bounds.minX * 16.0D, bounds.minY * 16.0D, bounds.minZ * 16.0D,
+                bounds.maxX * 16.0D, top * 16.0D, bounds.maxZ * 16.0D);
+    }
+
+    /**
+     * Digging the mine in with a shovel.
+     * <p>
+     * Progress per use is taken from the shovel's own dig speed against the mine, so a
+     * netherite blade buries a charge in a couple of scoops where a wooden one takes
+     * several. A buried mine keeps working — this only conceals it.
+     */
+    @Override
+    protected net.minecraft.world.ItemInteractionResult useItemOn(
+            ItemStack stack,
+            BlockState state,
+            Level level,
+            BlockPos pos,
+            Player player,
+            net.minecraft.world.InteractionHand hand,
+            BlockHitResult hit) {
+        if (!(stack.getItem() instanceof net.minecraft.world.item.ShovelItem)) {
+            return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+        int burial = state.getValue(BURIAL);
+        if (burial >= MAX_BURIAL) {
+            return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+
+        if (!level.isClientSide) {
+            // getDestroySpeed is the shovel's own tier speed: 2 for wood up to 9 for
+            // netherite. One stage always lands, so even the worst tool makes progress.
+            // Vanilla shovel speeds run 2 (wood) to 9 (netherite). Dividing by 1.2
+            // spreads them across the eight burial stages so the tiers actually differ
+            // in how many scoops a charge takes, instead of collapsing into two groups.
+            float speed = Math.max(1.0f, stack.getItem().getDestroySpeed(
+                    stack, net.minecraft.world.level.block.Blocks.DIRT.defaultBlockState()));
+            int stages = Math.max(1, Math.round(speed / 1.2f));
+            int next = Math.min(MAX_BURIAL, burial + stages);
+            level.setBlock(pos, state.setValue(BURIAL, next), Block.UPDATE_CLIENTS);
+
+            level.playSound(null, pos, SoundEvents.ROOTED_DIRT_BREAK, SoundSource.BLOCKS,
+                    0.7f, 0.8f + level.getRandom().nextFloat() * 0.25f);
+            if (level instanceof ServerLevel server) {
+                server.sendParticles(
+                        new net.minecraft.core.particles.BlockParticleOption(
+                                net.minecraft.core.particles.ParticleTypes.BLOCK,
+                                net.minecraft.world.level.block.Blocks.DIRT.defaultBlockState()),
+                        pos.getX() + 0.5D, pos.getY() + 0.15D, pos.getZ() + 0.5D,
+                        12, 0.3D, 0.05D, 0.3D, 0.02D);
+            }
+            if (player != null && !player.getAbilities().instabuild) {
+                stack.hurtAndBreak(1, player, net.minecraft.world.entity.EquipmentSlot.MAINHAND);
+            }
+        }
+        return net.minecraft.world.ItemInteractionResult.sidedSuccess(level.isClientSide);
     }
 
     @Override

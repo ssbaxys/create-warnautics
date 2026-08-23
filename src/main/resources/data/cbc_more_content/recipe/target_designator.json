@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "E": {
+      "item": "create:electron_tube"
+    },
+    "I": {
+      "tag": "c:plates/iron"
+    },
+    "N": {
+      "tag": "c:nuggets/brass"
+    },
+    "R": {
+      "tag": "createbigcannons:dusts_redstone"
+    }
+  },
+  "pattern": [
+    "  E",
+    " I ",
+    "NR "
+  ],
+  "result": {
+    "count": 1,
+    "id": "cbc_more_content:target_designator"
+  }
+}

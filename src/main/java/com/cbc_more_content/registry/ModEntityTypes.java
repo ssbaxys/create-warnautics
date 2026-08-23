@@ -2,6 +2,8 @@ package com.cbc_more_content.registry;
 
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.bomb.BombSize;
+import com.cbc_more_content.munitions.C4Projectile;
+import com.cbc_more_content.munitions.CruiseMissileProjectile;
 import com.cbc_more_content.munitions.DropBombProjectile;
 import com.cbc_more_content.munitions.SeaBombProjectile;
 
@@ -35,6 +37,30 @@ public final class ModEntityTypes {
 
     public static final DeferredHolder<EntityType<?>, EntityType<DropBombProjectile>> LARGE_BOMB =
             dropBomb("large_bomb", BombSize.LARGE);
+
+    public static final DeferredHolder<EntityType<?>, EntityType<CruiseMissileProjectile>> CRUISE_MISSILE =
+            ENTITY_TYPES.register("cruise_missile", () -> EntityType.Builder
+                    .<CruiseMissileProjectile>of(CruiseMissileProjectile::new, MobCategory.MISC)
+                    // Three blocks long, so it needs a hitbox and a tracking range to match.
+                    .sized(1.0f, 0.8f)
+                    .fireImmune()
+                    // The exhaust is drawn client-side, so it only exists while the
+                    // client is tracking the entity. A short range made a missile that
+                    // outran its own tracking distance lose its plume mid-flight.
+                    .clientTrackingRange(16)
+                    .updateInterval(1)
+                    .setShouldReceiveVelocityUpdates(true)
+                    .build("cruise_missile"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<C4Projectile>> C4 =
+            ENTITY_TYPES.register("c4", () -> EntityType.Builder
+                    .<C4Projectile>of(C4Projectile::new, MobCategory.MISC)
+                    .sized(0.35f, 0.35f)
+                    .clientTrackingRange(8)
+                    // A live charge is worth watching fall, so it is synced every tick
+                    // instead of teleporting between ten-tick snapshots.
+                    .updateInterval(1)
+                    .build("c4"));
 
     private static DeferredHolder<EntityType<?>, EntityType<DropBombProjectile>> dropBomb(String id, BombSize size) {
         return ENTITY_TYPES.register(id, () -> EntityType.Builder

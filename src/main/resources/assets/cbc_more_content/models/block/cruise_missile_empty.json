@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "particle": "cbc_more_content:block/cruise_missile"
+  }
+}

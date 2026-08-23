@@ -46,15 +46,6 @@ public class DropBombProjectile extends FuzedBigCannonProjectile {
     }
 
     /**
-     * Kept as a source-compatible hook for integrations compiled against earlier
-     * Warnautics builds. Bombs now use their clear spawn offset and detonate on the
-     * first real collision instead of waiting for an arming timer.
-     */
-    public void armAfterLaunch() {
-        // Intentionally immediate.
-    }
-
-    /**
      * Sable collision bridge for a placed block that was turned into a loose
      * physics body. Keeping detonation inside the projectile class means this path
      * reads the same reloadable CBC munition properties as a redstone-released bomb.

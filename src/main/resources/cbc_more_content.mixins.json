@@ -5,6 +5,7 @@
   "plugin": "com.cbc_more_content.mixin.CBCMoreContentMixinPlugin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "ShrapnelBurstMixin",
     "compat.sable.DropBombBlockMixin",
     "compat.sable.LandMineBlockMixin",
     "compat.offroad.WheelMountBlockEntityMixin"

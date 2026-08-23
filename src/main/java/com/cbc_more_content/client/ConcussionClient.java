@@ -12,16 +12,13 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
+import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 /**
- * Flashbang-style concussion overlay, drawn above the HUD.
- * <p>
- * Three stacked layers, all fading on their own curve: a hard white bloom that snaps in
- * and decays fast, a drifting haze that stands in for loss of focus, and a white-noise
- * speckle that thins out as hearing returns. Everything is plain {@link GuiGraphics}
- * work — no post chain and no framebuffer of our own — so it behaves identically under
- * Sodium and Iris, which is where a real blur pass would have been fought over.
+ * Flashbang-style concussion overlay, drawn above the HUD: a hard white bloom that
+ * snaps in and decays fast, plus edge darkening when Veil is not carrying the real
+ * defocus. Plain {@link GuiGraphics} work, so it behaves the same under Sodium/Iris.
  */
 @EventBusSubscriber(modid = CBCMoreContent.MOD_ID, value = Dist.CLIENT)
 public final class ConcussionClient {
@@ -51,13 +48,9 @@ public final class ConcussionClient {
     }
 
     /**
-     * Takes a new blast on top of whatever is already running.
-     * <p>
-     * Every payload counts. The previous behaviour dropped any blast weaker than 75% of
-     * the one in progress, so during a bombing run the first and closest detonation set
-     * the bar and every bomb after it was discarded — the effect expired while bombs were
-     * still landing. A later blast now tops the level up and pushes recovery further out,
-     * and can only ever extend the effect, never cut it short.
+     * Takes a new blast on top of whatever is already running. Every payload counts:
+     * a later blast tops the level up and pushes recovery out, and can only extend
+     * the effect, never cut it short.
      */
     public static void handle(ConcussionPayload payload) {
         if (!Float.isFinite(payload.visual()) || !Float.isFinite(payload.audio())
@@ -87,13 +80,9 @@ public final class ConcussionClient {
     }
 
     /**
-     * UI sound rather than a positional one: tinnitus is in the listener's head, has no
-     * source in the world, and must not be attenuated as the player walks away.
-     * <p>
-     * A ring already in progress is left alone unless the new blast is clearly louder.
-     * Restarting on every detonation made a bombing run stutter, and the old code also
-     * dropped its handle without stopping the sound, so each run stacked another copy of
-     * a fifteen-second track on top of the last.
+     * UI sound rather than positional: tinnitus is in the listener head and must not
+     * attenuate as they walk away. A ring already running is left alone unless the new
+     * blast is clearly louder, so a bombing run does not stutter or stack copies.
      */
     private static void refreshRinging(float previousAudio) {
         Minecraft mc = Minecraft.getInstance();
@@ -136,13 +125,10 @@ public final class ConcussionClient {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
-        // Leaving the world used to strand age/duration/intensity as live statics. On the
-        // next join the effect counted as still running, and the incoming-blast guard then
-        // rejected everything — concussion simply never appeared again for that session.
-        // Death is different: the level and player object both remain present while the
-        // death screen is open. Explicitly reject a dead player so ringing and blur cannot
-        // survive into the replacement LocalPlayer created by respawn.
-        if (mc.level == null || mc.player == null || !mc.player.isAlive()) {
+        // Leaving the world must not strand the statics, or the next join counts the
+        // effect as still running and rejects everything. Dying does not clear it: a mine
+        // that kills you should still white out the last thing you see. Respawn does.
+        if (mc.level == null || mc.player == null) {
             if (age >= 0 || ringing != null) {
                 reset();
             }
@@ -188,6 +174,22 @@ public final class ConcussionClient {
 
     @SubscribeEvent
     public static void onRenderGui(RenderGuiEvent.Post event) {
+        // Skipped while a screen is up; onRenderScreen draws it above that instead.
+        if (Minecraft.getInstance().screen == null) {
+            draw(event.getGuiGraphics(), event.getPartialTick().getGameTimeDeltaPartialTick(false));
+        }
+    }
+
+    /**
+     * Drawn over any open screen, so the shock from the blast that killed you is not
+     * hidden behind the death screen — which is exactly when it matters most.
+     */
+    @SubscribeEvent
+    public static void onRenderScreen(ScreenEvent.Render.Post event) {
+        draw(event.getGuiGraphics(), event.getPartialTick());
+    }
+
+    private static void draw(GuiGraphics graphics, float partial) {
         if (age < 0 || duration <= 0 || intensity <= 0.002f) {
             return;
         }
@@ -196,10 +198,8 @@ public final class ConcussionClient {
             return;
         }
 
-        float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         float ticks = age + partial;
         float t = Mth.clamp(ticks / (float) duration, 0.0f, 1.0f);
-        GuiGraphics graphics = event.getGuiGraphics();
         int w = graphics.guiWidth();
         int h = graphics.guiHeight();
 
@@ -242,12 +242,8 @@ public final class ConcussionClient {
     }
 
     /**
-     * Soft edge darkening for clients with no Veil.
-     * <p>
-     * Without the scene texture there is no honest way to defocus the frame, so this
-     * only narrows vision rather than pretending to blur it. The earlier drifting bands
-     * and speckle grid read as exactly what they were — stacked rectangles — so they are
-     * gone; the shader path carries the real effect.
+     * Soft edge darkening for clients with no Veil. Without the scene texture there is
+     * no honest way to defocus the frame, so this only narrows vision.
      */
     private static void drawFallbackHaze(GuiGraphics graphics, int w, int h, float t) {
         float f = (1.0f - smoothstep(t)) * intensity;

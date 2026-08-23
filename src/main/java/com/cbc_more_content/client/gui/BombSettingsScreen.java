@@ -28,7 +28,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 @OnlyIn(Dist.CLIENT)
 public class BombSettingsScreen extends Screen {
     private static final int PANEL_W = 176;
-    private static final int PANEL_H = 96;
+    private static final int PANEL_H = 95;
     /** Total sweep of the dial, centred on 12 o'clock. */
     private static final float ARC_DEGREES = 240.0f;
     private static final int DIAL_MARKERS = 11;
@@ -103,7 +103,7 @@ public class BombSettingsScreen extends Screen {
         WarnauticsGuiTextures.BOMB_SETTINGS.render(graphics, this.guiLeft, this.guiTop);
 
         graphics.drawCenteredString(this.font, this.title,
-                this.guiLeft + PANEL_W / 2, this.guiTop + 6, 0xE8E2CF);
+                this.guiLeft + PANEL_W / 2, this.guiTop + 4, 0xE8E2CF);
 
         this.renderDetents(graphics);
         this.renderKnob(graphics, mouseX, mouseY, partialTick);
@@ -116,11 +116,15 @@ public class BombSettingsScreen extends Screen {
         int selectedMarker = Math.round(progressOf(this.delayTicks) * (DIAL_MARKERS - 1));
         for (int i = 0; i < DIAL_MARKERS; i++) {
             double rad = Math.toRadians(angleAtProgress(i / (float) (DIAL_MARKERS - 1)));
-            int x = this.guiLeft + KNOB_CX + (int) Math.round(Math.sin(rad) * DETENT_RADIUS) - 3;
-            int y = this.guiTop + KNOB_CY - (int) Math.round(Math.cos(rad) * DETENT_RADIUS) - 3;
             WarnauticsGuiTextures sprite = i == selectedMarker
                     ? WarnauticsGuiTextures.DETENT_LIT
                     : WarnauticsGuiTextures.DETENT;
+            // Centred on the sprite's own size rather than a hardcoded half-width, so the
+            // dots stay on the ring whatever dimensions the authored atlas gives them.
+            int x = this.guiLeft + KNOB_CX
+                    + (int) Math.round(Math.sin(rad) * DETENT_RADIUS) - sprite.width / 2;
+            int y = this.guiTop + KNOB_CY
+                    - (int) Math.round(Math.cos(rad) * DETENT_RADIUS) - sprite.height / 2;
             sprite.render(graphics, x, y);
         }
     }
@@ -157,12 +161,6 @@ public class BombSettingsScreen extends Screen {
         graphics.drawCenteredString(this.font,
                 Component.literal(String.format(Locale.ROOT, "%.1f s", ticks / 20.0D)),
                 x, y + 24, 0xE8E2CF);
-
-        // The interval always covers the whole contiguous rack, so the count is a
-        // statement of what just happened rather than a control to be toggled.
-        graphics.drawCenteredString(this.font,
-                Component.translatable("gui.cbc_more_content.bomb_settings.whole_rack"),
-                x, y + 40, 0x9AA08C);
 
         if (this.cassette > 1) {
             graphics.drawCenteredString(this.font,

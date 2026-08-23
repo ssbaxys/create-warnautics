@@ -8,10 +8,14 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
+
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.compat.RagdollBlastCompat;
 import com.cbc_more_content.compat.SableDropCompat;
 import com.cbc_more_content.config.WarnauticsConfig;
+import com.cbc_more_content.event.WarnauticsBlockDetonateEvent;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -30,6 +34,7 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.ModList;
+import net.neoforged.neoforge.common.NeoForge;
 import rbasamoyai.createbigcannons.config.CBCConfigs;
 import rbasamoyai.createbigcannons.block_hit_effects.BlockImpactTransformationHandler;
 import rbasamoyai.createbigcannons.multiloader.IndexPlatform;
@@ -38,17 +43,17 @@ import rbasamoyai.createbigcannons.munitions.ShellExplosion;
 
 /**
  * HE-style blast via CBC {@link ShellExplosion} crater + custom blast FX.
- * With Sable Destructive installed, blasts intersecting a moving sub-level use a
- * bounded entity/FX path. Its Detonate handler can otherwise request plot-offset
- * chunks at absurd coordinates and crash chunk generation.
+ * <p>
+ * There is one path for everything. Sable patches {@code ServerLevel#explode} and
+ * {@code Explosion#explode} itself — it gathers sub-level blocks into the same toBlow set
+ * and redirects explosion resistance to read from the plot — so a hull breaks here exactly
+ * as ground does. The bounded stand-in this used to take for blasts near a sub-level was
+ * working around Sable Destructive, and it did so by skipping {@code explode()}, which
+ * also skipped the handling Sable does natively.
  */
 public final class BombExplosionHandler {
     /** No neighbor updates — critical when vaporizing thousands of blocks in one tick. */
     private static final int VAPORIZE_FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
-    private static final float BOMB_SUB_LEVEL_RADIUS_SCALE = 0.5f;
-    private static final float MEDIUM_BOMB_SUB_LEVEL_RADIUS_SCALE = BOMB_SUB_LEVEL_RADIUS_SCALE / 1.4f;
-    private static final float LARGE_BOMB_SUB_LEVEL_RADIUS_SCALE = BOMB_SUB_LEVEL_RADIUS_SCALE / 1.4f;
-    private static final float MINE_SUB_LEVEL_RADIUS_SCALE = 1.0f / 1.3f;
 
     private BombExplosionHandler() {
     }
@@ -66,20 +71,26 @@ public final class BombExplosionHandler {
             level = target.level();
             pos = target.pos();
         }
-        float subLevelRadiusScale = switch (size) {
-            case MEDIUM -> MEDIUM_BOMB_SUB_LEVEL_RADIUS_SCALE;
-            case LARGE -> LARGE_BOMB_SUB_LEVEL_RADIUS_SCALE;
-            default -> BOMB_SUB_LEVEL_RADIUS_SCALE;
-        };
-        detonateInternal(level, source, damageSource, pos,
-                blockPower, entityPower, size, false,
-                1.0f, subLevelRadiusScale);
+        detonateInternal(level, source, damageSource, pos, blockPower, entityPower, size, false);
     }
 
-    /**
-     * Compact anti-vehicle mine profile: nearly the same physical impulse, fewer
-     * visual emitters, and extra energy reserved for intersecting Sable sub-levels.
-     */
+    /** Breaching charge: same blast everywhere, hull or ground. */
+    public static void detonateBreachingCharge(
+            ServerLevel level,
+            DamageSource damageSource,
+            Vec3 pos,
+            float blockPower,
+            float entityPower) {
+        if (ModList.get().isLoaded("sable")) {
+            SableDropCompat.BlastTarget target = SableDropCompat.resolveWorldBlast(level, pos);
+            level = target.level();
+            pos = target.pos();
+        }
+        detonateInternal(level, null, damageSource, pos, blockPower, entityPower,
+                BombSize.MEDIUM, false);
+    }
+
+    /** Compact anti-vehicle mine profile: same impulse, far fewer visual emitters. */
     public static void detonateAntiTankMine(
             ServerLevel level,
             @Nullable Entity source,
@@ -93,18 +104,19 @@ public final class BombExplosionHandler {
             pos = target.pos();
         }
         detonateInternal(level, source, damageSource, pos, blockPower, entityPower,
-                BombSize.LARGE, true, 1.55f, MINE_SUB_LEVEL_RADIUS_SCALE);
+                BombSize.LARGE, true);
+        // Wider and harder than the infantry charge: an anti-vehicle mine leaves the
+        // ground around its crater visibly torn up, not just the hole itself.
+        BlastScorch.scuff(level, pos, Math.max(6.0D, blockPower * 1.6D), 1.0f);
     }
 
     /**
      * Entity-only pressure wave for the antipersonnel mine.
      * <p>
-     * Its CBC {@code ShrapnelExplosion} deliberately has zero block radius so it
-     * cannot dig an HE crater. Vanilla's explosion loop unfortunately also uses that
-     * block radius to collect entities, ignoring CBC's separate entity radius; the
-     * result was no guaranteed damage at all, only whichever spawned fragments happened
-     * to collide later. This pass restores the intended pressure damage without touching
-     * terrain or replacing the fragment fan.
+     * Its CBC {@code ShrapnelExplosion} has zero block radius so it cannot dig a
+     * crater — but vanilla's explosion loop collects entities on that same radius,
+     * ignoring CBC's separate entity radius, so it finds nobody. This restores the
+     * intended pressure damage without touching terrain or the fragment fan.
      */
     static void applySmallMinePressureDamage(
             ServerLevel level,
@@ -130,7 +142,7 @@ public final class BombExplosionHandler {
                 continue;
             }
 
-            BlastCover.Result cover = BlastCover.evaluate(level, center, entity, Set.of());
+            BlastCover.Result cover = BlastCover.evaluate(level, center, entity);
             double falloff = 1.0D - distance / radius;
             if (entity instanceof ServerPlayer player && player.isAlive()) {
                 ConcussionHandler.offer(player, entityPower, falloff,
@@ -152,25 +164,9 @@ public final class BombExplosionHandler {
             float blockPower,
             float entityPower,
             BombSize size,
-            boolean compactFx,
-            float subLevelPowerScale,
-            float subLevelRadiusScale) {
+            boolean compactFx) {
         BombBurstBudget.Snapshot budget = BombBurstBudget.begin(level);
-        double shipReach = Math.max(blockPower * subLevelPowerScale * 2.0D, 12.0D);
         float terrainPower = blockPower * budget.lod().terrainPowerScale();
-
-        // ShellExplosion.explode() -> Detonate -> Sable Destructive may scan plot
-        // storage using global offsets. The same bug affects adjacent and direct hits.
-        if (ModList.get().isLoaded("sable")
-                && SableDropCompat.requiresSafeExplosion(level, pos, shipReach)) {
-            // Same single guard as the world path: hull damage and entity damage on a
-            // ship must not re-enter bomb cook-off either.
-            BombSympatheticDetonation.runBombBlast(() ->
-                    detonateNearShip(level, source, damageSource, pos, terrainPower,
-                            terrainPower * subLevelPowerScale, subLevelRadiusScale,
-                            entityPower, size, budget, compactFx));
-            return;
-        }
 
         ShellExplosion explosion = new TerrainShellExplosion(
                 level,
@@ -208,6 +204,11 @@ public final class BombExplosionHandler {
         BombSympatheticDetonation.runBombBlast(() -> {
             explosion.explode();
 
+            // Fired while getToBlow() is still intact so add-ons can veto individual
+            // positions before the cap, the core vaporization and finalizeExplosion
+            // consume it. It runs ahead of the entity pass because that pass treats
+            // doomed blocks as no cover — a vetoed block has to keep shielding.
+            NeoForge.EVENT_BUS.post(new WarnauticsBlockDetonateEvent(level, explosion, pos, size));
             applyBlastToEntities(level, explosion, damageSource, pos, entityPower, size, budget.lod());
             RagdollBlastCompat.onBombBlast(level, pos, entityPower, size);
 
@@ -225,84 +226,10 @@ public final class BombExplosionHandler {
         sendBlastToNearbyPlayers(level, explosion, pos, size);
     }
 
-    /** Safe Sable blast: bounded terrain/sub-level destruction, entities and FX. */
-    private static void detonateNearShip(
-            ServerLevel level,
-            @Nullable Entity source,
-            DamageSource damageSource,
-            Vec3 pos,
-            float worldBlockPower,
-            float subLevelBlockPower,
-            float subLevelRadiusScale,
-            float entityPower,
-            BombSize size,
-            BombBurstBudget.Snapshot budget,
-            boolean compactFx) {
-        if (compactFx) {
-            BombBlastFx.playCompactMine(level, pos, worldBlockPower, budget);
-        } else {
-            BombBlastFx.play(level, pos, size, worldBlockPower, budget);
-        }
-        boolean canDamageTerrain = ProjectileDamageHooks.canDamageTerrain(level, BlockPos.containing(pos));
-        if (canDamageTerrain) {
-            SableDropCompat.applySafeBlockExplosion(
-                    level, pos, worldBlockPower, subLevelBlockPower, subLevelRadiusScale);
-        }
-
-        double radius = Math.max(entityPower * 2.0D, 5.0D);
-        float base = switch (size) {
-            case SMALL -> 1.85f;
-            case SEA -> 2.85f;
-            case MEDIUM -> 2.9f;
-            case LARGE -> 4.2f;
-        };
-
-        AABB area = new AABB(pos, pos).inflate(radius);
-        for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, area, LivingEntity::isAlive)) {
-            Vec3 body = entity.position().add(0.0D, entity.getBbHeight() * 0.5D, 0.0D);
-            double dx = body.x - pos.x;
-            double dy = body.y - pos.y;
-            double dz = body.z - pos.z;
-            double distSqr = dx * dx + dy * dy + dz * dz;
-            double dist = Math.sqrt(Math.max(distSqr, 1.0E-8D));
-            if (dist > radius) {
-                continue;
-            }
-
-            double falloff = 1.0D - (dist / radius);
-            // Hull plating shields the crew the same way world terrain does.
-            BlastCover.Result cover = BlastCover.evaluate(level, pos, entity, Set.of());
-            float damage = (float) (cbcBlastDamage(dist, entityPower) * cover.transmission());
-            if (damage > 0.5f) {
-                entity.hurt(damageSource, damage);
-            }
-            if (entity instanceof ServerPlayer player && player.isAlive()) {
-                ConcussionHandler.offer(player, entityPower, falloff,
-                        cover.transmission(), cover.hasLineOfSight());
-            }
-
-            double inv = 1.0D / dist;
-            double strength = Math.max(0.0D, falloff * cover.transmission() * base);
-            if (strength >= 0.05D) {
-                Vec3 knock = new Vec3(
-                        dx * inv * strength,
-                        Mth.clamp(dy * inv * strength * 0.55D + strength * 0.45D, 0.25D, strength * 1.1D),
-                        dz * inv * strength);
-                entity.setDeltaMovement(entity.getDeltaMovement().add(knock));
-                entity.hasImpulse = true;
-                entity.hurtMarked = true;
-            }
-        }
-
-        RagdollBlastCompat.onBombBlast(level, pos, entityPower, size);
-    }
-
     /**
-     * Every changed block becomes a client section re-mesh. An unbounded large-bomb
-     * crater could hand a client tens of thousands of them in one tick, which is the
-     * "very laggy, then instantly crashed" report: the renderer, not the server, is
-     * what runs out of headroom. Keep the nearest blocks so the crater still reads
-     * as a crater and only the far, thin rim is dropped.
+     * Every changed block is a client section re-mesh, and an unbounded large-bomb
+     * crater can hand a client tens of thousands in one tick. Keep the nearest so the
+     * crater still reads as one and only the thin outer rim is dropped.
      */
     private static void capToBlow(ServerLevel level, ShellExplosion explosion) {
         List<BlockPos> toBlow = explosion.getToBlow();
@@ -328,15 +255,10 @@ public final class BombExplosionHandler {
     }
 
     /**
-     * The blast damage curve CBC applies to every other munition, reproduced for the
-     * paths that bypass {@code Explosion#explode}.
-     * <p>
-     * The ship-adjacent path used to roll its own {@code power * falloff * 1.35}, which
-     * for a small bomb at point-blank range worked out around a tenth of what the same
-     * bomb does away from a ship. On a Sable server nearly every detonation takes that
-     * path, so bombs read as doing no damage at all.
-     * <p>
-     * Mirrors {@code CustomExplosion.CustomDamageCalculator#getEntityDamageAmount}.
+     * CBC's blast damage curve, reproduced for the paths that bypass
+     * {@code Explosion#explode}. Mirrors
+     * {@code CustomExplosion.CustomDamageCalculator#getEntityDamageAmount}, so the
+     * world path and the Sable path apply the same numbers.
      */
     private static float cbcBlastDamage(double distance, float entityPower) {
         float reach = entityPower * 2.0f;
@@ -372,12 +294,9 @@ public final class BombExplosionHandler {
     /**
      * Blast damage and knockback for the world path.
      * <p>
-     * Warnautics owns this pass rather than leaving it to the vanilla loop inside
-     * {@code Explosion#explode}. That loop selects and gates entities on the explosion's
-     * <em>block</em> radius, not the entity radius, and then routes the amount through
-     * CBC's damage calculator — a combination that could leave someone standing on top
-     * of a detonating bomb entirely unhurt. Doing it here also makes the world path and
-     * the Sable path apply the same numbers.
+     * Owned here rather than left to the loop inside {@code Explosion#explode}, which
+     * gates entities on the <em>block</em> radius instead of the entity radius and so
+     * could leave someone standing on a detonating bomb unhurt.
      */
     private static void applyBlastToEntities(
             ServerLevel level,
@@ -399,7 +318,10 @@ public final class BombExplosionHandler {
         // fails absorbs its share and lets the rest through. applyBlastToEntities runs
         // before finalizeExplosion, so they are still standing at this point and have to
         // be excluded explicitly.
-        Set<BlockPos> destroyed = new HashSet<>(explosion.getToBlow());
+        LongSet destroyed = new LongOpenHashSet(explosion.getToBlow().size());
+        for (BlockPos pos : explosion.getToBlow()) {
+            destroyed.add(pos.asLong());
+        }
 
         AABB area = new AABB(center, center).inflate(radius);
         for (Entity entity : level.getEntities((Entity) null, area, Entity::isAlive)) {

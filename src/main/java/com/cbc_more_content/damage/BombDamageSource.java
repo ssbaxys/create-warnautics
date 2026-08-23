@@ -31,12 +31,20 @@ public class BombDamageSource extends DamageSource {
         super(type);
     }
 
-    public static BombDamageSource create(Level level) {
-        // Reuse holder lookup path; constructing DamageSource is cheap vs explosion work.
-        Holder<DamageType> type = level.registryAccess()
-                .registryOrThrow(Registries.DAMAGE_TYPE)
-                .getHolderOrThrow(ModDamageTypes.AERIAL_BOMBING);
-        return new BombDamageSource(type);
+    /**
+     * Never throws. A missing damage type is a broken install, not a reason to kill the
+     * server tick: an explosion that cannot name itself still has to go off, and a
+     * detonation failing here would rethrow on every entity tick that follows.
+     */
+    public static DamageSource create(Level level) {
+        try {
+            Holder<DamageType> type = level.registryAccess()
+                    .registryOrThrow(Registries.DAMAGE_TYPE)
+                    .getHolderOrThrow(ModDamageTypes.AERIAL_BOMBING);
+            return new BombDamageSource(type);
+        } catch (Throwable t) {
+            return level.damageSources().explosion(null, null);
+        }
     }
 
     @Override

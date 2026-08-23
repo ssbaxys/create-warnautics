@@ -69,12 +69,6 @@ public final class DropBombUtil {
         bomb.discard();
     }
 
-    /** @deprecated use {@link #spawn(BombSize, ServerLevel, Vec3, Vec3, Entity)} */
-    @Deprecated
-    public static DropBombProjectile spawnSmall(ServerLevel level, Vec3 worldPos, Vec3 worldVel, @Nullable Entity owner) {
-        return spawn(BombSize.SMALL, level, worldPos, worldVel, owner);
-    }
-
     private static DropBombProjectile createBomb(BombSize size, ServerLevel level) {
         DropBombProjectile bomb;
         if (size == BombSize.SEA) {
@@ -131,9 +125,5 @@ public final class DropBombUtil {
         bomb.xOld = pos.x;
         bomb.yOld = pos.y;
         bomb.zOld = pos.z;
-
-        if (bomb instanceof DropBombProjectile dropBomb) {
-            dropBomb.armAfterLaunch();
-        }
     }
 }

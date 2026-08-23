@@ -1,6 +1,7 @@
 package com.cbc_more_content.effects;
 
-import java.util.Set;
+import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.longs.LongSets;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
@@ -11,31 +12,32 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * How much of a blast actually reaches an entity through whatever is in the way.
+ * How much of a blast reaches an entity through whatever is in the way.
  * <p>
  * Vanilla only asks whether a straight line is clear, so a pane of glass and a metre of
  * reinforced concrete stop a blast equally well. This walks each sample ray and charges
- * the explosion resistance of every block it passes through, so cover protects in
- * proportion to what it is made of.
+ * the explosion resistance of everything it passes through.
  * <p>
- * Blocks the same blast is about to destroy are excluded. The wall that fails does not
- * shield you: it absorbs its share, breaks, and the remaining energy carries through —
- * which is the behaviour players expect when a charge blows their cover apart.
+ * Blocks the same blast is about to destroy are excluded: the wall that fails absorbs
+ * its share, breaks, and the rest carries through.
  */
 public final class BlastCover {
-    /** Ray step, in blocks. Fine enough to catch a single pane, cheap enough per entity. */
+    /** Ray step in blocks — fine enough to catch a single pane. */
     private static final double STEP = 0.5D;
-    /** Resistance that roughly halves the blast. Stone is 6, so ~2 blocks of it. */
+    /** Resistance that roughly halves the blast. Stone is 6, so about two blocks of it. */
     private static final double HALF_ABSORB = 12.0D;
-    /** No single block may count for more than this, so bedrock cannot go infinite. */
+    /** No single block may count for more, so bedrock cannot go infinite. */
     private static final double MAX_BLOCK_RESISTANCE = 1800.0D;
+
+    /** Fully exposed, used when the raycast budget is spent. */
+    public static final Result OPEN = new Result(1.0D, 1.0D);
 
     private BlastCover() {
     }
 
     /**
-     * @param transmission  share of the blast energy that arrives, 0 fully shielded to 1 in the open
-     * @param openFraction  share of sample rays with a completely clear path
+     * @param transmission share of blast energy that arrives, 0 shielded to 1 in the open
+     * @param openFraction share of sample rays with a completely clear path
      */
     public record Result(double transmission, double openFraction) {
         public boolean hasLineOfSight() {
@@ -43,69 +45,82 @@ public final class BlastCover {
         }
     }
 
-    /** Fully exposed, used when the raycast budget is spent. */
-    public static final Result OPEN = new Result(1.0D, 1.0D);
+    public static Result evaluate(Level level, Vec3 center, Entity entity) {
+        return evaluate(level, center, entity, LongSets.emptySet());
+    }
 
     /**
-     * @param destroyed positions this blast is removing; treated as already gone
+     * @param destroyed packed positions this blast is removing; treated as already gone
      */
-    public static Result evaluate(Level level, Vec3 center, Entity entity, Set<BlockPos> destroyed) {
+    public static Result evaluate(Level level, Vec3 center, Entity entity, LongSet destroyed) {
         AABB box = entity.getBoundingBox();
-        // Sample the body rather than a single point: partial cover behind a low wall
-        // should protect the legs and leave the head exposed.
+        // Sample the body rather than one point: partial cover behind a low wall should
+        // protect the legs and leave the head exposed.
         double[] xs = {box.minX + 0.1D, (box.minX + box.maxX) * 0.5D, box.maxX - 0.1D};
         double[] ys = {box.minY + 0.1D, (box.minY + box.maxY) * 0.5D, box.maxY - 0.1D};
         double[] zs = {box.minZ + 0.1D, (box.minZ + box.maxZ) * 0.5D, box.maxZ - 0.1D};
 
         double transmissionSum = 0.0D;
         int open = 0;
-        int samples = 0;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
 
         for (double x : xs) {
             for (double y : ys) {
                 for (double z : zs) {
-                    double absorbed = absorbAlong(level, center, new Vec3(x, y, z), destroyed);
+                    double absorbed = absorbAlong(level, center, x, y, z, destroyed, cursor);
                     if (absorbed <= 0.0D) {
                         open++;
                     }
                     transmissionSum += 1.0D / (1.0D + absorbed / HALF_ABSORB);
-                    samples++;
                 }
             }
         }
 
-        if (samples == 0) {
-            return OPEN;
-        }
+        int samples = xs.length * ys.length * zs.length;
         return new Result(
                 Mth.clamp(transmissionSum / samples, 0.0D, 1.0D),
                 open / (double) samples);
     }
 
     /** Total explosion resistance standing between two points. */
-    private static double absorbAlong(Level level, Vec3 from, Vec3 to, Set<BlockPos> destroyed) {
-        Vec3 delta = to.subtract(from);
-        double distance = delta.length();
+    private static double absorbAlong(
+            Level level,
+            Vec3 from,
+            double toX, double toY, double toZ,
+            LongSet destroyed,
+            BlockPos.MutableBlockPos cursor) {
+        double dx = toX - from.x;
+        double dy = toY - from.y;
+        double dz = toZ - from.z;
+        double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
         if (distance < 1.0E-4D) {
             return 0.0D;
         }
         int steps = Mth.ceil(distance / STEP);
-        Vec3 stride = delta.scale(1.0D / steps);
+        double sx = dx / steps;
+        double sy = dy / steps;
+        double sz = dz / steps;
+
         double absorbed = 0.0D;
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        BlockPos last = null;
+        int lastX = Integer.MIN_VALUE;
+        int lastY = Integer.MIN_VALUE;
+        int lastZ = Integer.MIN_VALUE;
 
         // Skip the endpoints: the block the blast is inside and the block the entity
         // stands in are not cover.
         for (int i = 1; i < steps; i++) {
-            Vec3 point = from.add(stride.scale(i));
-            cursor.set(Mth.floor(point.x), Mth.floor(point.y), Mth.floor(point.z));
-            if (last != null && last.equals(cursor)) {
+            int x = Mth.floor(from.x + sx * i);
+            int y = Mth.floor(from.y + sy * i);
+            int z = Mth.floor(from.z + sz * i);
+            if (x == lastX && y == lastY && z == lastZ) {
                 continue;
             }
-            last = cursor.immutable();
+            lastX = x;
+            lastY = y;
+            lastZ = z;
+            cursor.set(x, y, z);
 
-            if (destroyed.contains(last)) {
+            if (destroyed.contains(cursor.asLong())) {
                 continue;
             }
             BlockState state;
@@ -123,10 +138,9 @@ public final class BlastCover {
             } catch (Throwable ignored) {
                 resistance = state.getBlock().getExplosionResistance();
             }
-            if (resistance <= 0.0D) {
-                continue;
+            if (resistance > 0.0D) {
+                absorbed += Math.min(resistance, MAX_BLOCK_RESISTANCE) * STEP;
             }
-            absorbed += Math.min(resistance, MAX_BLOCK_RESISTANCE) * STEP;
         }
         return absorbed;
     }

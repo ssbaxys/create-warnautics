@@ -16,6 +16,7 @@ public final class ClientSetup {
 
     public static void onClientSetup(FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
+            com.cbc_more_content.Warmup.client();
             ResourceLocation cassette = ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "cassette");
             // 1→0.25, 2→0.5, 3→0.75, 4→1.0 — matches item model overrides.
             ItemProperties.register(ModItems.SMALL_BOMB.get(), cassette,

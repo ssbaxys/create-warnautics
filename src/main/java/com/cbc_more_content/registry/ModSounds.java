@@ -23,6 +23,21 @@ public final class ModSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> SEA_BOMB_SPLASH = register("sea_bomb_splash");
     /** Ringing ears after surviving a near miss. */
     public static final DeferredHolder<SoundEvent, SoundEvent> BOMB_CONCUSSION = register("bomb_concussion");
+    /** C4 countdown; a single beep, spaced tighter as the fuse runs out. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> C4_TICK = register("c4_tick");
+    /** A thrown charge sticking to a surface. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> C4_PLACE = register("c4_place");
+    /** Keypad and confirm button on the charge. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> C4_BUTTON = register("c4_button");
+    /** The charge going live. The countdown stays silent until this has played out. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> C4_ARMED = register("c4_armed");
+    /** Ignition when a cruise missile leaves its rack. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_MISSILE_LAUNCH = register("cruise_missile_launch");
+    /** Sustained engine note while the missile is under power. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_MISSILE_ENGINE = register("cruise_missile_engine");
+    /** The main theme. Played by the jukebox, and quietly by a dropped record. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> MUSIC_BREAKER_OF_SKIES =
+            register("music.breaker_of_skies");
 
     private static DeferredHolder<SoundEvent, SoundEvent> register(String name) {
         return SOUND_EVENTS.register(name, () -> SoundEvent.createVariableRangeEvent(
