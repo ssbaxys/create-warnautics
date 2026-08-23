@@ -1,0 +1,334 @@
+{
+  "variants": {
+    "facing=up,state=idle,rotation=0": {
+      "model": "cbc_more_content:block/c4"
+    },
+    "facing=up,state=idle,rotation=1": {
+      "model": "cbc_more_content:block/c4",
+      "y": 90
+    },
+    "facing=up,state=idle,rotation=2": {
+      "model": "cbc_more_content:block/c4",
+      "y": 180
+    },
+    "facing=up,state=idle,rotation=3": {
+      "model": "cbc_more_content:block/c4",
+      "y": 270
+    },
+    "facing=up,state=armed,rotation=0": {
+      "model": "cbc_more_content:block/c4_armed"
+    },
+    "facing=up,state=armed,rotation=1": {
+      "model": "cbc_more_content:block/c4_armed",
+      "y": 90
+    },
+    "facing=up,state=armed,rotation=2": {
+      "model": "cbc_more_content:block/c4_armed",
+      "y": 180
+    },
+    "facing=up,state=armed,rotation=3": {
+      "model": "cbc_more_content:block/c4_armed",
+      "y": 270
+    },
+    "facing=up,state=lit,rotation=0": {
+      "model": "cbc_more_content:block/c4_lit"
+    },
+    "facing=up,state=lit,rotation=1": {
+      "model": "cbc_more_content:block/c4_lit",
+      "y": 90
+    },
+    "facing=up,state=lit,rotation=2": {
+      "model": "cbc_more_content:block/c4_lit",
+      "y": 180
+    },
+    "facing=up,state=lit,rotation=3": {
+      "model": "cbc_more_content:block/c4_lit",
+      "y": 270
+    },
+    "facing=down,state=idle,rotation=0": {
+      "model": "cbc_more_content:block/c4",
+      "x": 180
+    },
+    "facing=down,state=idle,rotation=1": {
+      "model": "cbc_more_content:block/c4",
+      "x": 180,
+      "y": 90
+    },
+    "facing=down,state=idle,rotation=2": {
+      "model": "cbc_more_content:block/c4",
+      "x": 180,
+      "y": 180
+    },
+    "facing=down,state=idle,rotation=3": {
+      "model": "cbc_more_content:block/c4",
+      "x": 180,
+      "y": 270
+    },
+    "facing=down,state=armed,rotation=0": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 180
+    },
+    "facing=down,state=armed,rotation=1": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 180,
+      "y": 90
+    },
+    "facing=down,state=armed,rotation=2": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 180,
+      "y": 180
+    },
+    "facing=down,state=armed,rotation=3": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 180,
+      "y": 270
+    },
+    "facing=down,state=lit,rotation=0": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 180
+    },
+    "facing=down,state=lit,rotation=1": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 180,
+      "y": 90
+    },
+    "facing=down,state=lit,rotation=2": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 180,
+      "y": 180
+    },
+    "facing=down,state=lit,rotation=3": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 180,
+      "y": 270
+    },
+    "facing=north,state=idle,rotation=0": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90
+    },
+    "facing=north,state=idle,rotation=1": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90
+    },
+    "facing=north,state=idle,rotation=2": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90
+    },
+    "facing=north,state=idle,rotation=3": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90
+    },
+    "facing=north,state=armed,rotation=0": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90
+    },
+    "facing=north,state=armed,rotation=1": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90
+    },
+    "facing=north,state=armed,rotation=2": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90
+    },
+    "facing=north,state=armed,rotation=3": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90
+    },
+    "facing=north,state=lit,rotation=0": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90
+    },
+    "facing=north,state=lit,rotation=1": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90
+    },
+    "facing=north,state=lit,rotation=2": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90
+    },
+    "facing=north,state=lit,rotation=3": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90
+    },
+    "facing=south,state=idle,rotation=0": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,state=idle,rotation=1": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,state=idle,rotation=2": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,state=idle,rotation=3": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,state=armed,rotation=0": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,state=armed,rotation=1": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,state=armed,rotation=2": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,state=armed,rotation=3": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,state=lit,rotation=0": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,state=lit,rotation=1": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,state=lit,rotation=2": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,state=lit,rotation=3": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90,
+      "y": 180
+    },
+    "facing=west,state=idle,rotation=0": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,state=idle,rotation=1": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,state=idle,rotation=2": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,state=idle,rotation=3": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,state=armed,rotation=0": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,state=armed,rotation=1": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,state=armed,rotation=2": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,state=armed,rotation=3": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,state=lit,rotation=0": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,state=lit,rotation=1": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,state=lit,rotation=2": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,state=lit,rotation=3": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90,
+      "y": 270
+    },
+    "facing=east,state=idle,rotation=0": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,state=idle,rotation=1": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,state=idle,rotation=2": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,state=idle,rotation=3": {
+      "model": "cbc_more_content:block/c4",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,state=armed,rotation=0": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,state=armed,rotation=1": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,state=armed,rotation=2": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,state=armed,rotation=3": {
+      "model": "cbc_more_content:block/c4_armed",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,state=lit,rotation=0": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,state=lit,rotation=1": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,state=lit,rotation=2": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,state=lit,rotation=3": {
+      "model": "cbc_more_content:block/c4_lit",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

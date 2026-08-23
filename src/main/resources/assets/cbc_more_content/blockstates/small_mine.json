@@ -1,6 +1,58 @@
 {
   "variants": {
-    "armed=false": { "model": "cbc_more_content:block/small_mine" },
-    "armed=true": { "model": "cbc_more_content:block/small_mine" }
+    "armed=false,burial=0": {
+      "model": "cbc_more_content:block/small_mine"
+    },
+    "armed=false,burial=1": {
+      "model": "cbc_more_content:block/small_mine_buried_1"
+    },
+    "armed=false,burial=2": {
+      "model": "cbc_more_content:block/small_mine_buried_2"
+    },
+    "armed=false,burial=3": {
+      "model": "cbc_more_content:block/small_mine_buried_3"
+    },
+    "armed=false,burial=4": {
+      "model": "cbc_more_content:block/small_mine_buried_4"
+    },
+    "armed=false,burial=5": {
+      "model": "cbc_more_content:block/small_mine_buried_5"
+    },
+    "armed=false,burial=6": {
+      "model": "cbc_more_content:block/small_mine_buried_6"
+    },
+    "armed=false,burial=7": {
+      "model": "cbc_more_content:block/small_mine_buried_7"
+    },
+    "armed=false,burial=8": {
+      "model": "cbc_more_content:block/small_mine_buried_8"
+    },
+    "armed=true,burial=0": {
+      "model": "cbc_more_content:block/small_mine"
+    },
+    "armed=true,burial=1": {
+      "model": "cbc_more_content:block/small_mine_buried_1"
+    },
+    "armed=true,burial=2": {
+      "model": "cbc_more_content:block/small_mine_buried_2"
+    },
+    "armed=true,burial=3": {
+      "model": "cbc_more_content:block/small_mine_buried_3"
+    },
+    "armed=true,burial=4": {
+      "model": "cbc_more_content:block/small_mine_buried_4"
+    },
+    "armed=true,burial=5": {
+      "model": "cbc_more_content:block/small_mine_buried_5"
+    },
+    "armed=true,burial=6": {
+      "model": "cbc_more_content:block/small_mine_buried_6"
+    },
+    "armed=true,burial=7": {
+      "model": "cbc_more_content:block/small_mine_buried_7"
+    },
+    "armed=true,burial=8": {
+      "model": "cbc_more_content:block/small_mine_buried_8"
+    }
   }
 }

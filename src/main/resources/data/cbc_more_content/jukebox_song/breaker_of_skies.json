@@ -1,0 +1,10 @@
+{
+  "comparator_output": 14,
+  "description": {
+    "translate": "jukebox_song.cbc_more_content.breaker_of_skies"
+  },
+  "length_in_seconds": 177.7,
+  "sound_event": {
+    "sound_id": "cbc_more_content:music.breaker_of_skies"
+  }
+}

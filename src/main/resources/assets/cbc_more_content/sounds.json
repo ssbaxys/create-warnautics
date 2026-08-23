@@ -2,59 +2,171 @@
   "bomb_explosion_small": {
     "subtitle": "subtitles.cbc_more_content.bomb_explosion_small",
     "sounds": [
-      { "name": "cbc_more_content:bomb_explosion_small", "volume": 1.0, "pitch": 1.0 },
-      { "name": "cbc_more_content:bomb_explosion_small1", "volume": 1.0, "pitch": 1.05 }
+      {
+        "name": "cbc_more_content:bomb_explosion_small",
+        "volume": 1.0,
+        "pitch": 1.0
+      },
+      {
+        "name": "cbc_more_content:bomb_explosion_small1",
+        "volume": 1.0,
+        "pitch": 1.05
+      }
     ]
   },
   "bomb_explosion_medium": {
     "subtitle": "subtitles.cbc_more_content.bomb_explosion_medium",
     "sounds": [
-      { "name": "cbc_more_content:bomb_explosion_medium", "volume": 1.0, "pitch": 1.0 },
-      { "name": "cbc_more_content:bomb_explosion_medium1", "volume": 1.0, "pitch": 0.95 }
+      {
+        "name": "cbc_more_content:bomb_explosion_medium",
+        "volume": 1.0,
+        "pitch": 1.0
+      },
+      {
+        "name": "cbc_more_content:bomb_explosion_medium1",
+        "volume": 1.0,
+        "pitch": 0.95
+      }
     ]
   },
   "bomb_explosion_large": {
     "subtitle": "subtitles.cbc_more_content.bomb_explosion_large",
     "sounds": [
-      { "name": "cbc_more_content:bomb_explosion_large", "volume": 1.0, "pitch": 1.0 },
-      { "name": "cbc_more_content:bomb_explosion_large1", "volume": 1.0, "pitch": 0.92 }
+      {
+        "name": "cbc_more_content:bomb_explosion_large",
+        "volume": 1.0,
+        "pitch": 1.0
+      },
+      {
+        "name": "cbc_more_content:bomb_explosion_large1",
+        "volume": 1.0,
+        "pitch": 0.92
+      }
     ]
   },
   "bomb_explosion_large_rumble": {
     "subtitle": "subtitles.cbc_more_content.bomb_explosion_large_rumble",
     "sounds": [
-      { "name": "cbc_more_content:bomb_explosion_large_rumble", "volume": 1.0, "pitch": 0.85 }
+      {
+        "name": "cbc_more_content:bomb_explosion_large_rumble",
+        "volume": 1.0,
+        "pitch": 0.85
+      }
     ]
   },
   "bomb_war_rumble": {
     "subtitle": "subtitles.cbc_more_content.bomb_war_rumble",
     "sounds": [
-      { "name": "cbc_more_content:bomb_war_rumble", "volume": 1.0, "pitch": 0.78 },
-      { "name": "cbc_more_content:bomb_war_rumble1", "volume": 1.0, "pitch": 0.72 }
+      {
+        "name": "cbc_more_content:bomb_war_rumble",
+        "volume": 1.0,
+        "pitch": 0.78
+      },
+      {
+        "name": "cbc_more_content:bomb_war_rumble1",
+        "volume": 1.0,
+        "pitch": 0.72
+      }
     ]
   },
   "bomb_falling": {
     "subtitle": "subtitles.cbc_more_content.bomb_falling",
     "sounds": [
-      { "name": "cbc_more_content:bomb_falling_loop", "volume": 1.0, "pitch": 1.0 }
+      {
+        "name": "cbc_more_content:bomb_falling_loop",
+        "volume": 1.0,
+        "pitch": 1.0
+      }
     ]
   },
   "sea_bomb_propeller": {
     "subtitle": "subtitles.cbc_more_content.sea_bomb_propeller",
     "sounds": [
-      { "name": "cbc_more_content:sea_bomb_propeller", "volume": 1.0, "pitch": 1.0 }
+      {
+        "name": "cbc_more_content:sea_bomb_propeller",
+        "volume": 1.0,
+        "pitch": 1.0
+      }
     ]
   },
   "sea_bomb_splash": {
     "subtitle": "subtitles.cbc_more_content.sea_bomb_splash",
     "sounds": [
-      { "name": "cbc_more_content:sea_bomb_splash", "volume": 1.0, "pitch": 1.0 }
+      {
+        "name": "cbc_more_content:sea_bomb_splash",
+        "volume": 1.0,
+        "pitch": 1.0
+      }
     ]
   },
   "bomb_concussion": {
     "subtitle": "subtitles.cbc_more_content.bomb_concussion",
     "sounds": [
-      { "name": "cbc_more_content:bomb_concussion", "volume": 1.0, "pitch": 1.0 }
+      {
+        "name": "cbc_more_content:bomb_concussion",
+        "volume": 1.0,
+        "pitch": 1.0
+      }
+    ]
+  },
+  "cruise_missile_launch": {
+    "subtitle": "subtitles.cbc_more_content.cruise_missile_launch",
+    "sounds": [
+      {
+        "name": "cbc_more_content:bomb_explosion_large_rumble",
+        "pitch": 1.3,
+        "volume": 0.9
+      }
+    ]
+  },
+  "cruise_missile_engine": {
+    "subtitle": "subtitles.cbc_more_content.cruise_missile_engine",
+    "sounds": [
+      {
+        "name": "cbc_more_content:bomb_war_rumble",
+        "pitch": 1.6,
+        "volume": 0.55
+      }
+    ]
+  },
+  "music.breaker_of_skies": {
+    "sounds": [
+      {
+        "name": "cbc_more_content:music/breaker_of_skies",
+        "stream": true
+      }
+    ]
+  },
+  "c4_tick": {
+    "subtitle": "subtitles.cbc_more_content.c4_tick",
+    "sounds": [
+      {
+        "name": "cbc_more_content:c4_tick"
+      }
+    ]
+  },
+  "c4_place": {
+    "subtitle": "subtitles.cbc_more_content.c4_place",
+    "sounds": [
+      {
+        "name": "cbc_more_content:c4_place"
+      }
+    ]
+  },
+  "c4_button": {
+    "subtitle": "subtitles.cbc_more_content.c4_button",
+    "sounds": [
+      {
+        "name": "cbc_more_content:c4_button"
+      }
+    ]
+  },
+  "c4_armed": {
+    "subtitle": "subtitles.cbc_more_content.c4_armed",
+    "sounds": [
+      {
+        "name": "cbc_more_content:c4_armed"
+      }
     ]
   }
 }

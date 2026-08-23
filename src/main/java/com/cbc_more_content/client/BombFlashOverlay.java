@@ -125,12 +125,9 @@ public final class BombFlashOverlay {
     /**
      * 1 with clear line of sight, a floor value through walls (light still leaks in).
      * <p>
-     * Two corrections over a single centre ray. Detonations deliberately sit slightly
-     * <em>inside</em> the surface they struck, so a ray aimed at the exact blast point
-     * lands in that block from almost every angle — which is why the glow used to show
-     * up only when looking down from above. Points above and beside the centre are
-     * sampled too, and anything close enough to be inside the fireball skips the test
-     * entirely rather than being shadowed by the ground it went off against.
+     * Several samples rather than one centre ray: detonations sit slightly inside the
+     * surface they struck, so a ray aimed at the exact blast point lands in that block
+     * from nearly every angle. Anything inside the fireball skips the test entirely.
      */
     private static float occlusionOf(Minecraft mc, Vec3 camPos, Vec3 blastPos, double distance) {
         if (mc.level == null || distance <= 8.0D) {

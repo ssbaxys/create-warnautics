@@ -1,0 +1,62 @@
+{
+  "variants": {
+    "facing=west,part=nose": {
+      "model": "cbc_more_content:block/cruise_missile_empty"
+    },
+    "facing=north,part=nose": {
+      "model": "cbc_more_content:block/cruise_missile_empty"
+    },
+    "facing=east,part=nose": {
+      "model": "cbc_more_content:block/cruise_missile_empty"
+    },
+    "facing=south,part=nose": {
+      "model": "cbc_more_content:block/cruise_missile_empty"
+    },
+    "facing=up,part=nose": {
+      "model": "cbc_more_content:block/cruise_missile_empty"
+    },
+    "facing=down,part=nose": {
+      "model": "cbc_more_content:block/cruise_missile_empty"
+    },
+    "facing=west,part=body": {
+      "model": "cbc_more_content:block/cruise_missile"
+    },
+    "facing=north,part=body": {
+      "model": "cbc_more_content:block/cruise_missile",
+      "y": 90
+    },
+    "facing=east,part=body": {
+      "model": "cbc_more_content:block/cruise_missile",
+      "y": 180
+    },
+    "facing=south,part=body": {
+      "model": "cbc_more_content:block/cruise_missile",
+      "y": 270
+    },
+    "facing=up,part=body": {
+      "model": "cbc_more_content:block/cruise_missile_up"
+    },
+    "facing=down,part=body": {
+      "model": "cbc_more_content:block/cruise_missile_up",
+      "x": 180
+    },
+    "facing=west,part=tail": {
+      "model": "cbc_more_content:block/cruise_missile_empty"
+    },
+    "facing=north,part=tail": {
+      "model": "cbc_more_content:block/cruise_missile_empty"
+    },
+    "facing=east,part=tail": {
+      "model": "cbc_more_content:block/cruise_missile_empty"
+    },
+    "facing=south,part=tail": {
+      "model": "cbc_more_content:block/cruise_missile_empty"
+    },
+    "facing=up,part=tail": {
+      "model": "cbc_more_content:block/cruise_missile_empty"
+    },
+    "facing=down,part=tail": {
+      "model": "cbc_more_content:block/cruise_missile_empty"
+    }
+  }
+}

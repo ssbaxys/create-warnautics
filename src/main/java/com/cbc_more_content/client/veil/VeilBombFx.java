@@ -51,8 +51,11 @@ public final class VeilBombFx {
     private static float uLook;
     private static float uProximity;
     private static float uSkyGlow;
-    private static float uBlastU = 0.5f;
-    private static float uBlastV = 0.5f;
+    /** Parking spot for the hotspot when no blast is actually in frame. */
+    private static final float OFFSCREEN_UV = -0.2f;
+
+    private static float uBlastU = OFFSCREEN_UV;
+    private static float uBlastV = OFFSCREEN_UV;
     private static final Vector3f uColor = new Vector3f(1.0f, 0.82f, 0.32f);
 
     private VeilBombFx() {
@@ -116,6 +119,7 @@ public final class VeilBombFx {
         float bestU = uBlastU;
         float bestV = uBlastV;
         float weightSum = 0.0f;
+        boolean insideBlast = false;
         float sumU = 0.0f;
         float sumV = 0.0f;
 
@@ -198,6 +202,9 @@ public final class VeilBombFx {
                 targetProximity = 1.0f;
                 bestU = 0.5f;
                 bestV = 0.5f;
+                // Standing inside the fireball is the one case where a centred hotspot
+                // is correct, so it is flagged rather than left to the projection below.
+                insideBlast = true;
                 continue;
             }
 
@@ -281,17 +288,39 @@ public final class VeilBombFx {
             }
         }
 
+        // Nothing projected on screen this frame: every live blast is behind the camera
+        // or out of frame. Park the hotspot well outside the viewport so only the
+        // ambient, full-screen part of the pass contributes. Leaving the previous value
+        // in place meant an unseen blast lit a blob at the screen centre, because the
+        // field starts at (0.5, 0.5) and simply stayed there.
+        boolean onScreen = weightSum > 1.0e-4f || insideBlast;
         if (weightSum > 1.0e-4f) {
             bestU = sumU / weightSum;
             bestV = sumV / weightSum;
+        } else if (!insideBlast) {
+            bestU = OFFSCREEN_UV;
+            bestV = OFFSCREEN_UV;
         }
 
         uIntensity = damp(uIntensity, targetIntensity, targetIntensity > uIntensity ? SMOOTH_UP : SMOOTH_DOWN);
         uLook = damp(uLook, targetLook, targetLook > uLook ? SMOOTH_UP : SMOOTH_DOWN);
         uProximity = damp(uProximity, targetProximity, SMOOTH_UP);
         uSkyGlow = damp(uSkyGlow, targetSkyGlow, targetSkyGlow > uSkyGlow ? SMOOTH_UP : SMOOTH_DOWN);
-        uBlastU = damp(uBlastU, Mth.clamp(bestU, -0.2f, 1.2f), SMOOTH_UP);
-        uBlastV = damp(uBlastV, Mth.clamp(bestV, -0.2f, 1.2f), SMOOTH_UP);
+        // Easing the hotspot across the screen looks right while it stays in view, but
+        // it must not be eased back from off-screen: turning away and back gave the
+        // marker a long crawl to its real position, and a flash that only lives about a
+        // second was over before it arrived. Coming back into view, it snaps.
+        float targetU = Mth.clamp(bestU, -0.2f, 1.2f);
+        float targetV = Mth.clamp(bestV, -0.2f, 1.2f);
+        boolean wasOffScreen = uBlastU <= -0.19f || uBlastU >= 1.19f
+                || uBlastV <= -0.19f || uBlastV >= 1.19f;
+        if (!onScreen || wasOffScreen) {
+            uBlastU = targetU;
+            uBlastV = targetV;
+        } else {
+            uBlastU = damp(uBlastU, targetU, SMOOTH_UP);
+            uBlastV = damp(uBlastV, targetV, SMOOTH_UP);
+        }
         uColor.set(1.0f, 0.82f, 0.32f);
 
         try {
@@ -309,6 +338,7 @@ public final class VeilBombFx {
             CBCMoreContent.LOGGER.debug("Veil post-processing update failed: {}", t.toString());
         }
     }
+
 
     @SubscribeEvent
     public static void onPostPre(ForgeVeilPostProcessingEvent.Pre event) {
@@ -386,6 +416,8 @@ public final class VeilBombFx {
         uLook = 0.0f;
         uProximity = 0.0f;
         uSkyGlow = 0.0f;
+        uBlastU = OFFSCREEN_UV;
+        uBlastV = OFFSCREEN_UV;
         try {
             VeilRenderSystem.renderer().getPostProcessingManager().remove(PIPELINE);
         } catch (Throwable ignored) {

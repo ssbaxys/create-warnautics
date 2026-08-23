@@ -164,6 +164,11 @@ public class DropBombBlock extends Block implements IWrenchable {
         if (powered != state.getValue(POWERED)) {
             level.setBlock(pos, state.setValue(POWERED, powered), Block.UPDATE_CLIENTS);
         }
+        if (powered) {
+            // A rack reloaded under a live wire gets no neighbour update, so the
+            // rising-edge test would never fire again. Schedule explicitly.
+            level.scheduleTick(pos, this, 1);
+        }
         checkHotHazard((ServerLevel) level, pos);
     }
 
@@ -178,12 +183,8 @@ public class DropBombBlock extends Block implements IWrenchable {
     }
 
     /**
-     * Applies a release interval from the settings dial to the whole contiguous rack.
-     * Called from the server-side packet handler after it has validated the sender.
-     * <p>
-     * There is no single-bomb mode. A rack only makes sense with one shared interval,
-     * and the setting lives in the block state, so it stays with those bombs until they
-     * are released, broken or destroyed.
+     * Applies a release interval to the whole contiguous rack. There is no
+     * single-bomb mode: a rack only makes sense with one shared interval.
      */
     public static void applyReleaseDelay(Level level, BlockPos pos, int delayTicks) {
         int changed = applyReleaseDelayToRack(level, pos, normalizeReleaseDelayTicks(delayTicks));
@@ -250,12 +251,15 @@ public class DropBombBlock extends Block implements IWrenchable {
         boolean powered = isReceivingPower(level, pos);
         boolean wasPowered = state.getValue(POWERED);
 
-        if (powered && !wasPowered) {
-            level.setBlock(pos, state.setValue(POWERED, true), Block.UPDATE_CLIENTS);
+        if (powered != wasPowered) {
+            level.setBlock(pos, state.setValue(POWERED, powered), Block.UPDATE_CLIENTS);
+        }
+        if (powered) {
+            // Scheduled whenever the rack is live, not only on the rising edge:
+            // POWERED is persisted, so a chunk unloading mid-cycle could otherwise
+            // leave a bomb stored as powered with no pending tick behind it.
+            // Duplicate ticks for a position collapse, so a running rack is fine.
             level.scheduleTick(pos, this, 1);
-        } else if (!powered && wasPowered) {
-            // Drop redstone mid-cassette → stop further ejects.
-            level.setBlock(pos, state.setValue(POWERED, false), Block.UPDATE_CLIENTS);
         }
         checkHotHazard((ServerLevel) level, pos);
     }
@@ -502,28 +506,16 @@ public class DropBombBlock extends Block implements IWrenchable {
     }
 
     /**
-     * Release the bomb into free space and let gravity do the rest.
-     * <p>
-     * A bomb bay drops its load downward no matter how the bomb is mounted, so DOWN
-     * is always tried first — including for the side-mounted racks real bombers use.
-     * The old code offset strictly along the nose, which for a horizontal nose placed
-     * the entity inside the fuselage; vanilla collision then squeezed it back out,
-     * usually upward, and it struck the aircraft it was just released from.
-     * <p>
-     * UP is never a release direction: nothing here may push a live bomb into the
-     * airframe above it.
+     * Releases the bomb into free space and lets gravity do the rest. UP is never a
+     * release direction — nothing here may push a live bomb into the airframe above.
      */
     private static void launchAlongNose(ServerLevel level, BlockPos pos, Direction nose, BombSize size) {
         Vec3 noseVec = new Vec3(nose.getStepX(), nose.getStepY(), nose.getStepZ());
         Vec3 spawn = resolveReleasePoint(level, pos, nose, size);
 
-        // Release impulse: straight along the nose plus a small downward bias.
-        // The nose is followed exactly, so a nose-up rack lobs the bomb up and it
-        // then falls, a nose-down rack drops it immediately, and a side rack — where
-        // the nose is horizontal and contributes no vertical term at all — sends it
-        // out flat and steepening. What is gone is the old separate arc/up impulse
-        // that added lift regardless of facing and threw side-mounted bombs back
-        // into the aircraft.
+        // Straight along the nose plus a small downward bias, so a nose-up rack lobs
+        // the bomb, a nose-down rack drops it, and a side rack sends it out flat and
+        // steepening. No upward term at any facing.
         double impulse = WarnauticsConfig.releaseImpulse();
         Vec3 velocity = new Vec3(
                 noseVec.x * size.launchAlong * impulse,
@@ -563,11 +555,9 @@ public class DropBombBlock extends Block implements IWrenchable {
     }
 
     /**
-     * Every rack ejects along its nose first — that is the old behaviour and it is
-     * what makes facing meaningful. The remaining entries only matter when the nose
-     * side is walled in: rather than spawning the bomb inside the hull and letting
-     * collision resolution shove it somewhere unpredictable (usually upward, into the
-     * aircraft), it leaves through the nearest free side instead.
+     * Nose first — that is what makes facing meaningful. The rest only matter when
+     * the nose side is walled in, so the bomb leaves through the nearest free side
+     * instead of spawning inside the hull.
      */
     private static Direction[] releaseOrder(Direction nose) {
         if (nose == Direction.DOWN) {

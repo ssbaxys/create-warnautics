@@ -1,0 +1,38 @@
+{
+  "type": "create:mechanical_crafting",
+  "accept_mirrored": true,
+  "category": "misc",
+  "key": {
+    "B": {
+      "tag": "c:plates/brass"
+    },
+    "E": {
+      "item": "create:electron_tube"
+    },
+    "I": {
+      "item": "createbigcannons:impact_fuze"
+    },
+    "P": {
+      "item": "createbigcannons:powder_charge"
+    },
+    "R": {
+      "tag": "createbigcannons:dusts_redstone"
+    },
+    "S": {
+      "item": "minecraft:string"
+    },
+    "X": {
+      "tag": "createbigcannons:high_explosive_materials"
+    }
+  },
+  "pattern": [
+    " SES ",
+    "BRIRB",
+    "BXPXB",
+    " BBB "
+  ],
+  "result": {
+    "count": 1,
+    "id": "cbc_more_content:c4"
+  }
+}

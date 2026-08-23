@@ -16,15 +16,11 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.ModList;
 
 /**
- * Soft compat for
- * <a href="https://github.com/Leo-T22/sable-player-ragdoll">sable-player-ragdoll</a>
- * and <a href="https://github.com/Leo-T22/ragdoll-reactions">ragdoll-reactions</a>.
+ * Soft compat for sable-player-ragdoll and ragdoll-reactions.
  * <p>
- * When {@code ragdoll_reactions} is installed, our CBC {@code ShellExplosion} already
- * fires {@code ExplosionEvent.Detonate} and reactions tumble nearby players/mobs as
- * cannon blasts — we must not double-launch.
- * <p>
- * When only the ragdoll API is present, launch nearby living entities from the blast.
+ * With {@code ragdoll_reactions} present our {@code ShellExplosion} already fires
+ * {@code ExplosionEvent.Detonate} and reactions tumble everyone nearby, so we must not
+ * double-launch. With only the ragdoll API, launch them here.
  */
 public final class RagdollBlastCompat {
     private static final String API_MOD = "sable_player_ragdoll";

@@ -4,10 +4,13 @@ import org.slf4j.Logger;
 
 import com.cbc_more_content.config.WarnauticsConfig;
 import com.cbc_more_content.network.ModNetworking;
+import com.cbc_more_content.registry.ModBlockEntities;
 import com.cbc_more_content.registry.ModBlocks;
 import com.cbc_more_content.registry.ModCreativeTabs;
 import com.cbc_more_content.registry.ModEntityTypes;
 import com.cbc_more_content.registry.ModItems;
+import com.cbc_more_content.registry.ModLootModifiers;
+import com.cbc_more_content.registry.ModParticles;
 import com.cbc_more_content.registry.ModSounds;
 import com.mojang.logging.LogUtils;
 
@@ -24,8 +27,11 @@ public class CBCMoreContent {
         modContainer.registerConfig(net.neoforged.fml.config.ModConfig.Type.SERVER, WarnauticsConfig.SPEC);
 
         ModBlocks.BLOCKS.register(modEventBus);
+        ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
         ModEntityTypes.ENTITY_TYPES.register(modEventBus);
+        ModParticles.PARTICLE_TYPES.register(modEventBus);
+        ModLootModifiers.SERIALIZERS.register(modEventBus);
         ModSounds.SOUND_EVENTS.register(modEventBus);
         ModCreativeTabs.CREATIVE_MODE_TABS.register(modEventBus);
 
@@ -46,6 +52,8 @@ public class CBCMoreContent {
     private void commonSetup(FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
             ModEntityTypes.registerMunitionHandlers();
+            // Pay the class-loading cost here rather than inside the first detonation.
+            Warmup.common();
         });
         LOGGER.info("Create Warnautics loaded — drop bombs with CBC ballistics + optional Sable kick");
     }

@@ -16,11 +16,17 @@ import net.neoforged.api.distmarker.OnlyIn;
  */
 @OnlyIn(Dist.CLIENT)
 public enum WarnauticsGuiTextures {
-    BOMB_SETTINGS("bomb_settings", 0, 0, 176, 96),
-    KNOB("bomb_settings", 0, 100, 46, 46),
-    KNOB_LIT("bomb_settings", 48, 100, 46, 46),
-    DETENT("bomb_settings", 96, 100, 7, 7),
-    DETENT_LIT("bomb_settings", 104, 100, 7, 7);
+    // Coordinates read off the authored atlas rather than assumed: the panel occupies
+    // the first band, the two knob states and the two detent dots sit in the second.
+    BOMB_SETTINGS("bomb_settings", 0, 0, 176, 95),
+    /** Own panel: the bomb sheet has a round dial well the slider cannot sit in. */
+    C4_SETTINGS("c4_settings", 0, 0, 176, 95),
+    /** Same frame, empty body — for screens that draw their own furniture. */
+    C4_PANEL("c4_panel", 0, 0, 176, 95),
+    KNOB("bomb_settings", 2, 102, 42, 42),
+    KNOB_LIT("bomb_settings", 50, 102, 42, 42),
+    DETENT("bomb_settings", 98, 102, 3, 3),
+    DETENT_LIT("bomb_settings", 106, 102, 3, 3);
 
     private static final int ATLAS = 256;
 

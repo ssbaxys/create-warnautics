@@ -27,7 +27,12 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.SEA_BOMB.get());
                         output.accept(ModItems.SMALL_MINE.get());
                         output.accept(ModItems.LARGE_MINE.get());
+                        output.accept(ModItems.C4.get());
+                        output.accept(ModItems.CRUISE_MISSILE.get());
+                        output.accept(ModItems.WIRE_CUTTERS.get());
+                        output.accept(ModItems.TARGET_DESIGNATOR.get());
                         output.accept(ModItems.SETTINGS_KEY.get());
+                        output.accept(ModItems.MUSIC_DISC_BREAKER_OF_SKIES.get());
                     })
                     .build());
 

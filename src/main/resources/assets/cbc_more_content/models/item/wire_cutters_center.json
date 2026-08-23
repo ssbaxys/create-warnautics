@@ -1,0 +1,91 @@
+{
+  "format_version": "1.9.0",
+  "credit": "by creat560",
+  "texture_size": [
+    32,
+    32
+  ],
+  "textures": {
+    "1": "cbc_more_content:item/defuse"
+  },
+  "elements": [
+    {
+      "name": "center",
+      "from": [
+        7.25,
+        5,
+        7
+      ],
+      "to": [
+        8.75,
+        6,
+        8
+      ],
+      "rotation": {
+        "angle": 0,
+        "axis": "y",
+        "origin": [
+          6.25,
+          2,
+          7
+        ]
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            6.5,
+            0,
+            8,
+            1
+          ],
+          "texture": "#1"
+        },
+        "east": {
+          "uv": [
+            0,
+            8,
+            1,
+            9
+          ],
+          "texture": "#1"
+        },
+        "south": {
+          "uv": [
+            1,
+            6.5,
+            2.5,
+            7.5
+          ],
+          "texture": "#1"
+        },
+        "west": {
+          "uv": [
+            8,
+            0,
+            9,
+            1
+          ],
+          "texture": "#1"
+        },
+        "up": {
+          "uv": [
+            8,
+            2,
+            6.5,
+            1
+          ],
+          "texture": "#1"
+        },
+        "down": {
+          "uv": [
+            4,
+            6.5,
+            2.5,
+            7.5
+          ],
+          "texture": "#1"
+        }
+      }
+    }
+  ]
+}

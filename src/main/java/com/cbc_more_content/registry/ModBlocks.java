@@ -1,11 +1,14 @@
 package com.cbc_more_content.registry;
 
 import com.cbc_more_content.CBCMoreContent;
+import com.cbc_more_content.block.C4Block;
+import com.cbc_more_content.block.CruiseMissileBlock;
 import com.cbc_more_content.block.DropBombBlock;
 import com.cbc_more_content.block.LandMineBlock;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.mine.MineType;
 
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -33,6 +36,26 @@ public final class ModBlocks {
 
     public static final DeferredBlock<LandMineBlock> LARGE_MINE = BLOCKS.register("large_mine",
             () -> new LandMineBlock(mineProps(MapColor.TERRACOTTA_GRAY, 0.7f), MineType.LARGE));
+
+    /**
+     * Airframe only for now: it places, breaks and drops itself, and does nothing else.
+     * No warhead, no guidance, no launch. Three blocks long, matching the model.
+     */
+    public static final DeferredBlock<CruiseMissileBlock> CRUISE_MISSILE = BLOCKS.register("cruise_missile",
+            () -> new CruiseMissileBlock(bombProps(MapColor.METAL, 1.0f)));
+
+    /**
+     * Breaching charge stuck to a surface. Tough enough that breaking it takes a moment,
+     * which is what gives a live charge time to go off in the hands of whoever tries.
+     */
+    public static final DeferredBlock<C4Block> C4 = BLOCKS.register("c4",
+            () -> new C4Block(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.SAND)
+                    .strength(1.5f)
+                    .sound(SoundType.WOOL)
+                    .noOcclusion()
+                    .pushReaction(PushReaction.DESTROY)
+                    .isRedstoneConductor((state, level, pos) -> false)));
 
     private static BlockBehaviour.Properties bombProps(MapColor color, float strength) {
         return BlockBehaviour.Properties.of()

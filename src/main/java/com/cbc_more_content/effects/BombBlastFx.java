@@ -181,6 +181,50 @@ public final class BombBlastFx {
         }
     }
 
+    /**
+     * Extra plume and flash on top of the normal blast, for the breaching charge.
+     * <p>
+     * A C4 goes off at a fraction of a bomb's power, so the shared profile gives it a
+     * puff that reads as far too thin for what it does to a wall. This layers a heavy
+     * ground-hugging cloud and a second flash — {@link com.cbc_more_content.client.BombFlashClient}
+     * merges flashes at the same spot, so it brightens the existing one instead of
+     * stacking a second white-out.
+     */
+    public static void playBreachingCharge(ServerLevel level, Vec3 pos, float blockPower) {
+        DustParticleOptions hot = new DustParticleOptions(new Vector3f(1.0f, 0.80f, 0.22f), 1.2f);
+        DustParticleOptions white = new DustParticleOptions(new Vector3f(1.0f, 0.95f, 0.80f), 0.95f);
+        level.sendParticles(hot, pos.x, pos.y + 0.35D, pos.z, 26, 0.85D, 0.45D, 0.85D, 0.02D);
+        level.sendParticles(white, pos.x, pos.y + 0.55D, pos.z, 14, 0.55D, 0.4D, 0.55D, 0.015D);
+        level.sendParticles(ParticleTypes.LARGE_SMOKE,
+                pos.x, pos.y + 0.4D, pos.z, 34, 1.0D, 0.5D, 1.0D, 0.03D);
+        level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
+                pos.x, pos.y + 0.3D, pos.z, 10, 0.7D, 0.2D, 0.7D, 0.02D);
+
+        BombFlashPayload payload = new BombFlashPayload(
+                pos.x, pos.y, pos.z, 1.35f, (byte) BombSize.MEDIUM.ordinal());
+        double reachSqr = 200.0D * 200.0D;
+        for (ServerPlayer player : level.players()) {
+            if (player.distanceToSqr(pos) <= reachSqr) {
+                PacketDistributor.sendToPlayer(player, payload);
+            }
+        }
+
+        // The billowing part arrives after the fireball peak, so it does not cover it.
+        schedule(level, 4, () -> {
+            level.sendParticles(new ShellExplosionCloudParticleData(
+                            Math.max(2.6f, blockPower * 0.42f), true),
+                    pos.x, pos.y + 0.6D, pos.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+            for (int i = 0; i < 14; i++) {
+                double ox = (level.random.nextDouble() - 0.5D) * 2.4D;
+                double oz = (level.random.nextDouble() - 0.5D) * 2.4D;
+                level.sendParticles(
+                        new ShellExplosionSmokeParticleData(90 + level.random.nextInt(50), 1.05f),
+                        pos.x + ox, pos.y + 0.45D + level.random.nextDouble() * 0.7D, pos.z + oz,
+                        0, ox * 0.05D, 0.07D, oz * 0.05D, 1.0D);
+            }
+        });
+    }
+
     private static void schedule(ServerLevel level, int delayTicks, Runnable task) {
         var server = level.getServer();
         if (server == null) {
@@ -222,7 +266,8 @@ public final class BombBlastFx {
                         true, pos.x, pos.y + 1.0D, pos.z, 1,
                         0.0D, 0.0D, 0.0D, 0.0D);
             } else if (size == BombSize.MEDIUM || size == BombSize.SMALL || size == BombSize.SEA) {
-                int basePuffs = size == BombSize.SMALL ? 6 : (size == BombSize.MEDIUM ? 20 : 5);
+                int basePuffs = scaleFx(size,
+                        size == BombSize.SMALL ? 6 : (size == BombSize.MEDIUM ? 20 : 5));
                 int puffs = lod.puffCount(basePuffs);
                 float puffScale = size == BombSize.SMALL
                         ? profile.smokeScale * 0.32f
@@ -290,12 +335,12 @@ public final class BombBlastFx {
         // Embers stay small and offset so they don't fill the camera.
         DustParticleOptions hot = new DustParticleOptions(new Vector3f(1.0f, 0.82f, 0.18f), size == BombSize.LARGE ? 1.35f : (size == BombSize.MEDIUM ? 1.15f : 0.95f));
         DustParticleOptions white = new DustParticleOptions(new Vector3f(1.0f, 0.97f, 0.85f), size == BombSize.LARGE ? 1.1f : (size == BombSize.MEDIUM ? 0.95f : 0.75f));
-        int baseSparks = switch (size) {
+        int baseSparks = scaleFx(size, switch (size) {
             case SMALL -> 12;
             case SEA -> 7;
             case MEDIUM -> 32;
             case LARGE -> 16;
-        };
+        });
         int sparks = switch (lod) {
             case FULL -> baseSparks;
             case REDUCED -> Math.max(3, baseSparks / 2);
@@ -410,6 +455,23 @@ public final class BombBlastFx {
                     true, pos.x, pos.y + 0.35D, pos.z, 1,
                     0.0D, 0.0D, 0.0D, 0.0D);
         }
+    }
+
+    /**
+     * Per-tier multiplier on how much visual there is, independent of blast power.
+     * <p>
+     * The light calibres were reading far weaker than they hit: a small bomb does real
+     * damage but produced a puff, and a medium one was barely distinguishable from it.
+     * Applied to emitter counts only — craters, damage and knockback are untouched, and
+     * the LOD budget still trims all of this during carpet bombing.
+     */
+    private static int scaleFx(BombSize size, int base) {
+        float factor = switch (size) {
+            case SMALL -> 2.0f;
+            case MEDIUM -> 3.0f;
+            case SEA, LARGE -> 1.0f;
+        };
+        return Math.max(1, Math.round(base * factor));
     }
 
     private record FxProfile(

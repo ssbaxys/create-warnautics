@@ -2,23 +2,23 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "C": {
-      "item": "createbigcannons:powder_charge"
+    "N": {
+      "tag": "c:ingots/cast_iron"
+    },
+    "X": {
+      "tag": "createbigcannons:high_explosive_materials"
     },
     "I": {
       "tag": "c:plates/iron"
     },
-    "S": {
-      "tag": "minecraft:wooden_slabs"
-    },
-    "X": {
-      "tag": "createbigcannons:high_explosive_materials"
+    "C": {
+      "item": "createbigcannons:powder_charge"
     }
   },
   "pattern": [
-    " C ",
+    "NXN",
     "IXI",
-    "ISI"
+    "CIC"
   ],
   "result": {
     "count": 1,

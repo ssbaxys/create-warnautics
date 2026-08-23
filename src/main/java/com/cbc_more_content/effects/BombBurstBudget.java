@@ -106,10 +106,6 @@ public final class BombBurstBudget {
             return this == FULL || this == REDUCED;
         }
 
-        public boolean allowExtraSmoke() {
-            return this == FULL;
-        }
-
         public boolean allowWarRumble(ServerLevel level) {
             return switch (this) {
                 case FULL -> true;

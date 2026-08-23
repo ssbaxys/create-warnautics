@@ -6,7 +6,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.cbc_more_content.effects.MineExplosionHandler;
-import com.cbc_more_content.event.WarnauticsBlockChipEvent;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;

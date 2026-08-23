@@ -174,15 +174,15 @@ public class SeaBombProjectile extends DropBombProjectile {
         Vec3 surface = new Vec3(at.x, surfaceY + 0.92D, at.z);
 
         // Surface geyser / spray
-        server.sendParticles(ParticleTypes.SPLASH, surface.x, surface.y, surface.z, 90, 1.4D, 0.9D, 1.4D, 0.45D);
-        server.sendParticles(ParticleTypes.FISHING, surface.x, surface.y, surface.z, 40, 1.1D, 0.4D, 1.1D, 0.18D);
-        server.sendParticles(ParticleTypes.CLOUD, at.x, at.y + 0.8D, at.z, 24, 0.9D, 0.35D, 0.9D, 0.08D);
+        emit(server, ParticleTypes.SPLASH, surface.x, surface.y, surface.z, 90, 1.4D, 0.9D, 1.4D, 0.45D);
+        emit(server, ParticleTypes.FISHING, surface.x, surface.y, surface.z, 40, 1.1D, 0.4D, 1.1D, 0.18D);
+        emit(server, ParticleTypes.CLOUD, at.x, at.y + 0.8D, at.z, 24, 0.9D, 0.35D, 0.9D, 0.08D);
         // Underwater bubble sphere
-        server.sendParticles(ParticleTypes.BUBBLE, at.x, at.y, at.z, 100, 1.6D, 1.2D, 1.6D, 0.35D);
-        server.sendParticles(ParticleTypes.BUBBLE_COLUMN_UP, at.x, at.y - 0.2D, at.z, 50, 1.0D, 0.8D, 1.0D, 0.2D);
-        server.sendParticles(ParticleTypes.BUBBLE_POP, at.x, at.y + 0.4D, at.z, 35, 1.2D, 0.7D, 1.2D, 0.05D);
-        server.sendParticles(ParticleTypes.CURRENT_DOWN, at.x, at.y + 0.6D, at.z, 20, 0.8D, 0.3D, 0.8D, 0.06D);
-        server.sendParticles(ParticleTypes.UNDERWATER, at.x, at.y, at.z, 40, 1.5D, 1.0D, 1.5D, 0.0D);
+        emit(server, ParticleTypes.BUBBLE, at.x, at.y, at.z, 100, 1.6D, 1.2D, 1.6D, 0.35D);
+        emit(server, ParticleTypes.BUBBLE_COLUMN_UP, at.x, at.y - 0.2D, at.z, 50, 1.0D, 0.8D, 1.0D, 0.2D);
+        emit(server, ParticleTypes.BUBBLE_POP, at.x, at.y + 0.4D, at.z, 35, 1.2D, 0.7D, 1.2D, 0.05D);
+        emit(server, ParticleTypes.CURRENT_DOWN, at.x, at.y + 0.6D, at.z, 20, 0.8D, 0.3D, 0.8D, 0.06D);
+        emit(server, ParticleTypes.UNDERWATER, at.x, at.y, at.z, 40, 1.5D, 1.0D, 1.5D, 0.0D);
 
         server.playSound(null, at.x, at.y, at.z, ModSounds.SEA_BOMB_SPLASH.get(), SoundSource.BLOCKS, 1.6f, 0.7f);
         server.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_SPLASH, SoundSource.BLOCKS, 1.4f, 0.65f);
@@ -214,17 +214,17 @@ public class SeaBombProjectile extends DropBombProjectile {
             double z = center.z + Math.sin(angle) * radius;
             double y = surface ? center.y + 0.05D : center.y;
             if (surface) {
-                server.sendParticles(ParticleTypes.SPLASH, x, y, z,
+                emit(server, ParticleTypes.SPLASH, x, y, z,
                         1, 0.0D, 0.10D, 0.0D, 0.24D);
                 if ((i & 1) == 0) {
-                    server.sendParticles(ParticleTypes.FISHING, x, y + 0.15D, z,
+                    emit(server, ParticleTypes.FISHING, x, y + 0.15D, z,
                             1, 0.0D, 0.03D, 0.0D, 0.08D);
                 }
             } else {
-                server.sendParticles(ParticleTypes.BUBBLE_COLUMN_UP, x, y, z,
+                emit(server, ParticleTypes.BUBBLE_COLUMN_UP, x, y, z,
                         1, 0.02D, 0.08D, 0.02D, 0.07D);
                 if ((i & 3) == 0) {
-                    server.sendParticles(ParticleTypes.BUBBLE_POP, x, y, z,
+                    emit(server, ParticleTypes.BUBBLE_POP, x, y, z,
                             1, 0.02D, 0.02D, 0.02D, 0.0D);
                 }
             }
@@ -314,11 +314,11 @@ public class SeaBombProjectile extends DropBombProjectile {
     }
 
     private void spawnEntrySplash(ServerLevel server, Vec3 at) {
-        server.sendParticles(ParticleTypes.SPLASH, at.x, at.y + 0.25D, at.z, 48, 0.65D, 0.35D, 0.65D, 0.22D);
-        server.sendParticles(ParticleTypes.FISHING, at.x, at.y + 0.15D, at.z, 20, 0.5D, 0.15D, 0.5D, 0.08D);
-        server.sendParticles(ParticleTypes.BUBBLE, at.x, at.y - 0.1D, at.z, 40, 0.45D, 0.4D, 0.45D, 0.14D);
-        server.sendParticles(ParticleTypes.BUBBLE_COLUMN_UP, at.x, at.y - 0.2D, at.z, 18, 0.3D, 0.25D, 0.3D, 0.05D);
-        server.sendParticles(ParticleTypes.CLOUD, at.x, at.y + 0.35D, at.z, 10, 0.4D, 0.1D, 0.4D, 0.02D);
+        emit(server, ParticleTypes.SPLASH, at.x, at.y + 0.25D, at.z, 48, 0.65D, 0.35D, 0.65D, 0.22D);
+        emit(server, ParticleTypes.FISHING, at.x, at.y + 0.15D, at.z, 20, 0.5D, 0.15D, 0.5D, 0.08D);
+        emit(server, ParticleTypes.BUBBLE, at.x, at.y - 0.1D, at.z, 40, 0.45D, 0.4D, 0.45D, 0.14D);
+        emit(server, ParticleTypes.BUBBLE_COLUMN_UP, at.x, at.y - 0.2D, at.z, 18, 0.3D, 0.25D, 0.3D, 0.05D);
+        emit(server, ParticleTypes.CLOUD, at.x, at.y + 0.35D, at.z, 10, 0.4D, 0.1D, 0.4D, 0.02D);
         server.playSound(null, at.x, at.y, at.z, ModSounds.SEA_BOMB_SPLASH.get(), SoundSource.NEUTRAL, 1.25f, 0.85f);
         server.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_SPLASH, SoundSource.NEUTRAL, 0.9f, 0.75f);
         server.playSound(null, at.x, at.y, at.z, SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_INSIDE, SoundSource.NEUTRAL, 0.7f, 1.1f);
@@ -361,9 +361,9 @@ public class SeaBombProjectile extends DropBombProjectile {
         this.setDeltaMovement(this.swimHeading.scale(0.15D).add(0.0D, -0.08D, 0.0D));
         if (this.level() instanceof ServerLevel server) {
             Vec3 p = this.position();
-            server.sendParticles(ParticleTypes.BUBBLE_COLUMN_UP, p.x, p.y, p.z, 28, 0.35D, 0.35D, 0.35D, 0.06D);
-            server.sendParticles(ParticleTypes.BUBBLE, p.x, p.y, p.z, 36, 0.4D, 0.4D, 0.4D, 0.1D);
-            server.sendParticles(ParticleTypes.CURRENT_DOWN, p.x, p.y + 0.2D, p.z, 10, 0.25D, 0.15D, 0.25D, 0.02D);
+            emit(server, ParticleTypes.BUBBLE_COLUMN_UP, p.x, p.y, p.z, 28, 0.35D, 0.35D, 0.35D, 0.06D);
+            emit(server, ParticleTypes.BUBBLE, p.x, p.y, p.z, 36, 0.4D, 0.4D, 0.4D, 0.1D);
+            emit(server, ParticleTypes.CURRENT_DOWN, p.x, p.y + 0.2D, p.z, 10, 0.25D, 0.15D, 0.25D, 0.02D);
             server.playSound(null, p.x, p.y, p.z, SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_AMBIENT, SoundSource.NEUTRAL, 0.85f, 0.7f);
             server.playSound(null, p.x, p.y, p.z, ModSounds.SEA_BOMB_PROPELLER.get(), SoundSource.NEUTRAL, 0.4f, 0.55f);
         }
@@ -404,14 +404,10 @@ public class SeaBombProjectile extends DropBombProjectile {
     }
 
     /**
-     * The torpedo parting the water.
-     * <p>
-     * Built around the shape a real hull leaves rather than a puff of bubbles at the
-     * body: the nose throws water outward, so bubbles are seeded ahead of it and given
-     * sideways velocity to spread into a widening V; the flanks shed a sheet along the
-     * hull; and the screw leaves a tight cavitation column filling in behind. Every
-     * emitter carries outward velocity, which is what reads as displaced water instead
-     * of a trail that simply hangs where the torpedo used to be.
+     * The torpedo parting the water: bubbles seeded ahead of the nose with sideways
+     * velocity to spread into a widening V, a sheet along each flank, and cavitation
+     * filling in behind the screw. The outward velocity is what reads as displaced
+     * water rather than a trail hanging where the torpedo used to be.
      */
     private void spawnSwimParticles(ServerLevel server) {
         Vec3 p = this.position();
@@ -428,10 +424,10 @@ public class SeaBombProjectile extends DropBombProjectile {
             double spread = 0.22D + random.nextDouble() * 0.12D;
             Vec3 from = nose.add(side.scale(s * spread));
             Vec3 push = side.scale(s * 0.16D).subtract(heading.scale(0.04D));
-            server.sendParticles(ParticleTypes.BUBBLE,
+            emit(server, ParticleTypes.BUBBLE,
                     from.x, from.y, from.z, 0, push.x, push.y + 0.02D, push.z, 1.0D);
             if ((this.tickCount & 1) == 0) {
-                server.sendParticles(ParticleTypes.BUBBLE,
+                emit(server, ParticleTypes.BUBBLE,
                         from.x, from.y - 0.12D, from.z, 0,
                         push.x * 1.4D, 0.01D, push.z * 1.4D, 1.0D);
             }
@@ -441,9 +437,9 @@ public class SeaBombProjectile extends DropBombProjectile {
         if ((this.tickCount % 2) == 0) {
             for (int s = -1; s <= 1; s += 2) {
                 Vec3 flank = p.add(side.scale(s * 0.34D));
-                server.sendParticles(ParticleTypes.BUBBLE,
+                emit(server, ParticleTypes.BUBBLE,
                         flank.x, flank.y, flank.z, 2, 0.06D, 0.10D, 0.06D, 0.02D);
-                server.sendParticles(ParticleTypes.CURRENT_DOWN,
+                emit(server, ParticleTypes.CURRENT_DOWN,
                         flank.x, flank.y + 0.05D, flank.z, 1, 0.05D, 0.06D, 0.05D, 0.01D);
             }
         }
@@ -456,48 +452,48 @@ public class SeaBombProjectile extends DropBombProjectile {
             double px = tail.x + offset.x;
             double py = tail.y + Math.sin(a) * blurR * 0.6D;
             double pz = tail.z + offset.z;
-            server.sendParticles(ParticleTypes.BUBBLE, px, py, pz, 1, 0.02D, 0.02D, 0.02D, 0.015D);
+            emit(server, ParticleTypes.BUBBLE, px, py, pz, 1, 0.02D, 0.02D, 0.02D, 0.015D);
             if ((i & 1) == 0) {
-                server.sendParticles(ParticleTypes.BUBBLE_POP, px, py, pz, 1, 0.02D, 0.02D, 0.02D, 0.0D);
+                emit(server, ParticleTypes.BUBBLE_POP, px, py, pz, 1, 0.02D, 0.02D, 0.02D, 0.0D);
             }
         }
 
         // Collapse zone: the parted water folding back in behind the screw.
-        server.sendParticles(ParticleTypes.BUBBLE, wake.x, wake.y, wake.z, 7, 0.20D, 0.14D, 0.20D, 0.05D);
-        server.sendParticles(ParticleTypes.BUBBLE_COLUMN_UP,
+        emit(server, ParticleTypes.BUBBLE, wake.x, wake.y, wake.z, 7, 0.20D, 0.14D, 0.20D, 0.05D);
+        emit(server, ParticleTypes.BUBBLE_COLUMN_UP,
                 wake.x, wake.y - 0.05D, wake.z, 4, 0.14D, 0.10D, 0.14D, 0.03D);
 
         // Surface chop / spray when near the waterline.
         if ((this.tickCount % 2) == 0 && this.nearSurface()) {
-            server.sendParticles(ParticleTypes.SPLASH, p.x, p.y + 0.35D, p.z, 8, 0.38D, 0.08D, 0.38D, 0.07D);
-            server.sendParticles(ParticleTypes.FISHING, p.x, p.y + 0.25D, p.z, 3, 0.3D, 0.05D, 0.3D, 0.03D);
+            emit(server, ParticleTypes.SPLASH, p.x, p.y + 0.35D, p.z, 8, 0.38D, 0.08D, 0.38D, 0.07D);
+            emit(server, ParticleTypes.FISHING, p.x, p.y + 0.25D, p.z, 3, 0.3D, 0.05D, 0.3D, 0.03D);
             // Surface V: foam thrown out to either side of the track.
             for (int s = -1; s <= 1; s += 2) {
                 Vec3 crest = p.add(side.scale(s * 0.5D)).subtract(heading.scale(0.3D));
-                server.sendParticles(ParticleTypes.SPLASH,
+                emit(server, ParticleTypes.SPLASH,
                         crest.x, crest.y + 0.4D, crest.z, 0,
                         side.x * s * 0.12D, 0.06D, side.z * s * 0.12D, 1.0D);
             }
             if (random.nextInt(4) == 0) {
-                server.sendParticles(ParticleTypes.CLOUD, p.x, p.y + 0.4D, p.z, 2, 0.25D, 0.04D, 0.25D, 0.01D);
+                emit(server, ParticleTypes.CLOUD, p.x, p.y + 0.4D, p.z, 2, 0.25D, 0.04D, 0.25D, 0.01D);
             }
         }
 
         // Occasional deeper turbulence puffs.
         if ((this.tickCount % 5) == 0) {
-            server.sendParticles(ParticleTypes.UNDERWATER, p.x, p.y, p.z, 8, 0.4D, 0.25D, 0.4D, 0.0D);
+            emit(server, ParticleTypes.UNDERWATER, p.x, p.y, p.z, 8, 0.4D, 0.25D, 0.4D, 0.0D);
         }
     }
 
     private void spawnSinkParticles(ServerLevel server) {
         Vec3 p = this.position();
         if ((this.sinkTicks % 2) == 0) {
-            server.sendParticles(ParticleTypes.BUBBLE, p.x, p.y, p.z, 8, 0.2D, 0.2D, 0.2D, 0.05D);
-            server.sendParticles(ParticleTypes.BUBBLE_COLUMN_UP, p.x, p.y - 0.1D, p.z, 4, 0.15D, 0.15D, 0.15D, 0.03D);
+            emit(server, ParticleTypes.BUBBLE, p.x, p.y, p.z, 8, 0.2D, 0.2D, 0.2D, 0.05D);
+            emit(server, ParticleTypes.BUBBLE_COLUMN_UP, p.x, p.y - 0.1D, p.z, 4, 0.15D, 0.15D, 0.15D, 0.03D);
         }
         if ((this.sinkTicks % 4) == 0) {
-            server.sendParticles(ParticleTypes.CURRENT_DOWN, p.x, p.y + 0.3D, p.z, 3, 0.18D, 0.1D, 0.18D, 0.02D);
-            server.sendParticles(ParticleTypes.BUBBLE_POP, p.x, p.y + 0.15D, p.z, 2, 0.1D, 0.1D, 0.1D, 0.0D);
+            emit(server, ParticleTypes.CURRENT_DOWN, p.x, p.y + 0.3D, p.z, 3, 0.18D, 0.1D, 0.18D, 0.02D);
+            emit(server, ParticleTypes.BUBBLE_POP, p.x, p.y + 0.15D, p.z, 2, 0.1D, 0.1D, 0.1D, 0.0D);
         }
         if ((this.sinkTicks % 12) == 0) {
             server.playSound(null, p.x, p.y, p.z, SoundEvents.BUBBLE_COLUMN_UPWARDS_AMBIENT, SoundSource.NEUTRAL, 0.35f, 0.8f);
@@ -589,6 +585,21 @@ public class SeaBombProjectile extends DropBombProjectile {
                     (this.random.nextDouble() - 0.5D) * 0.05D, 0.06D, (this.random.nextDouble() - 0.5D) * 0.05D);
             if ((this.tickCount % 2) == 0) {
                 this.level().addParticle(ParticleTypes.CURRENT_DOWN, p.x, p.y + 0.2D, p.z, 0.0D, -0.05D, 0.0D);
+            }
+        }
+    }
+
+    /**
+     * Sends particles with the long-distance flag set. The no-player overload of
+     * {@code ServerLevel#sendParticles} hardcodes {@code longDistance = false} and so
+     * drops every packet past 32 blocks — invisible for a torpedo that runs 800.
+     */
+    private static <T extends net.minecraft.core.particles.ParticleOptions> void emit(
+            ServerLevel server, T type, double x, double y, double z,
+            int count, double dx, double dy, double dz, double speed) {
+        for (net.minecraft.server.level.ServerPlayer player : server.players()) {
+            if (player.distanceToSqr(x, y, z) <= 192.0D * 192.0D) {
+                server.sendParticles(player, type, true, x, y, z, count, dx, dy, dz, speed);
             }
         }
     }

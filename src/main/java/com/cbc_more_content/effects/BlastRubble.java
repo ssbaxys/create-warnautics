@@ -10,15 +10,10 @@ import net.minecraft.world.level.block.state.BlockState;
 /**
  * Decides what a blast leaves behind in a cleared block.
  * <p>
- * Warnautics removes blocks with {@code UPDATE_CLIENTS | UPDATE_KNOWN_SHAPE} — no
- * neighbour updates — because a large crater issuing neighbour updates for thousands of
- * positions in one tick is what stalls the server. The cost is that no fluid tick is
- * ever scheduled, so an underwater blast used to punch permanent air pockets into the
- * sea: kelp forests were the obvious case, since every kelp block carries water and
- * became a dry hole the ocean never refilled.
- * <p>
- * Filling submerged positions with water directly sidesteps that: the result is what the
- * fluid tick would have produced anyway, without paying for the updates.
+ * Blocks are removed without neighbour updates, so no fluid tick is ever scheduled and an
+ * underwater blast would punch permanent air pockets into the sea. Filling submerged
+ * positions with water directly gives the same result the fluid tick would have, without
+ * paying for thousands of updates in one tick.
  */
 public final class BlastRubble {
     private BlastRubble() {
@@ -30,8 +25,8 @@ public final class BlastRubble {
             return Blocks.WATER.defaultBlockState();
         }
         for (Direction direction : Direction.values()) {
-            // Water above a hole always falls in; water beside it flows in. Only a hole
-            // with dry sides and a dry ceiling genuinely stays dry.
+            // Water above falls in and water beside flows in; only a hole with dry sides
+            // and a dry ceiling genuinely stays dry.
             if (direction == Direction.DOWN) {
                 continue;
             }

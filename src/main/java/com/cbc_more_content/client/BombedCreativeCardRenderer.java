@@ -20,14 +20,10 @@ import net.minecraft.resources.ResourceLocation;
  */
 public final class BombedCreativeCardRenderer {
     /**
-     * Deliberately not under {@code textures/gui/sprites/}. Everything in that directory
-     * is stitched into the shared GUI atlas, and the animation mcmeta this strip used to
-     * carry told the stitcher it was a twelve-frame animation of a single 18px sprite.
-     * The file was therefore live in two incompatible roles at once: an atlas sprite the
-     * game animated on its own, and a plain texture this class blits frame by frame.
-     * Which one won depended on load order, so any mod that touches texture setup — a
-     * GeckoLib install is enough — could leave the card showing a stitched fragment or
-     * the wrong frame. Kept outside the atlas, it is a plain strip and nothing else.
+     * Deliberately not under {@code textures/gui/sprites/}: everything there is stitched
+     * into the GUI atlas, which made this strip live as both an animated atlas sprite
+     * and a texture this class blits frame by frame. Which won depended on load order,
+     * so a GeckoLib install was enough to break it.
      */
     private static final ResourceLocation BANNER_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(
@@ -91,16 +87,11 @@ public final class BombedCreativeCardRenderer {
     }
 
     /**
-     * Highlight pass: the upper part of the glyphs is redrawn in a lighter colour.
+     * Highlight pass: the upper part of the glyphs redrawn lighter.
      * <p>
-     * The clip goes through {@link GuiGraphics}, not {@link RenderSystem}, because
-     * GuiGraphics batches its draws and only submits them on flush. A raw GL scissor was
-     * applied immediately and lifted again before the batched text was ever submitted, so
-     * the clip landed on whatever happened to flush inside that window — usually nothing,
-     * occasionally another mod's content. GuiGraphics#enableScissor flushes around itself
-     * and keeps a stack, so it clips this text and restores any outer clip afterwards.
-     * It also takes GUI coordinates, which removes the manual gui-scale conversion and
-     * the framebuffer y-flip that came with it.
+     * The clip goes through {@link GuiGraphics}, not {@link RenderSystem}: GuiGraphics
+     * batches draws and only submits on flush, so a raw GL scissor was lifted again
+     * before the text it was meant to clip was ever submitted.
      */
     private static void drawAuraText(GuiGraphics graphics, Component text, int x, int y) {
         Font font = Minecraft.getInstance().font;
