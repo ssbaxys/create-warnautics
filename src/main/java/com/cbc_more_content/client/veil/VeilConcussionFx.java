@@ -21,6 +21,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
  * and per-pixel grain, all driven from the same shock value.
  */
 public final class VeilConcussionFx {
+    /** A plain single blit, for the same reason as {@link VeilBombFx#PIPELINE}. */
     public static final ResourceLocation PIPELINE =
             ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "concussion");
     private static final ResourceLocation SHADER =
@@ -41,7 +42,8 @@ public final class VeilConcussionFx {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
-        boolean wanted = mc.level != null
+        boolean wanted = com.cbc_more_content.config.WarnauticsClientConfig.screenEffects()
+                && mc.level != null
                 && mc.player != null
                 && mc.player.isAlive()
                 && ConcussionClient.shock() > 0.002f;

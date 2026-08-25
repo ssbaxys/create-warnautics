@@ -144,9 +144,9 @@ public final class BombBlastFx {
             case MINIMAL -> 2;
             case ESSENTIAL -> 1;
         };
-        level.sendParticles(hot, pos.x, pos.y + 0.25D, pos.z,
+        emitFar(level, hot, pos.x, pos.y + 0.25D, pos.z,
                 sparks, 0.55D, 0.18D, 0.55D, 0.008D);
-        level.sendParticles(white, pos.x, pos.y + 0.32D, pos.z,
+        emitFar(level, white, pos.x, pos.y + 0.32D, pos.z,
                 Math.max(1, sparks / 3), 0.18D, 0.12D, 0.18D, 0.004D);
 
         float intensity = 0.82f * budget.lod().flashScale();
@@ -174,7 +174,7 @@ public final class BombBlastFx {
         }
 
         if (allowDelayedSmoke(budget)) {
-            schedule(level, 4, () -> level.sendParticles(
+            schedule(level, 4, () -> emitFar(level, 
                     new ShellExplosionCloudParticleData(1.45f, false),
                     pos.x, pos.y + 0.4D, pos.z,
                     1, 0.0D, 0.0D, 0.0D, 0.0D));
@@ -193,11 +193,11 @@ public final class BombBlastFx {
     public static void playBreachingCharge(ServerLevel level, Vec3 pos, float blockPower) {
         DustParticleOptions hot = new DustParticleOptions(new Vector3f(1.0f, 0.80f, 0.22f), 1.2f);
         DustParticleOptions white = new DustParticleOptions(new Vector3f(1.0f, 0.95f, 0.80f), 0.95f);
-        level.sendParticles(hot, pos.x, pos.y + 0.35D, pos.z, 26, 0.85D, 0.45D, 0.85D, 0.02D);
-        level.sendParticles(white, pos.x, pos.y + 0.55D, pos.z, 14, 0.55D, 0.4D, 0.55D, 0.015D);
-        level.sendParticles(ParticleTypes.LARGE_SMOKE,
+        emitFar(level, hot, pos.x, pos.y + 0.35D, pos.z, 26, 0.85D, 0.45D, 0.85D, 0.02D);
+        emitFar(level, white, pos.x, pos.y + 0.55D, pos.z, 14, 0.55D, 0.4D, 0.55D, 0.015D);
+        emitFar(level, ParticleTypes.LARGE_SMOKE,
                 pos.x, pos.y + 0.4D, pos.z, 34, 1.0D, 0.5D, 1.0D, 0.03D);
-        level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
+        emitFar(level, ParticleTypes.CAMPFIRE_COSY_SMOKE,
                 pos.x, pos.y + 0.3D, pos.z, 10, 0.7D, 0.2D, 0.7D, 0.02D);
 
         BombFlashPayload payload = new BombFlashPayload(
@@ -211,18 +211,46 @@ public final class BombBlastFx {
 
         // The billowing part arrives after the fireball peak, so it does not cover it.
         schedule(level, 4, () -> {
-            level.sendParticles(new ShellExplosionCloudParticleData(
+            emitFar(level, new ShellExplosionCloudParticleData(
                             Math.max(2.6f, blockPower * 0.42f), true),
                     pos.x, pos.y + 0.6D, pos.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
             for (int i = 0; i < 14; i++) {
                 double ox = (level.random.nextDouble() - 0.5D) * 2.4D;
                 double oz = (level.random.nextDouble() - 0.5D) * 2.4D;
-                level.sendParticles(
+                emitFar(level, 
                         new ShellExplosionSmokeParticleData(90 + level.random.nextInt(50), 1.05f),
                         pos.x + ox, pos.y + 0.45D + level.random.nextDouble() * 0.7D, pos.z + oz,
                         0, ox * 0.05D, 0.07D, oz * 0.05D, 1.0D);
             }
         });
+    }
+
+    /**
+     * Sends particles so they survive as far as they are drawn.
+     * <p>
+     * {@code ServerLevel#sendParticles} without a player argument hardcodes
+     * {@code longDistance = false}, which drops the packet for anyone past 32 blocks —
+     * which is why a blast that fills the sky up close vanished into nothing a short walk
+     * away. Sending per player with the flag set pushes the limit out to view distance,
+     * where the fog takes over instead.
+     */
+    private static <T extends net.minecraft.core.particles.ParticleOptions> void emitFar(
+            ServerLevel level, T type, double x, double y, double z,
+            int count, double dx, double dy, double dz, double speed) {
+        double reach = viewDistanceBlocks(level);
+        double reachSqr = reach * reach;
+        for (ServerPlayer player : level.players()) {
+            if (player.distanceToSqr(x, y, z) <= reachSqr) {
+                level.sendParticles(player, type, true, x, y, z, count, dx, dy, dz, speed);
+            }
+        }
+    }
+
+    /** How far the server is willing to draw at all, in blocks. */
+    private static double viewDistanceBlocks(ServerLevel level) {
+        var server = level.getServer();
+        int chunks = server == null ? 12 : server.getPlayerList().getViewDistance();
+        return Math.max(64, chunks * 16);
     }
 
     private static void schedule(ServerLevel level, int delayTicks, Runnable task) {
@@ -353,13 +381,13 @@ public final class BombBlastFx {
             case MEDIUM -> 0.9D;
             case LARGE -> 1.4D;
         };
-        level.sendParticles(hot, pos.x, pos.y + 0.35D, pos.z, sparks, spread, spread * 0.4D, spread, 0.01D);
-        level.sendParticles(white, pos.x, pos.y + 0.5D, pos.z, Math.max(1, sparks / 2), spread * 0.4D, spread * 0.3D, spread * 0.4D, 0.008D);
+        emitFar(level, hot, pos.x, pos.y + 0.35D, pos.z, sparks, spread, spread * 0.4D, spread, 0.01D);
+        emitFar(level, white, pos.x, pos.y + 0.5D, pos.z, Math.max(1, sparks / 2), spread * 0.4D, spread * 0.3D, spread * 0.4D, 0.008D);
 
         spawnEmissiveCore(level, pos, size, lod, spread, sparks);
 
         if (size == BombSize.LARGE && lod.fullFx()) {
-            level.sendParticles(ParticleTypes.EXPLOSION, pos.x, pos.y + 0.5D, pos.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+            emitFar(level, ParticleTypes.EXPLOSION, pos.x, pos.y + 0.5D, pos.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
         }
     }
 
@@ -383,10 +411,10 @@ public final class BombBlastFx {
         }
 
         int flames = Math.max(2, sparks / 2);
-        level.sendParticles(ParticleTypes.FLAME,
+        emitFar(level, ParticleTypes.FLAME,
                 pos.x, pos.y + 0.4D, pos.z,
                 flames, spread * 0.55D, spread * 0.3D, spread * 0.55D, 0.035D);
-        level.sendParticles(ParticleTypes.SMALL_FLAME,
+        emitFar(level, ParticleTypes.SMALL_FLAME,
                 pos.x, pos.y + 0.55D, pos.z,
                 flames, spread * 0.75D, spread * 0.35D, spread * 0.75D, 0.05D);
 
@@ -395,12 +423,12 @@ public final class BombBlastFx {
         }
 
         // Heavier charges throw burning debris that arcs out of the crater.
-        level.sendParticles(ParticleTypes.LAVA,
+        emitFar(level, ParticleTypes.LAVA,
                 pos.x, pos.y + 0.3D, pos.z,
                 Math.max(2, flames / 2), spread * 0.4D, 0.1D, spread * 0.4D, 0.0D);
 
         if (size == BombSize.LARGE && lod.fullFx()) {
-            level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME,
+            emitFar(level, ParticleTypes.SOUL_FIRE_FLAME,
                     pos.x, pos.y + 1.1D, pos.z,
                     6, spread * 0.5D, spread * 0.4D, spread * 0.5D, 0.08D);
         }

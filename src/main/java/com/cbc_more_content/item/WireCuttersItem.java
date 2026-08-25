@@ -26,14 +26,22 @@ public class WireCuttersItem extends Item {
         Level level = context.getLevel();
         BlockPos pos = context.getClickedPos();
         BlockState state = level.getBlockState(pos);
-        if (!(state.getBlock() instanceof C4Block)
-                || state.getValue(C4Block.STATE) == C4Block.Fuse.IDLE) {
-            return InteractionResult.PASS;
+        // A live charge comes first. A tripwire can be tied to anything solid, a charge
+        // included, and once anchors stopped being limited to fences this branch was
+        // swallowing every click on a C4 before the panel ever got a look at it.
+        if (state.getBlock() instanceof C4Block
+                && state.getValue(C4Block.STATE) != C4Block.Fuse.IDLE) {
+            if (level.isClientSide) {
+                openScreen(pos);
+            }
+            return InteractionResult.sidedSuccess(level.isClientSide);
         }
-        if (level.isClientSide) {
-            openScreen(pos);
+        if (com.cbc_more_content.entity.TripwireEntity.canAnchor(state)
+                && level instanceof net.minecraft.server.level.ServerLevel server
+                && com.cbc_more_content.entity.TripwireEntity.cutAt(server, pos)) {
+            return InteractionResult.CONSUME;
         }
-        return InteractionResult.sidedSuccess(level.isClientSide);
+        return InteractionResult.PASS;
     }
 
     /** Resolved reflectively so the screen class is never loaded on a dedicated server. */

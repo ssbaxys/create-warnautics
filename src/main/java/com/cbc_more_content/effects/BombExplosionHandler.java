@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.Set;
 
 import javax.annotation.Nullable;
@@ -110,53 +111,7 @@ public final class BombExplosionHandler {
         BlastScorch.scuff(level, pos, Math.max(6.0D, blockPower * 1.6D), 1.0f);
     }
 
-    /**
-     * Entity-only pressure wave for the antipersonnel mine.
-     * <p>
-     * Its CBC {@code ShrapnelExplosion} has zero block radius so it cannot dig a
-     * crater — but vanilla's explosion loop collects entities on that same radius,
-     * ignoring CBC's separate entity radius, so it finds nobody. This restores the
-     * intended pressure damage without touching terrain or the fragment fan.
-     */
-    static void applySmallMinePressureDamage(
-            ServerLevel level,
-            DamageSource damageSource,
-            Vec3 center,
-            float entityPower) {
-        if (level == null || damageSource == null || center == null
-                || !Float.isFinite(entityPower) || entityPower <= 0.0f) {
-            return;
-        }
-
-        double radius = Math.max(entityPower * 2.0D, 5.0D);
-        AABB area = new AABB(center, center).inflate(radius);
-        for (LivingEntity entity : level.getEntitiesOfClass(
-                LivingEntity.class, area, LivingEntity::isAlive)) {
-            if (entity.isSpectator()) {
-                continue;
-            }
-
-            Vec3 body = entity.position().add(0.0D, entity.getBbHeight() * 0.5D, 0.0D);
-            double distance = body.distanceTo(center);
-            if (distance > radius) {
-                continue;
-            }
-
-            BlastCover.Result cover = BlastCover.evaluate(level, center, entity);
-            double falloff = 1.0D - distance / radius;
-            if (entity instanceof ServerPlayer player && player.isAlive()) {
-                ConcussionHandler.offer(player, entityPower, falloff,
-                        cover.transmission(), cover.hasLineOfSight());
-            }
-
-            float damage = (float) (cbcBlastDamage(distance, entityPower) * cover.transmission());
-            if (damage > 0.5f) {
-                entity.hurt(damageSource, damage);
-            }
-        }
-    }
-
-    private static void detonateInternal(
+        private static void detonateInternal(
             ServerLevel level,
             @Nullable Entity source,
             DamageSource damageSource,
@@ -165,6 +120,10 @@ public final class BombExplosionHandler {
             float entityPower,
             BombSize size,
             boolean compactFx) {
+        // Sirens ask this rather than trying to watch for a blast that is already
+        // over by the time they next look around. Placed here, after the hull
+        // remapping, so a post is told where the blast actually landed.
+        com.cbc_more_content.siren.BlastLog.record(level, pos);
         BombBurstBudget.Snapshot budget = BombBurstBudget.begin(level);
         float terrainPower = blockPower * budget.lod().terrainPowerScale();
 
@@ -212,11 +171,21 @@ public final class BombExplosionHandler {
             applyBlastToEntities(level, explosion, damageSource, pos, entityPower, size, budget.lod());
             RagdollBlastCompat.onBombBlast(level, pos, entityPower, size);
 
+            // Read while the crater is still standing: capToBlow and vaporizeBlastCore
+            // are about to break or replace these positions, and the debris has to see
+            // the real block that was there, not what it turned into.
+            if (canDamageTerrain) {
+                BlastDebris.fling(level, pos, explosion.getToBlow());
+            }
+
             if (!canDamageTerrain) {
                 explosion.clearToBlow();
             } else {
                 capToBlow(level, explosion);
                 vaporizeBlastCore(level, explosion, size, budget.lod().vaporizeChance());
+                // Past the crater rim the ground is churned rather than removed, so a
+                // bomb leaves a scar rather than a clean hole in an untouched field.
+                BlastScorch.scuff(level, pos, Math.max(5.0D, blockPower * 1.9D), 0.85f);
             }
 
             explosion.finalizeExplosion(false);
@@ -248,10 +217,28 @@ public final class BombExplosionHandler {
             return;
         }
         Vec3 center = explosion.center();
-        List<BlockPos> kept = new ArrayList<>(toBlow);
+        // Sorting the whole crater to throw most of it away is wasted work when several
+        // bombs go off at once; keep the nearest cap as the list is walked instead.
+        PriorityQueue<BlockPos> nearest = new PriorityQueue<>(
+                cap + 1,
+                Comparator.comparingDouble(p -> -p.distToCenterSqr(center.x, center.y, center.z)));
+        for (BlockPos pos : toBlow) {
+            if (nearest.size() < cap) {
+                nearest.add(pos);
+                continue;
+            }
+            BlockPos farthest = nearest.peek();
+            if (farthest != null
+                    && pos.distToCenterSqr(center.x, center.y, center.z)
+                            < farthest.distToCenterSqr(center.x, center.y, center.z)) {
+                nearest.poll();
+                nearest.add(pos);
+            }
+        }
+        List<BlockPos> kept = new ArrayList<>(nearest);
         kept.sort(Comparator.comparingDouble(p -> p.distToCenterSqr(center.x, center.y, center.z)));
         toBlow.clear();
-        toBlow.addAll(kept.subList(0, cap));
+        toBlow.addAll(kept);
     }
 
     /**
@@ -260,6 +247,11 @@ public final class BombExplosionHandler {
      * {@code CustomExplosion.CustomDamageCalculator#getEntityDamageAmount}, so the
      * world path and the Sable path apply the same numbers.
      */
+    /** A burst already dropping detail does not need 27 rays per victim. */
+    private static int coverSamples(BombBurstBudget.Lod lod) {
+        return lod == BombBurstBudget.Lod.REDUCED ? 2 : 3;
+    }
+
     private static float cbcBlastDamage(double distance, float entityPower) {
         float reach = entityPower * 2.0f;
         if (reach <= 0.0f) {
@@ -352,7 +344,7 @@ public final class BombExplosionHandler {
             // is clear. A dirt berm barely helps; a reinforced wall that survives the
             // blast stops it outright.
             BlastCover.Result cover = raycast
-                    ? BlastCover.evaluate(level, center, entity, destroyed)
+                    ? BlastCover.evaluate(level, center, entity, destroyed, coverSamples(lod))
                     : BlastCover.OPEN;
             double exposure = cover.transmission();
             double falloff = 1.0D - (dist / radius);

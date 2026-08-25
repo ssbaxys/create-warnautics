@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "cbc_more_content:item/tripwire_coil"
+  }
+}

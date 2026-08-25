@@ -15,6 +15,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -45,10 +46,18 @@ public final class ModNetworking {
                         C4WireResultPayload.TYPE,
                         C4WireResultPayload.STREAM_CODEC,
                         ModNetworking::handleWireResult)
+                .playToClient(
+                        OpenRadarSettingsPayload.TYPE,
+                        OpenRadarSettingsPayload.STREAM_CODEC,
+                        ModNetworking::handleOpenRadarSettings)
                 .playToServer(
-                        MissileLockPayload.TYPE,
-                        MissileLockPayload.STREAM_CODEC,
-                        ModNetworking::handleMissileLock)
+                        RadarSettingsPayload.TYPE,
+                        RadarSettingsPayload.STREAM_CODEC,
+                        ModNetworking::handleRadarSettings)
+                .playToServer(
+                        MissileFirePayload.TYPE,
+                        MissileFirePayload.STREAM_CODEC,
+                        ModNetworking::handleMissileFire)
                 .playToServer(
                         MissileTargetPayload.TYPE,
                         MissileTargetPayload.STREAM_CODEC,
@@ -68,7 +77,15 @@ public final class ModNetworking {
                 .playToServer(
                         ConfigureBombPayload.TYPE,
                         ConfigureBombPayload.STREAM_CODEC,
-                        ModNetworking::handleConfigureBomb);
+                        ModNetworking::handleConfigureBomb)
+                .playToServer(
+                        SirenSettingsPayload.TYPE,
+                        SirenSettingsPayload.STREAM_CODEC,
+                        ModNetworking::handleSirenSettings)
+                .playToClient(
+                        SirenWailPayload.TYPE,
+                        SirenWailPayload.STREAM_CODEC,
+                        ModNetworking::handleSirenWail);
     }
 
     private static void handleConcussion(ConcussionPayload payload, IPayloadContext context) {
@@ -148,6 +165,7 @@ public final class ModNetworking {
                 return;
             }
             c4.setFuseSeconds(payload.seconds());
+            c4.setRemote(payload.remote());
             if (payload.arm()) {
                 // arm() plays the charge going live itself.
                 c4.arm();
@@ -260,6 +278,45 @@ public final class ModNetworking {
     }
 
     /** The flight plan is typed on a screen, so it is re-checked here like the rest. */
+    /** A post has started, or is still going; the client holds its voices open. */
+    private static void handleSirenWail(SirenWailPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!FMLEnvironment.dist.isClient()) {
+                return;
+            }
+            try {
+                Class.forName("com.cbc_more_content.client.sound.SirenSoundManager")
+                        .getMethod("wail", BlockPos.class)
+                        .invoke(null, payload.pos());
+            } catch (ReflectiveOperationException e) {
+                CBCMoreContent.LOGGER.debug("Siren voices unavailable: {}", e.toString());
+            }
+        });
+    }
+
+    /** Same validation as everything else the key opens: reach, block identity, key. */
+    private static void handleSirenSettings(SirenSettingsPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)) {
+                return;
+            }
+            Level level = player.level();
+            BlockPos pos = payload.pos();
+            if (!level.isLoaded(pos) || player.distanceToSqr(
+                    pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D) > REACH_SQR) {
+                return;
+            }
+            if (!holdsSettingsKey(player)
+                    || !(level.getBlockEntity(pos)
+                            instanceof com.cbc_more_content.block.SirenBlockEntity siren)) {
+                return;
+            }
+            siren.applySettings(payload.settings());
+            level.playSound(null, pos, SoundEvents.UI_BUTTON_CLICK.value(),
+                    net.minecraft.sounds.SoundSource.BLOCKS, 0.8f, 1.3f);
+        });
+    }
+
     private static void handleMissileTarget(MissileTargetPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player)) {
@@ -276,47 +333,116 @@ public final class ModNetworking {
                             instanceof com.cbc_more_content.block.CruiseMissileBlockEntity guidance)) {
                 return;
             }
-            guidance.setTarget(new BlockPos(
-                    Mth.clamp(payload.x(), -30_000_000, 30_000_000),
-                    Mth.clamp(payload.y(), level.getMinBuildHeight(), level.getMaxBuildHeight()),
-                    Mth.clamp(payload.z(), -30_000_000, 30_000_000)));
+            if (payload.mode() == 1) {
+                guidance.armRemote();
+            } else if (payload.mode() == 2) {
+                // The client hides this mode without Create Radar; the server refuses it
+                // outright, so a hand-built packet cannot park a missile on a picture
+                // that nothing is painting.
+                if (!com.cbc_more_content.compat.RadarCompat.loaded()) {
+                    return;
+                }
+                guidance.armIntercept();
+            } else {
+                guidance.setTarget(new BlockPos(
+                        Mth.clamp(payload.x(), -30_000_000, 30_000_000),
+                        Mth.clamp(payload.y(), level.getMinBuildHeight(), level.getMaxBuildHeight()),
+                        Mth.clamp(payload.z(), -30_000_000, 30_000_000)));
+            }
             level.playSound(null, pos, SoundEvents.UI_BUTTON_CLICK.value(),
                     SoundSource.BLOCKS, 0.6f, 1.4f);
         });
     }
 
     /**
-     * Resolving a paint into a lock. The client only says which block it was looking at;
-     * which sub-level that is belongs to the server, which is also the only side that
-     * knows sub-level runtime ids at all.
+     * The remote pulling the trigger. Everything the client claims is re-checked: that
+     * it really holds a designator paired with this missile, that the missile is set to
+     * remote, and that the hull it named still exists.
      */
-    private static void handleMissileLock(MissileLockPayload payload, IPayloadContext context) {
+    /** Opens the intercept panel with whatever the network is actually set to. */
+    private static void handleOpenRadarSettings(
+            OpenRadarSettingsPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!FMLEnvironment.dist.isClient()) {
+                return;
+            }
+            try {
+                Class.forName("com.cbc_more_content.client.gui.RadarSettingsClient")
+                        .getMethod("handle", OpenRadarSettingsPayload.class)
+                        .invoke(null, payload);
+            } catch (ReflectiveOperationException e) {
+                CBCMoreContent.LOGGER.debug("Radar settings screen unavailable: {}", e.toString());
+            }
+        });
+    }
+
+    /**
+     * Intercept conditions coming back from the panel. Re-checked here like everything
+     * else: the position has to be a Create Radar block the player is stood next to, not
+     * whatever a client cares to name.
+     */
+    private static void handleRadarSettings(RadarSettingsPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)
+                    || !(player.level() instanceof ServerLevel level)) {
+                return;
+            }
+            BlockPos controller = payload.controller();
+            if (!level.isLoaded(controller) || !holdsSettingsKey(player)) {
+                return;
+            }
+            if (player.distanceToSqr(controller.getX() + 0.5D, controller.getY() + 0.5D,
+                    controller.getZ() + 0.5D) > REACH_SQR) {
+                return;
+            }
+            if (!com.cbc_more_content.compat.RadarCompat.isRadarModBlock(
+                    level.getBlockEntity(controller))) {
+                return;
+            }
+            com.cbc_more_content.radar.InterceptSettingsStore.get(level)
+                    .set(controller, payload.settings());
+            level.playSound(null, controller, SoundEvents.UI_BUTTON_CLICK.value(),
+                    SoundSource.BLOCKS, 0.7f, 1.3f);
+        });
+    }
+
+    private static void handleMissileFire(MissileFirePayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!(context.player() instanceof ServerPlayer player)
                     || !(player.level() instanceof ServerLevel level)) {
                 return;
             }
             BlockPos missile = payload.missile();
-            if (!level.isLoaded(missile) || !level.isLoaded(payload.painted())) {
+            if (!level.isLoaded(missile) || !holdsDesignator(player)) {
                 return;
             }
-            if (!holdsDesignator(player)
+            BlockPos bound = com.cbc_more_content.item.TargetDesignatorItem.boundMissile(
+                    player.getMainHandItem());
+            if (bound == null || !bound.equals(missile)) {
+                return;
+            }
+            BlockState state = level.getBlockState(missile);
+            if (!(state.getBlock() instanceof com.cbc_more_content.block.CruiseMissileBlock)
                     || !(level.getBlockEntity(missile)
-                            instanceof com.cbc_more_content.block.CruiseMissileBlockEntity guidance)) {
+                            instanceof com.cbc_more_content.block.CruiseMissileBlockEntity guidance)
+                    || guidance.guidance()
+                            != com.cbc_more_content.block.CruiseMissileBlockEntity.Guidance.REMOTE) {
                 return;
             }
-            // Painting anywhere is allowed, but only a hull can actually be tracked;
-            // otherwise this is just a very slow way of setting coordinates.
-            int subLevel = net.neoforged.fml.ModList.get().isLoaded("sable")
-                    ? com.cbc_more_content.compat.SableDropCompat.subLevelIdAt(level, payload.painted())
-                    : -1;
-            if (subLevel >= 0) {
-                guidance.lockOnto(subLevel, net.minecraft.world.phys.Vec3.atCenterOf(payload.painted()));
-            } else {
-                guidance.setTarget(payload.painted());
+            if (!net.neoforged.fml.ModList.get().isLoaded("sable")) {
+                return;
             }
-            level.playSound(null, missile, SoundEvents.UI_BUTTON_CLICK.value(),
-                    SoundSource.BLOCKS, 0.8f, 1.7f);
+
+            int runtimeId = com.cbc_more_content.compat.SableTrackCompat.runtimeIdOf(
+                    level, payload.subLevel());
+            net.minecraft.world.phys.Vec3 centre =
+                    com.cbc_more_content.compat.SableTrackCompat.centreOf(level, payload.subLevel());
+            if (runtimeId < 0 || centre == null) {
+                return;
+            }
+
+            guidance.lockOnto(runtimeId, centre);
+            com.cbc_more_content.block.CruiseMissileBlock.launch(level, missile, state);
         });
     }
 

@@ -23,16 +23,34 @@ public final class BlastScorch {
     /** Written without neighbour updates: a scuffed field must not cost a tick of them. */
     private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
 
+    /**
+     * Turf and soil, which scar into one of several bare grounds rather than one.
+     * <p>
+     * A single mapping left every blast sitting on a flat, even patch of plain dirt,
+     * which reads as a texture swap. Drawing from a set mixes torn roots, packed grit and
+     * burnt-over ground through the same patch, so the scar looks churned instead.
+     */
+    private static final Block[] SOIL_SCARS = {
+            Blocks.DIRT,
+            Blocks.COARSE_DIRT,
+            Blocks.COARSE_DIRT,
+            Blocks.ROOTED_DIRT,
+            Blocks.PODZOL,
+    };
+
+    /** Blocks answered by {@link #SOIL_SCARS} instead of by a fixed mapping. */
+    private static final java.util.Set<Block> SOIL = java.util.Set.of(
+            Blocks.GRASS_BLOCK,
+            Blocks.PODZOL,
+            Blocks.MYCELIUM,
+            Blocks.FARMLAND,
+            Blocks.DIRT_PATH,
+            Blocks.DIRT,
+            Blocks.ROOTED_DIRT,
+            Blocks.COARSE_DIRT);
+
     /** What each block is knocked down to. Anything absent is left alone. */
     private static final Map<Block, Block> DEGRADE = Map.ofEntries(
-            Map.entry(Blocks.GRASS_BLOCK, Blocks.DIRT),
-            Map.entry(Blocks.PODZOL, Blocks.DIRT),
-            Map.entry(Blocks.MYCELIUM, Blocks.DIRT),
-            Map.entry(Blocks.FARMLAND, Blocks.DIRT),
-            Map.entry(Blocks.DIRT_PATH, Blocks.DIRT),
-            Map.entry(Blocks.DIRT, Blocks.COARSE_DIRT),
-            Map.entry(Blocks.ROOTED_DIRT, Blocks.COARSE_DIRT),
-
             Map.entry(Blocks.STONE, Blocks.COBBLESTONE),
             Map.entry(Blocks.COBBLESTONE, Blocks.GRAVEL),
             Map.entry(Blocks.GRANITE, Blocks.COBBLESTONE),
@@ -115,7 +133,16 @@ public final class BlastScorch {
             return;
         }
 
-        Block degraded = DEGRADE.get(state.getBlock());
+        Block block = state.getBlock();
+        if (SOIL.contains(block)) {
+            Block scarred = SOIL_SCARS[level.random.nextInt(SOIL_SCARS.length)];
+            if (scarred != block) {
+                level.setBlock(pos, scarred.defaultBlockState(), FLAGS);
+            }
+            return;
+        }
+
+        Block degraded = DEGRADE.get(block);
         if (degraded != null) {
             level.setBlock(pos, degraded.defaultBlockState(), FLAGS);
         }

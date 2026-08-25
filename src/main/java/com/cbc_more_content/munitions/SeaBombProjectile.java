@@ -543,7 +543,7 @@ public class SeaBombProjectile extends DropBombProjectile {
         for (int i = 0; i < blades; i++) {
             double a = ang + (Math.PI * 2.0D * i / blades);
             double r = 0.38D;
-            this.level().addParticle(ParticleTypes.BUBBLE,
+            this.level().addParticle(ParticleTypes.BUBBLE, true,
                     tail.x + Math.cos(a) * r,
                     tail.y + Math.sin(a * 2.0D) * 0.06D,
                     tail.z + Math.sin(a) * r,
@@ -554,9 +554,9 @@ public class SeaBombProjectile extends DropBombProjectile {
         if (this.phase() == PHASE_SWIM) {
             Vec3 side = new Vec3(-heading.z, 0.0D, heading.x);
             Vec3 wake = p.subtract(heading.scale(0.9D));
-            this.level().addParticle(ParticleTypes.BUBBLE, wake.x, wake.y, wake.z,
+            this.level().addParticle(ParticleTypes.BUBBLE, true, wake.x, wake.y, wake.z,
                     -heading.x * 0.08D, 0.01D, -heading.z * 0.08D);
-            this.level().addParticle(ParticleTypes.BUBBLE_COLUMN_UP,
+            this.level().addParticle(ParticleTypes.BUBBLE_COLUMN_UP, true,
                     wake.x + (this.random.nextDouble() - 0.5D) * 0.2D,
                     wake.y,
                     wake.z + (this.random.nextDouble() - 0.5D) * 0.2D,
@@ -567,24 +567,24 @@ public class SeaBombProjectile extends DropBombProjectile {
             Vec3 nose = p.add(heading.scale(0.5D));
             for (int s = -1; s <= 1; s += 2) {
                 Vec3 from = nose.add(side.scale(s * 0.26D));
-                this.level().addParticle(ParticleTypes.BUBBLE,
+                this.level().addParticle(ParticleTypes.BUBBLE, true,
                         from.x, from.y, from.z,
                         side.x * s * 0.14D, 0.02D, side.z * s * 0.14D);
             }
 
             if ((this.tickCount & 1) == 0) {
-                this.level().addParticle(ParticleTypes.SPLASH, p.x, p.y + 0.25D, p.z,
+                this.level().addParticle(ParticleTypes.SPLASH, true, p.x, p.y + 0.25D, p.z,
                         (this.random.nextDouble() - 0.5D) * 0.15D, 0.08D, (this.random.nextDouble() - 0.5D) * 0.15D);
             }
             if ((this.tickCount % 3) == 0) {
-                this.level().addParticle(ParticleTypes.BUBBLE_POP,
+                this.level().addParticle(ParticleTypes.BUBBLE_POP, true,
                         tail.x, tail.y, tail.z, 0.0D, 0.02D, 0.0D);
             }
         } else {
-            this.level().addParticle(ParticleTypes.BUBBLE, p.x, p.y, p.z,
+            this.level().addParticle(ParticleTypes.BUBBLE, true, p.x, p.y, p.z,
                     (this.random.nextDouble() - 0.5D) * 0.05D, 0.06D, (this.random.nextDouble() - 0.5D) * 0.05D);
             if ((this.tickCount % 2) == 0) {
-                this.level().addParticle(ParticleTypes.CURRENT_DOWN, p.x, p.y + 0.2D, p.z, 0.0D, -0.05D, 0.0D);
+                this.level().addParticle(ParticleTypes.CURRENT_DOWN, true, p.x, p.y + 0.2D, p.z, 0.0D, -0.05D, 0.0D);
             }
         }
     }

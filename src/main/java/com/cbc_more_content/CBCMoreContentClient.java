@@ -2,9 +2,11 @@ package com.cbc_more_content;
 
 import com.cbc_more_content.client.C4ProjectileRenderer;
 import com.cbc_more_content.client.C4Renderer;
+import com.cbc_more_content.client.CruiseMissileBlockRenderer;
 import com.cbc_more_content.client.WireCutterRenderer;
 import com.cbc_more_content.client.ClientSetup;
 import com.cbc_more_content.client.SeaBombRenderer;
+import com.cbc_more_content.client.TripwireRenderer;
 import com.cbc_more_content.client.particle.MineFragmentParticle;
 import com.cbc_more_content.client.particle.MissileExhaustParticle;
 import com.cbc_more_content.registry.ModBlockEntities;
@@ -37,6 +39,8 @@ public class CBCMoreContentClient {
     private void registerParticles(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(ModParticles.MINE_FRAGMENT.get(), MineFragmentParticle.Provider::new);
         event.registerSpriteSet(ModParticles.MISSILE_EXHAUST.get(), MissileExhaustParticle.Provider::new);
+        event.registerSpriteSet(ModParticles.MISSILE_GAS.get(),
+                com.cbc_more_content.client.particle.MissileGasParticle.Provider::new);
     }
 
     /** The spinning C4 cog is drawn by a renderer, so nothing else pulls it in to bake. */
@@ -69,8 +73,15 @@ public class CBCMoreContentClient {
         event.registerEntityRenderer(ModEntityTypes.MEDIUM_BOMB.get(), BigCannonProjectileRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.LARGE_BOMB.get(), BigCannonProjectileRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.C4.get(), C4ProjectileRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.TRIPWIRE.get(), TripwireRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.BOUNDING_MINE.get(),
+                com.cbc_more_content.client.BoundingMineRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.BLAST_DEBRIS.get(),
+                com.cbc_more_content.client.BlastDebrisRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.CRUISE_MISSILE.get(),
                 com.cbc_more_content.client.CruiseMissileRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.C4.get(), C4Renderer::new);
+        event.registerBlockEntityRenderer(ModBlockEntities.CRUISE_MISSILE.get(),
+                CruiseMissileBlockRenderer::new);
     }
 }

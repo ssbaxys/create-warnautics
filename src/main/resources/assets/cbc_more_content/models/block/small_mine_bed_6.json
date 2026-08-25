@@ -1,0 +1,79 @@
+{
+  "format_version": "1.21.11",
+  "credit": "by creat560",
+  "parent": "minecraft:block/block",
+  "textures": {
+    "1": "cbc_more_content:block/small_mine",
+    "particle": "cbc_more_content:block/small_mine"
+  },
+  "elements": [
+    {
+      "from": [
+        6,
+        -7.0,
+        6
+      ],
+      "to": [
+        10,
+        -6.025,
+        10
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            8,
+            2,
+            12,
+            3
+          ],
+          "texture": "#1"
+        },
+        "east": {
+          "uv": [
+            8,
+            2,
+            12,
+            3
+          ],
+          "texture": "#1"
+        },
+        "south": {
+          "uv": [
+            8,
+            2,
+            12,
+            3
+          ],
+          "texture": "#1"
+        },
+        "west": {
+          "uv": [
+            8,
+            2,
+            12,
+            3
+          ],
+          "texture": "#1"
+        },
+        "up": {
+          "uv": [
+            6,
+            6,
+            2,
+            2
+          ],
+          "texture": "#1"
+        },
+        "down": {
+          "uv": [
+            2,
+            2,
+            6,
+            6
+          ],
+          "texture": "#1"
+        }
+      }
+    }
+  ]
+}

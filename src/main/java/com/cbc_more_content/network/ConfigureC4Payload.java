@@ -9,9 +9,10 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * Server-bound: fuse length chosen on the C4 screen, and whether to start the countdown.
+ * Server-bound: fuse length chosen on the C4 screen, whether to start the countdown, and
+ * whether the charge answers to a detonator instead of its own clock.
  */
-public record ConfigureC4Payload(BlockPos pos, int seconds, boolean arm)
+public record ConfigureC4Payload(BlockPos pos, int seconds, boolean arm, boolean remote)
         implements CustomPacketPayload {
 
     public static final Type<ConfigureC4Payload> TYPE = new Type<>(
@@ -24,10 +25,12 @@ public record ConfigureC4Payload(BlockPos pos, int seconds, boolean arm)
         buf.writeBlockPos(payload.pos);
         buf.writeVarInt(payload.seconds);
         buf.writeBoolean(payload.arm);
+        buf.writeBoolean(payload.remote);
     }
 
     private static ConfigureC4Payload read(RegistryFriendlyByteBuf buf) {
-        return new ConfigureC4Payload(buf.readBlockPos(), buf.readVarInt(), buf.readBoolean());
+        return new ConfigureC4Payload(buf.readBlockPos(), buf.readVarInt(),
+                buf.readBoolean(), buf.readBoolean());
     }
 
     @Override

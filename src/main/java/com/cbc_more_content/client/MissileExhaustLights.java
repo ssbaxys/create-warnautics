@@ -1,7 +1,11 @@
 package com.cbc_more_content.client;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.munitions.CruiseMissileProjectile;
+import com.cbc_more_content.registry.ModParticles;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -16,7 +20,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 /**
- * Hangs a Veil point light on the nozzle of every missile under power nearby.
+ * Hangs a Veil point light on the nozzle of every missile under power nearby, and fires
+ * the one-shot ignition burst the tick a cold-launched missile's motor catches.
  * <p>
  * Driven from a client tick rather than from the projectile, so nothing on the common
  * side ever names a Veil class: on a dedicated server, or with Veil absent, this handler
@@ -27,6 +32,9 @@ public final class MissileExhaustLights {
     private static final double RANGE = 160.0D;
     /** Distance behind the airframe the nozzle sits, matching the plume. */
     private static final double NOZZLE_OFFSET = 1.6D;
+
+    /** Missiles seen still ejecting last tick, so ignition is caught on the falling edge. */
+    private static final Set<Integer> WAS_EJECTING = new HashSet<>();
 
     private static Boolean veil;
 
@@ -45,14 +53,46 @@ public final class MissileExhaustLights {
         ClientLevel level = mc.level;
         LocalPlayer player = mc.player;
         if (level == null || player == null) {
+            WAS_EJECTING.clear();
             return;
         }
 
         AABB area = player.getBoundingBox().inflate(RANGE);
+        Set<Integer> stillEjecting = new HashSet<>();
         for (CruiseMissileProjectile missile
                 : level.getEntitiesOfClass(CruiseMissileProjectile.class, area)) {
+            Vec3 nozzle = nozzleOf(missile);
             com.cbc_more_content.client.veil.VeilMissileFx.follow(
-                    missile, nozzleOf(missile), missile.isPowered());
+                    missile, nozzle, missile.isPowered());
+
+            if (missile.isEjecting()) {
+                stillEjecting.add(missile.getId());
+            } else if (WAS_EJECTING.contains(missile.getId())) {
+                ignite(level, missile, nozzle);
+            }
+        }
+        WAS_EJECTING.clear();
+        WAS_EJECTING.addAll(stillEjecting);
+
+        com.cbc_more_content.client.veil.VeilMissileFx.tickFlashes();
+    }
+
+    /**
+     * The instant the motor catches: a bright Veil light burst plus a spray of the
+     * mod's own hot exhaust particle thrown out radially, in place of a vanilla flash.
+     */
+    private static void ignite(ClientLevel level, CruiseMissileProjectile missile, Vec3 nozzle) {
+        com.cbc_more_content.client.veil.VeilMissileFx.ignite(nozzle);
+        var random = level.random;
+        for (int i = 0; i < 18; i++) {
+            double dx = random.nextDouble() - 0.5D;
+            double dy = random.nextDouble() - 0.5D;
+            double dz = random.nextDouble() - 0.5D;
+            double len = Math.max(1.0E-4D, Math.sqrt(dx * dx + dy * dy + dz * dz));
+            double speed = 0.12D + random.nextDouble() * 0.18D;
+            level.addParticle(ModParticles.MISSILE_EXHAUST.get(), true,
+                    nozzle.x, nozzle.y, nozzle.z,
+                    dx / len * speed, dy / len * speed, dz / len * speed);
         }
     }
 

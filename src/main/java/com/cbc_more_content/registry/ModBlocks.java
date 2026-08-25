@@ -5,6 +5,7 @@ import com.cbc_more_content.block.C4Block;
 import com.cbc_more_content.block.CruiseMissileBlock;
 import com.cbc_more_content.block.DropBombBlock;
 import com.cbc_more_content.block.LandMineBlock;
+import com.cbc_more_content.block.SirenBlock;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.mine.MineType;
 
@@ -34,6 +35,10 @@ public final class ModBlocks {
     public static final DeferredBlock<LandMineBlock> SMALL_MINE = BLOCKS.register("small_mine",
             () -> new LandMineBlock(mineProps(MapColor.TERRACOTTA_GREEN, 0.4f), MineType.SMALL));
 
+    /** Antipersonnel charge that throws itself to waist height before it bursts. */
+    public static final DeferredBlock<LandMineBlock> BOUNDING_MINE = BLOCKS.register("bounding_mine",
+            () -> new LandMineBlock(mineProps(MapColor.TERRACOTTA_BROWN, 0.4f), MineType.BOUNDING));
+
     public static final DeferredBlock<LandMineBlock> LARGE_MINE = BLOCKS.register("large_mine",
             () -> new LandMineBlock(mineProps(MapColor.TERRACOTTA_GRAY, 0.7f), MineType.LARGE));
 
@@ -56,6 +61,16 @@ public final class ModBlocks {
                     .noOcclusion()
                     .pushReaction(PushReaction.DESTROY)
                     .isRedstoneConductor((state, level, pos) -> false)));
+
+
+    /** Air-raid post. Solid enough to survive what it is warning about, mostly. */
+    public static final DeferredBlock<SirenBlock> SIREN = BLOCKS.register("siren",
+            () -> new SirenBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_GRAY)
+                    .strength(3.0f)
+                    .sound(SoundType.METAL)
+                    .noOcclusion()
+                    .requiresCorrectToolForDrops()));
 
     private static BlockBehaviour.Properties bombProps(MapColor color, float strength) {
         return BlockBehaviour.Properties.of()

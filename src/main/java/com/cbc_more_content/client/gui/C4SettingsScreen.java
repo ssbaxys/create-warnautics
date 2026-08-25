@@ -18,8 +18,12 @@ import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * Fuse timer for a placed C4 charge: a continuous 5–45 second slider and a confirm
- * button that arms it. Separate from the bomb dial, which snaps to six fixed presets.
+ * Fuse timer for a placed C4 charge: a continuous 5–45 second slider and a confirm button
+ * that arms it. Separate from the bomb dial, which snaps to six fixed presets.
+ * <p>
+ * Last page of planting, and only reached on a charge set to run its own clock — the
+ * trigger is chosen before this, and a charge waiting on a detonator is already live by
+ * the time this would have opened.
  */
 @OnlyIn(Dist.CLIENT)
 public class C4SettingsScreen extends Screen {
@@ -205,13 +209,15 @@ public class C4SettingsScreen extends Screen {
         }
     }
 
+    /** The trigger was chosen on the page before, so this is where the fuse starts. */
     private void arm() {
         this.armed = true;
-        PacketDistributor.sendToServer(new ConfigureC4Payload(this.pos, this.seconds, true));
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) {
             mc.player.playSound(ModSounds.C4_BUTTON.get(), 0.9f, 0.85f);
         }
+        PacketDistributor.sendToServer(
+                new ConfigureC4Payload(this.pos, this.seconds, true, false));
         this.onClose();
     }
 
@@ -221,7 +227,8 @@ public class C4SettingsScreen extends Screen {
         // Nothing is sent when the slider was never moved, so opening the screen to read
         // the timer and closing it again cannot overwrite the setting.
         if (!this.armed && this.seconds != this.openedWith) {
-            PacketDistributor.sendToServer(new ConfigureC4Payload(this.pos, this.seconds, false));
+            PacketDistributor.sendToServer(
+                    new ConfigureC4Payload(this.pos, this.seconds, false, false));
         }
         super.onClose();
     }

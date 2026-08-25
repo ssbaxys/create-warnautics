@@ -4,8 +4,10 @@ import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.item.BombSettingsKeyItem;
 import com.cbc_more_content.item.C4Item;
 import com.cbc_more_content.item.CruiseMissileItem;
+import com.cbc_more_content.item.DetonatorItem;
 import com.cbc_more_content.item.DropBombItem;
 import com.cbc_more_content.item.TargetDesignatorItem;
+import com.cbc_more_content.item.TripwireCoilItem;
 import com.cbc_more_content.item.WireCuttersItem;
 
 import net.minecraft.world.item.BlockItem;
@@ -44,10 +46,16 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> SMALL_MINE = ITEMS.register("small_mine",
             () -> new BlockItem(ModBlocks.SMALL_MINE.get(), new Item.Properties().stacksTo(64)));
 
+    public static final DeferredItem<BlockItem> BOUNDING_MINE = ITEMS.register("bounding_mine",
+            () -> new BlockItem(ModBlocks.BOUNDING_MINE.get(), new Item.Properties().stacksTo(64)));
+
     public static final DeferredItem<BlockItem> LARGE_MINE = ITEMS.register("large_mine",
             () -> new BlockItem(ModBlocks.LARGE_MINE.get(), new Item.Properties().stacksTo(16)));
 
     /** Three-cell guided airframe; the guidance package lives on its middle cell. */
+    public static final DeferredItem<BlockItem> SIREN = ITEMS.register("siren",
+            () -> new BlockItem(ModBlocks.SIREN.get(), new Item.Properties().stacksTo(16)));
+
     public static final DeferredItem<CruiseMissileItem> CRUISE_MISSILE = ITEMS.register("cruise_missile",
             () -> new CruiseMissileItem(ModBlocks.CRUISE_MISSILE.get(), new Item.Properties().stacksTo(8)));
 
@@ -72,6 +80,15 @@ public final class ModItems {
     public static final DeferredItem<TargetDesignatorItem> TARGET_DESIGNATOR =
             ITEMS.register("target_designator",
                     () -> new TargetDesignatorItem(new Item.Properties().stacksTo(1)));
+
+    /** A coil of tripwire: tie one post, then another within eight blocks. */
+    public static final DeferredItem<TripwireCoilItem> TRIPWIRE_COIL =
+            ITEMS.register("tripwire_coil",
+                    () -> new TripwireCoilItem(new Item.Properties().stacksTo(16)));
+
+    /** Fires a charge that was set to remote, from up to 250 blocks away. */
+    public static final DeferredItem<DetonatorItem> DETONATOR = ITEMS.register("detonator",
+            () -> new DetonatorItem(new Item.Properties().stacksTo(1)));
 
     /** Opens the wire panel on a live charge. */
     public static final DeferredItem<WireCuttersItem> WIRE_CUTTERS = ITEMS.register("wire_cutters",

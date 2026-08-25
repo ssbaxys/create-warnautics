@@ -1,5 +1,6 @@
 package com.cbc_more_content.block;
 
+import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.compat.SableDropCompat;
 import com.cbc_more_content.config.WarnauticsConfig;
@@ -42,9 +43,12 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModList;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import rbasamoyai.createbigcannons.CBCCompatTransformers;
 
 import javax.annotation.Nullable;
@@ -56,6 +60,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Placeable drop bomb. Rising-edge redstone launches; cassette stacks (small only)
  * eject one bomb per tick while powered. Create wrench: rotate / sneak-pickup.
  */
+@EventBusSubscriber(modid = CBCMoreContent.MOD_ID)
 public class DropBombBlock extends Block implements IWrenchable {
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
     /** Tracks whether we already saw power — prevents place-into-live-wire / neighbor-chain false triggers. */
@@ -75,7 +80,10 @@ public class DropBombBlock extends Block implements IWrenchable {
     private static final int[] LEGACY_RELEASE_DELAY_TICKS = {4, 8, 12, 20, 26, 40};
     public static final IntegerProperty RELEASE_DELAY = IntegerProperty.create(
             "release_delay", 0, MAX_RELEASE_DELAY_TICKS);
-    private static final Map<ProjectileHitKey, Integer> PROJECTILE_HITS = new ConcurrentHashMap<>();
+    private static final Map<ProjectileHitKey, ProjectileHitState> PROJECTILE_HITS = new ConcurrentHashMap<>();
+    /** A tally that has not been added to in ten seconds is not part of the same attack. */
+    private static final int PROJECTILE_HIT_EXPIRY_TICKS = 200;
+    private static long lastProjectileHitCleanup = Long.MIN_VALUE;
 
     public static final MapCodec<DropBombBlock> CODEC = RecordCodecBuilder.mapCodec(instance ->
             instance.group(
@@ -275,7 +283,15 @@ public class DropBombBlock extends Block implements IWrenchable {
         if (projectile.isOnFire()) {
             damage++;
         }
-        int hits = PROJECTILE_HITS.merge(key, damage, Integer::sum);
+        final int hitDamage = damage;
+        long tick = serverLevel.getServer().getTickCount();
+        ProjectileHitState hitState = PROJECTILE_HITS.compute(key, (ignored, previous) -> {
+            if (previous == null || tick - previous.lastHitTick > PROJECTILE_HIT_EXPIRY_TICKS) {
+                return new ProjectileHitState(hitDamage, tick);
+            }
+            return new ProjectileHitState(previous.hits + hitDamage, tick);
+        });
+        int hits = hitState.hits;
         int threshold = switch (this.size) {
             case SMALL -> 3;
             case SEA -> 4;
@@ -295,6 +311,24 @@ public class DropBombBlock extends Block implements IWrenchable {
         int maxTicks = projectile.isOnFire() ? 22 : 48;
         BombSympatheticDetonation.schedulePlacedBombCookoff(
                 serverLevel, hit.getBlockPos(), minTicks, maxTicks);
+    }
+
+    /** Sweeps out tallies for bombs nobody is shooting at any more. */
+    @SubscribeEvent
+    public static void onServerTickPost(ServerTickEvent.Post event) {
+        if (PROJECTILE_HITS.isEmpty()) {
+            return;
+        }
+        long tick = event.getServer().getTickCount();
+        if (tick - lastProjectileHitCleanup < 20L) {
+            return;
+        }
+        lastProjectileHitCleanup = tick;
+        for (Map.Entry<ProjectileHitKey, ProjectileHitState> entry : PROJECTILE_HITS.entrySet()) {
+            if (tick - entry.getValue().lastHitTick > PROJECTILE_HIT_EXPIRY_TICKS) {
+                PROJECTILE_HITS.remove(entry.getKey(), entry.getValue());
+            }
+        }
     }
 
     private static void checkHotHazard(ServerLevel level, BlockPos pos) {
@@ -639,5 +673,8 @@ public class DropBombBlock extends Block implements IWrenchable {
     }
 
     private record ProjectileHitKey(ServerLevel level, long pos) {
+    }
+
+    private record ProjectileHitState(int hits, long lastHitTick) {
     }
 }

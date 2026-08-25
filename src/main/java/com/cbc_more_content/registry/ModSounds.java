@@ -35,6 +35,10 @@ public final class ModSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_MISSILE_LAUNCH = register("cruise_missile_launch");
     /** Sustained engine note while the missile is under power. */
     public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_MISSILE_ENGINE = register("cruise_missile_engine");
+    /** Air-raid post, close enough to hear the wail itself. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> SIREN = register("siren");
+    /** The same post from a long way off: the edge rolled off, only the swell left. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> SIREN_DISTANT = register("siren_distant");
     /** The main theme. Played by the jukebox, and quietly by a dropped record. */
     public static final DeferredHolder<SoundEvent, SoundEvent> MUSIC_BREAKER_OF_SKIES =
             register("music.breaker_of_skies");

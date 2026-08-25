@@ -27,9 +27,41 @@ public class CruiseMissileBlockEntity extends BlockEntity {
     private Guidance guidance = Guidance.NONE;
     /** Sub-level this missile was slaved to, when the designator locked one. */
     private int lockedSubLevel = -1;
+    /** Radar set this missile takes its picture from, in intercept mode. */
+    @Nullable
+    private BlockPos controller;
+
+    /** How often an intercept round looks at the picture its set is painting. */
+    private static final int SCAN_INTERVAL = 10;
 
     public CruiseMissileBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.CRUISE_MISSILE.get(), pos, state);
+    }
+
+    /**
+     * An interceptor launches itself.
+     * <p>
+     * Every other mode waits on a signal because a person decides when to fire it. An
+     * intercept round does not: the thing it exists to stop is already inbound by the
+     * time anyone could throw a lever, and the network it is bound to is what knows.
+     * Wiring redstone to it stays possible and simply fires it early.
+     */
+    public static void serverTick(
+            net.minecraft.world.level.Level level, BlockPos pos, BlockState state,
+            CruiseMissileBlockEntity be) {
+        if (be.guidance != Guidance.INTERCEPT || be.controller == null
+                || level.getGameTime() % SCAN_INTERVAL != 0
+                || !(level instanceof net.minecraft.server.level.ServerLevel server)
+                || !com.cbc_more_content.compat.RadarCompat.loaded()) {
+            return;
+        }
+        var settings = com.cbc_more_content.radar.InterceptSettingsStore.get(server)
+                .forController(be.controller);
+        if (com.cbc_more_content.compat.RadarCompat.bestContact(
+                level, be.controller, Vec3.atCenterOf(pos), settings) == null) {
+            return;
+        }
+        CruiseMissileBlock.launch(server, pos, state);
     }
 
     @Nullable
@@ -61,6 +93,42 @@ public class CruiseMissileBlockEntity extends BlockEntity {
         this.sync();
     }
 
+    /**
+     * Hand the missile to a remote. It holds no aim point of its own; the designator
+     * names a hull and fires it in the same act.
+     */
+    public void armRemote() {
+        this.target = null;
+        this.lockedSubLevel = -1;
+        this.guidance = Guidance.REMOTE;
+        this.sync();
+    }
+
+    @Nullable
+    public BlockPos controller() {
+        return this.controller;
+    }
+
+    /** Put the missile on radar guidance; it has no aim point of its own after this. */
+    public void armIntercept() {
+        this.target = null;
+        this.lockedSubLevel = -1;
+        this.guidance = Guidance.INTERCEPT;
+        this.sync();
+    }
+
+    /**
+     * Ties this missile to a radar set.
+     *
+     * @return true if it replaced an earlier one, so the operator is told which it was
+     */
+    public boolean bindController(BlockPos set) {
+        boolean rebound = this.controller != null && !this.controller.equals(set);
+        this.controller = set;
+        this.sync();
+        return rebound;
+    }
+
     public void clearTarget() {
         this.target = null;
         this.lockedSubLevel = -1;
@@ -83,6 +151,9 @@ public class CruiseMissileBlockEntity extends BlockEntity {
                 ? new BlockPos(tag.getInt("TargetX"), tag.getInt("TargetY"), tag.getInt("TargetZ"))
                 : null;
         this.lockedSubLevel = tag.contains("Lock") ? tag.getInt("Lock") : -1;
+        this.controller = tag.contains("RadarX")
+                ? new BlockPos(tag.getInt("RadarX"), tag.getInt("RadarY"), tag.getInt("RadarZ"))
+                : null;
         this.guidance = Guidance.byId(tag.getInt("Guidance"));
     }
 
@@ -95,6 +166,11 @@ public class CruiseMissileBlockEntity extends BlockEntity {
             tag.putInt("TargetZ", this.target.getZ());
         }
         tag.putInt("Lock", this.lockedSubLevel);
+        if (this.controller != null) {
+            tag.putInt("RadarX", this.controller.getX());
+            tag.putInt("RadarY", this.controller.getY());
+            tag.putInt("RadarZ", this.controller.getZ());
+        }
         tag.putInt("Guidance", this.guidance.ordinal());
     }
 
@@ -115,7 +191,11 @@ public class CruiseMissileBlockEntity extends BlockEntity {
         /** Steers toward a fixed point. */
         COORDINATES,
         /** Steers toward a sub-level, following it as it moves. */
-        LOCK;
+        LOCK,
+        /** Waiting on a designator: no aim point until the remote fires it. */
+        REMOTE,
+        /** Chases whatever the bound radar set is currently painting. */
+        INTERCEPT;
 
         public static Guidance byId(int id) {
             Guidance[] values = values();

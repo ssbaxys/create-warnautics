@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "R": {
+      "item": "minecraft:redstone_torch"
+    },
+    "L": {
+      "item": "minecraft:lever"
+    },
+    "I": {
+      "item": "minecraft:copper_ingot"
+    },
+    "P": {
+      "tag": "c:plates/iron"
+    }
+  },
+  "pattern": [
+    " R ",
+    "PLP",
+    "PIP"
+  ],
+  "result": {
+    "count": 1,
+    "id": "cbc_more_content:detonator"
+  }
+}

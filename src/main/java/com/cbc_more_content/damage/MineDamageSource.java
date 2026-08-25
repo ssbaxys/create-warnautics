@@ -33,6 +33,15 @@ public class MineDamageSource extends DamageSource {
             "death.attack.cbc_more_content.land_mine.large.6"
     };
 
+    private static final String[] BOUNDING_KEYS = {
+            "death.attack.cbc_more_content.land_mine.bounding.1",
+            "death.attack.cbc_more_content.land_mine.bounding.2",
+            "death.attack.cbc_more_content.land_mine.bounding.3",
+            "death.attack.cbc_more_content.land_mine.bounding.4",
+            "death.attack.cbc_more_content.land_mine.bounding.5",
+            "death.attack.cbc_more_content.land_mine.bounding.6"
+    };
+
     private final MineType type;
 
     public MineDamageSource(Holder<DamageType> damageType, MineType type) {
@@ -49,7 +58,11 @@ public class MineDamageSource extends DamageSource {
 
     @Override
     public Component getLocalizedDeathMessage(LivingEntity entity) {
-        String[] keys = this.type == MineType.SMALL ? SMALL_KEYS : LARGE_KEYS;
+        String[] keys = switch (this.type) {
+            case SMALL -> SMALL_KEYS;
+            case BOUNDING -> BOUNDING_KEYS;
+            case LARGE -> LARGE_KEYS;
+        };
         String key = keys[entity.getRandom().nextInt(keys.length)];
         return Component.translatable(key, entity.getDisplayName());
     }

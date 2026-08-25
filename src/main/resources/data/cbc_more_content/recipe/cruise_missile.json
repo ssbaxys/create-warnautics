@@ -4,7 +4,7 @@
   "category": "misc",
   "key": {
     "C": {
-      "tag": "c:ingots/cast_iron"
+      "item": "createbigcannons:powder_charge"
     },
     "E": {
       "item": "create:electron_tube"
@@ -15,12 +15,6 @@
     "G": {
       "item": "create:precision_mechanism"
     },
-    "I": {
-      "item": "createbigcannons:impact_fuze"
-    },
-    "M": {
-      "item": "createbigcannons:powder_charge"
-    },
     "P": {
       "item": "create:sturdy_sheet"
     },
@@ -29,12 +23,17 @@
     },
     "X": {
       "tag": "createbigcannons:high_explosive_materials"
+    },
+    "Z": {
+      "item": "createbigcannons:impact_fuze"
     }
   },
   "pattern": [
-    " CF   FC ",
-    "GEPXXXIMR",
-    " CF   FC "
+    "  FFFFF  ",
+    " PXXXXXP ",
+    "RECXCXCGZ",
+    " PXXXXXP ",
+    "  FFFFF  "
   ],
   "result": {
     "count": 1,

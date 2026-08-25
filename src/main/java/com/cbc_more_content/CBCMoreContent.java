@@ -25,6 +25,8 @@ public class CBCMoreContent {
 
     public CBCMoreContent(IEventBus modEventBus, net.neoforged.fml.ModContainer modContainer) {
         modContainer.registerConfig(net.neoforged.fml.config.ModConfig.Type.SERVER, WarnauticsConfig.SPEC);
+        modContainer.registerConfig(net.neoforged.fml.config.ModConfig.Type.CLIENT,
+                com.cbc_more_content.config.WarnauticsClientConfig.SPEC);
 
         ModBlocks.BLOCKS.register(modEventBus);
         ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);

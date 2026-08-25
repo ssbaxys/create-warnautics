@@ -38,6 +38,8 @@ public class C4Projectile extends ThrowableItemProjectile {
     private int remaining;
     private int code = -1;
     private boolean armed;
+    /** Waiting on a detonator rather than on a clock; no fuse runs while this is set. */
+    private boolean remote;
     /** Quarter turns about the face it lands on, taken from the thrower's heading. */
     private int rotation;
     private int sinceLastBeep;
@@ -65,6 +67,7 @@ public class C4Projectile extends ThrowableItemProjectile {
             charge.remaining = be.remaining();
             charge.code = be.code();
             charge.armed = be.isArmed();
+            charge.remote = be.isRemote();
         }
         charge.rotation = state.getValue(C4Block.ROTATION);
         charge.setItem(new ItemStack(ModItems.C4.get()));
@@ -102,6 +105,11 @@ public class C4Projectile extends ThrowableItemProjectile {
     public void tick() {
         super.tick();
         if (this.level().isClientSide || !this.armed || this.isRemoved()) {
+            return;
+        }
+        // Falling does not press anybody's plunger. A remote charge knocked loose is
+        // still a remote charge, and its negative fuse must not be counted down.
+        if (this.remote) {
             return;
         }
         // A fuse does not pause because the charge is in mid-air, and neither does the
@@ -162,7 +170,7 @@ public class C4Projectile extends ThrowableItemProjectile {
 
         this.level().setBlock(target, charge, 3);
         if (this.level().getBlockEntity(target) instanceof C4BlockEntity be) {
-            be.restore(this.fuseSeconds, this.remaining, this.code, this.armed);
+            be.restore(this.fuseSeconds, this.remaining, this.code, this.armed, this.remote);
         }
         this.level().playSound(null, target, ModSounds.C4_PLACE.get(), SoundSource.BLOCKS, 1.0f, 1.0f);
     }
@@ -178,6 +186,7 @@ public class C4Projectile extends ThrowableItemProjectile {
         tag.putInt("Remaining", this.remaining);
         tag.putInt("Code", this.code);
         tag.putBoolean("Armed", this.armed);
+        tag.putBoolean("Remote", this.remote);
         tag.putInt("Rotation", this.rotation);
         tag.putInt("SinceLastBeep", this.sinceLastBeep);
     }
@@ -190,6 +199,7 @@ public class C4Projectile extends ThrowableItemProjectile {
         this.remaining = tag.getInt("Remaining");
         this.code = tag.contains("Code") ? tag.getInt("Code") : -1;
         this.armed = tag.getBoolean("Armed");
+        this.remote = tag.getBoolean("Remote");
         this.rotation = tag.getInt("Rotation");
         this.sinceLastBeep = tag.getInt("SinceLastBeep");
     }

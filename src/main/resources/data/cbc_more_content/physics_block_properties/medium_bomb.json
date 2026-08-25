@@ -2,6 +2,6 @@
   "selector": "cbc_more_content:medium_bomb",
   "priority": 2000,
   "properties": {
-    "sable:mass": 3.0
+    "sable:mass": 1.5
   }
 }

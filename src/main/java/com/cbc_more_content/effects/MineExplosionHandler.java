@@ -14,6 +14,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.NeoForge;
 import rbasamoyai.createbigcannons.CreateBigCannons;
@@ -41,6 +43,22 @@ public final class MineExplosionHandler {
     private static final double SCUFF_RADIUS = 4.0D;
     private static final float SCUFF_STRENGTH = 0.9f;
 
+    /**
+     * Most the pressure takes off somebody standing directly on the charge, before armour
+     * and before a fragment or two finds them on top of it.
+     * <p>
+     * Deliberately its own number rather than the shell curve the bombs share. That curve
+     * is {@code 7 x radius + 1}, and an antipersonnel charge has to reach a few blocks to
+     * be worth laying at all — which came out at eighty-odd damage at the seat, four times
+     * over what it takes to kill anyone. A mine is meant to take a man out of the fight,
+     * not to be unsurvivable at any range inside its own burst.
+     */
+    private static final float PEAK_DAMAGE = 13.0f;
+    /** Above one, so the drop is steep near the seat and long in the tail. */
+    private static final double FALLOFF = 1.6D;
+    /** Not worth rolling armour and a hurt tick for. */
+    private static final float MIN_DAMAGE = 1.0f;
+
     /** Marks a burst as ours so {@code ShrapnelBurstMixin} only gates mine fragments. */
     public static final String MINE_BURST_TAG = "warnautics_mine_burst";
 
@@ -67,8 +85,7 @@ public final class MineExplosionHandler {
 
         // CBC uses the zero block radius above for its entity lookup too, so the
         // pressure explosion itself cannot find the player standing on the mine.
-        BombExplosionHandler.applySmallMinePressureDamage(
-                level, damageSource, pos, entityPower);
+        applyPressure(level, damageSource, pos, entityPower);
 
         spawnFragmentFan(level, pos);
         // An antipersonnel charge digs nothing, but it does strip the ground it sat on.
@@ -78,6 +95,46 @@ public final class MineExplosionHandler {
                 SoundEvents.CHAIN_BREAK, SoundSource.BLOCKS, 2.2f, 1.42f);
         level.playSound(null, pos.x, pos.y + 0.15D, pos.z,
                 SoundEvents.IRON_GOLEM_DAMAGE, SoundSource.BLOCKS, 1.15f, 1.72f);
+    }
+
+    /**
+     * The pressure wave, on its own curve.
+     * <p>
+     * Where you are standing decides most of it: distance sets the shape, and whatever is
+     * between you and the charge cuts it again, so a wall or a corner is worth taking.
+     */
+    private static void applyPressure(
+            ServerLevel level, DamageSource damageSource, Vec3 center, float entityPower) {
+        if (level == null || damageSource == null || center == null
+                || !Float.isFinite(entityPower) || entityPower <= 0.0f) {
+            return;
+        }
+        double radius = entityPower;
+        AABB area = new AABB(center, center).inflate(radius);
+        for (LivingEntity entity : level.getEntitiesOfClass(
+                LivingEntity.class, area, LivingEntity::isAlive)) {
+            if (entity.isSpectator()) {
+                continue;
+            }
+            Vec3 body = entity.position().add(0.0D, entity.getBbHeight() * 0.5D, 0.0D);
+            double distance = body.distanceTo(center);
+            if (distance > radius) {
+                continue;
+            }
+
+            BlastCover.Result cover = BlastCover.evaluate(level, center, entity);
+            double falloff = 1.0D - distance / radius;
+            if (entity instanceof ServerPlayer player && player.isAlive()) {
+                ConcussionHandler.offer(player, entityPower, falloff,
+                        cover.transmission(), cover.hasLineOfSight());
+            }
+
+            float damage = (float) (PEAK_DAMAGE * Math.pow(falloff, FALLOFF)
+                    * cover.transmission());
+            if (damage >= MIN_DAMAGE) {
+                entity.hurt(damageSource, damage);
+            }
+        }
     }
 
     /**

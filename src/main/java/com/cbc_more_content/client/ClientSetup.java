@@ -22,6 +22,14 @@ public final class ClientSetup {
             ItemProperties.register(ModItems.SMALL_BOMB.get(), cassette,
                     (stack, level, entity, seed) -> DropBombItem.getCassette(stack) / 4.0f);
 
+            // A paired set shows its lamp lit, so it can be told from a loose one at a
+            // glance rather than only from the tooltip.
+            ResourceLocation bound = ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "bound");
+            ItemProperties.register(ModItems.DETONATOR.get(), bound,
+                    (stack, level, entity, seed) ->
+                            com.cbc_more_content.item.DetonatorItem.boundCharges(stack).isEmpty()
+                                    ? 0.0f : 1.0f);
+
             // Veil is registered whenever it is present, exactly as before. The
             // GuiGraphics overlay in BombFlashOverlay runs on every client on top of
             // it, so the flash exists with Veil, without Veil, and under Sodium/Iris.

@@ -2,17 +2,17 @@
   "selector": "cbc_more_content:small_bomb",
   "priority": 2000,
   "properties": {
-    "sable:mass": 1.25
+    "sable:mass": 0.625
   },
   "overrides": {
     "cassette=2": {
-      "sable:mass": 2.5
+      "sable:mass": 1.25
     },
     "cassette=3": {
-      "sable:mass": 3.75
+      "sable:mass": 1.875
     },
     "cassette=4": {
-      "sable:mass": 5.0
+      "sable:mass": 2.5
     }
   }
 }

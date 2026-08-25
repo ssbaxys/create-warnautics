@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": {
+      "tag": "createbigcannons:gunpowder"
+    },
+    "I": {
+      "tag": "c:plates/iron"
+    },
+    "L": {
+      "item": "createbigcannons:shot_balls"
+    },
+    "T": {
+      "item": "minecraft:tripwire_hook"
+    }
+  },
+  "pattern": [
+    " T ",
+    "ILI",
+    "IGI"
+  ],
+  "result": {
+    "count": 1,
+    "id": "cbc_more_content:bounding_mine"
+  }
+}

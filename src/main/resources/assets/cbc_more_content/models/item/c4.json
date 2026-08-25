@@ -1,12 +1,13 @@
 {
+  "format_version": "1.21.11",
   "render_type": "minecraft:cutout",
   "texture_size": [
     32,
     32
   ],
   "textures": {
-    "2": "cbc_more_content:block/c_bomb",
-    "particle": "cbc_more_content:block/c_bomb"
+    "2": "cbc_more_content:block/c4",
+    "particle": "cbc_more_content:block/c4"
   },
   "elements": [
     {
@@ -1282,9 +1283,9 @@
         0
       ],
       "scale": [
-        0.65,
-        0.65,
-        0.65
+        0.25,
+        0.25,
+        0.25
       ]
     },
     "gui": {

@@ -34,11 +34,10 @@
       "y": 270
     },
     "facing=up,part=body": {
-      "model": "cbc_more_content:block/cruise_missile_up"
+      "model": "cbc_more_content:block/cruise_missile_empty"
     },
     "facing=down,part=body": {
-      "model": "cbc_more_content:block/cruise_missile_up",
-      "x": 180
+      "model": "cbc_more_content:block/cruise_missile_empty"
     },
     "facing=west,part=tail": {
       "model": "cbc_more_content:block/cruise_missile_empty"

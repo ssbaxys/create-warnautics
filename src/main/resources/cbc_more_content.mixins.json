@@ -6,6 +6,7 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "ShrapnelBurstMixin",
+    "TripwireSignalMixin",
     "compat.sable.DropBombBlockMixin",
     "compat.sable.LandMineBlockMixin",
     "compat.offroad.WheelMountBlockEntityMixin"

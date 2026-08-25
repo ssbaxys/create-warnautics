@@ -32,6 +32,15 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
  * Veil point lights + long-range screen flash/bloom for bomb detonations.
  */
 public final class VeilBombFx {
+    /**
+     * Deliberately a single plain blit, and left that way.
+     * <p>
+     * Three attempts to reshape this pipeline while chasing the missing first-person hand
+     * all made things worse: mask and depth-function stages stopped the flash rendering
+     * outright, and copying the frame aside first left the hand worse than before. Until
+     * the fault is actually isolated — turn the halves off one at a time with
+     * {@link com.cbc_more_content.config.WarnauticsClientConfig} — this stays as it is.
+     */
     public static final ResourceLocation PIPELINE =
             ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "bomb_flash");
     private static final ResourceLocation SEED_SHADER =
@@ -63,6 +72,10 @@ public final class VeilBombFx {
 
     public static void onFlash(BombFlashClient.Flash flash) {
         try {
+            if (!com.cbc_more_content.config.WarnauticsClientConfig.bombLights()
+                    && !com.cbc_more_content.config.WarnauticsClientConfig.screenEffects()) {
+                return;
+            }
             if (LIGHTS.size() >= MAX_ACTIVE_LIGHTS) {
                 evictWeakestLight();
             }
@@ -89,9 +102,11 @@ public final class VeilBombFx {
 
             LIGHTS.add(new ActiveLight(flash, light, skyLight));
 
-            PostProcessingManager post = VeilRenderSystem.renderer().getPostProcessingManager();
-            if (!post.isActive(PIPELINE)) {
-                post.add(50, PIPELINE);
+            if (com.cbc_more_content.config.WarnauticsClientConfig.screenEffects()) {
+                PostProcessingManager post = VeilRenderSystem.renderer().getPostProcessingManager();
+                if (!post.isActive(PIPELINE)) {
+                    post.add(50, PIPELINE);
+                }
             }
         } catch (Throwable t) {
             CBCMoreContent.LOGGER.debug("Veil bomb light/post failed: {}", t.toString());
@@ -168,7 +183,8 @@ public final class VeilBombFx {
             // Brightness zero is insufficient: Veil still submits the light cube.
             // Remove the handle whenever the camera intersects (or nearly touches)
             // that cube, then recreate it only after the camera is safely outside.
-            if (cameraIntersectsLightVolume(camPos, lightX, lightY, lightZ, renderedRadius)) {
+            if (!com.cbc_more_content.config.WarnauticsClientConfig.bombLights()
+                    || cameraIntersectsLightVolume(camPos, lightX, lightY, lightZ, renderedRadius)) {
                 freeMainHandle(active);
             } else {
                 ensureMainHandle(active);
@@ -176,8 +192,9 @@ public final class VeilBombFx {
             if (active.handle != null) {
                 active.handle.markDirty();
             }
-            if (cameraIntersectsLightVolume(
-                    camPos, active.flash.pos.x, skyY, active.flash.pos.z, skyRadius)) {
+            if (!com.cbc_more_content.config.WarnauticsClientConfig.bombLights()
+                    || cameraIntersectsLightVolume(
+                            camPos, active.flash.pos.x, skyY, active.flash.pos.z, skyRadius)) {
                 freeSkyHandle(active);
             } else {
                 ensureSkyHandle(active);
@@ -331,7 +348,9 @@ public final class VeilBombFx {
                 uLook = 0.0f;
                 uProximity = 0.0f;
                 uSkyGlow = 0.0f;
-            } else if (!post.isActive(PIPELINE) && (targetIntensity > 0.01f || !LIGHTS.isEmpty())) {
+            } else if (com.cbc_more_content.config.WarnauticsClientConfig.screenEffects()
+                    && !post.isActive(PIPELINE)
+                    && (targetIntensity > 0.01f || !LIGHTS.isEmpty())) {
                 post.add(50, PIPELINE);
             }
         } catch (Throwable t) {

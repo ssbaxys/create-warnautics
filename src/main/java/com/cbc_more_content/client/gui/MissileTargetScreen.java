@@ -24,32 +24,53 @@ import org.lwjgl.glfw.GLFW;
 @OnlyIn(Dist.CLIENT)
 public class MissileTargetScreen extends Screen {
     private static final int PANEL_W = 176;
-    private static final int PANEL_H = 95;
+    private static final int PANEL_H = 112;
+
+    private static final int MODE_W = 50;
+    private static final int MODE_H = 16;
+    private static final int MODE_Y = 20;
 
     private static final int FIELD_W = 46;
     private static final int FIELD_H = 20;
     private static final int FIELD_GAP = 6;
-    private static final int FIELDS_Y = 30;
+    private static final int FIELDS_Y = 50;
 
     private static final int BUTTON_W = 72;
     private static final int BUTTON_H = 18;
     private static final int BUTTON_X = 52;
-    private static final int BUTTON_Y = 58;
+    private static final int BUTTON_Y = 78;
 
     private static final String[] LABELS = {"X", "Y", "Z"};
+
+    /**
+     * Intercept only exists when Create Radar does. Without it the button led to a mode
+     * with nothing behind it: the missile armed, waited on a picture nobody was painting,
+     * and sat on the rack.
+     */
+    private static final boolean INTERCEPT_AVAILABLE =
+            com.cbc_more_content.compat.RadarCompat.loaded();
+    private static final int MODES = INTERCEPT_AVAILABLE ? 3 : 2;
 
     private final BlockPos pos;
     private final String[] fields = {"", "", ""};
     private int active;
     private float time;
     private boolean sent;
+    /** 0 typed coordinates, 1 handed to a designator, 2 handed to a radar set. */
+    private int mode;
 
     private int guiLeft;
     private int guiTop;
 
-    public MissileTargetScreen(BlockPos pos, BlockPos current) {
+    /**
+     * @param current the aim point already set, or null when there is none
+     * @param mode    the guidance already chosen, so reopening the screen shows what the
+     *                missile is actually set to rather than resetting it to coordinates
+     */
+    public MissileTargetScreen(BlockPos pos, BlockPos current, int mode) {
         super(Component.translatable("gui.cbc_more_content.missile.target"));
         this.pos = pos;
+        this.mode = Mth.clamp(mode, 0, MODES - 1);
         if (current != null) {
             this.fields[0] = Integer.toString(current.getX());
             this.fields[1] = Integer.toString(current.getY());
@@ -89,16 +110,54 @@ public class MissileTargetScreen extends Screen {
                 this.guiLeft + PANEL_W / 2, this.guiTop + 6, 0xE8E2CF);
 
         float now = this.time + partialTick;
-        for (int i = 0; i < 3; i++) {
-            this.renderField(graphics, i, mouseX, mouseY, now);
+        this.renderMode(graphics, mouseX, mouseY);
+        if (this.mode != 0) {
+            graphics.drawCenteredString(this.font,
+                    Component.translatable(this.mode == 1
+                            ? "gui.cbc_more_content.missile.remote.armed"
+                            : "gui.cbc_more_content.missile.intercept.armed"),
+                    this.guiLeft + PANEL_W / 2, this.guiTop + FIELDS_Y + 6, 0xFFB036);
+        } else {
+            for (int i = 0; i < 3; i++) {
+                this.renderField(graphics, i, mouseX, mouseY, now);
+            }
         }
         this.renderConfirm(graphics, mouseX, mouseY);
 
         graphics.drawCenteredString(this.font,
-                Component.translatable("gui.cbc_more_content.missile.target.hint"),
+                Component.translatable(switch (this.mode) {
+                    case 1 -> "gui.cbc_more_content.missile.remote.hint";
+                    case 2 -> "gui.cbc_more_content.missile.intercept.hint";
+                    default -> "gui.cbc_more_content.missile.target.hint";
+                }),
                 this.guiLeft + PANEL_W / 2, this.guiTop + PANEL_H - 16, 0x9AA08C);
 
         super.render(graphics, mouseX, mouseY, partialTick);
+    }
+
+    /** Two exclusive modes, because a missile cannot both hold a point and wait on a remote. */
+    private void renderMode(GuiGraphics graphics, int mouseX, int mouseY) {
+        for (int i = 0; i < MODES; i++) {
+            boolean chosen = i == this.mode;
+            int x = this.modeX(i);
+            int y = this.guiTop + MODE_Y;
+            boolean hot = mouseX >= x && mouseX < x + MODE_W && mouseY >= y && mouseY < y + MODE_H;
+            graphics.fill(x, y, x + MODE_W, y + MODE_H, 0xFF12140F);
+            graphics.fill(x + 1, y + 1, x + MODE_W - 1, y + MODE_H - 1,
+                    chosen ? 0xFF4A5042 : (hot ? 0xFF31362B : 0xFF23271E));
+            graphics.drawCenteredString(this.font,
+                    Component.translatable(switch (i) {
+                        case 1 -> "gui.cbc_more_content.missile.mode.remote";
+                        case 2 -> "gui.cbc_more_content.missile.mode.intercept";
+                        default -> "gui.cbc_more_content.missile.mode.coords";
+                    }),
+                    x + MODE_W / 2, y + 4, chosen ? 0xFFB036 : 0x9AA08C);
+        }
+    }
+
+    private int modeX(int index) {
+        int total = MODES * MODE_W + (MODES - 1) * 4;
+        return this.guiLeft + (PANEL_W - total) / 2 + index * (MODE_W + 4);
     }
 
     private void renderField(GuiGraphics graphics, int index, int mouseX, int mouseY, float now) {
@@ -141,6 +200,9 @@ public class MissileTargetScreen extends Screen {
     }
 
     private boolean complete() {
+        if (this.mode != 0) {
+            return true;
+        }
         for (String field : this.fields) {
             if (field.isEmpty() || field.equals("-")) {
                 return false;
@@ -157,6 +219,22 @@ public class MissileTargetScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        for (int i = 0; i < MODES; i++) {
+            int mx = this.modeX(i);
+            int my = this.guiTop + MODE_Y;
+            if (mouseX >= mx && mouseX < mx + MODE_W && mouseY >= my && mouseY < my + MODE_H) {
+                this.mode = i;
+                this.click(1.35f);
+                return true;
+            }
+        }
+        if (this.mode != 0) {
+            if (this.overConfirm(mouseX, mouseY)) {
+                this.confirm();
+                return true;
+            }
+            return super.mouseClicked(mouseX, mouseY, button);
+        }
         for (int i = 0; i < 3; i++) {
             int x = this.fieldX(i);
             int y = this.guiTop + FIELDS_Y;
@@ -175,6 +253,9 @@ public class MissileTargetScreen extends Screen {
 
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
+        if (this.mode != 0) {
+            return super.charTyped(codePoint, modifiers);
+        }
         if (codePoint >= '0' && codePoint <= '9') {
             this.append(String.valueOf(codePoint));
             return true;
@@ -228,7 +309,8 @@ public class MissileTargetScreen extends Screen {
         }
         this.sent = true;
         PacketDistributor.sendToServer(new MissileTargetPayload(this.pos,
-                parse(this.fields[0]), parse(this.fields[1]), parse(this.fields[2])));
+                parse(this.fields[0]), parse(this.fields[1]), parse(this.fields[2]),
+                this.mode));
         this.click(1.25f);
         this.onClose();
     }

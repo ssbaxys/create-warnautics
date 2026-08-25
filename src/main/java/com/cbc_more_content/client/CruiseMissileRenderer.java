@@ -40,25 +40,17 @@ public class CruiseMissileRenderer extends EntityRenderer<CruiseMissileProjectil
             int packedLight) {
         pose.pushPose();
 
-        // Oriented from the velocity rather than the synced rotation. A missile launched
-        // off a tilted Sable hull gets its heading from the transformed launch vector, so
-        // the rotation fields can still read as level while it is climbing or diving;
-        // the motion vector is the one thing that always matches the real flight path.
-        Vec3 motion = entity.getDeltaMovement();
-        float yRot;
-        float xRot;
-        if (motion.lengthSqr() > 1.0E-6D) {
-            Vec3 dir = motion.normalize();
-            yRot = (float) (Mth.atan2(dir.z, dir.x) * (180.0F / Math.PI)) - 90.0f;
-            xRot = (float) (-Math.asin(Mth.clamp(dir.y, -1.0D, 1.0D)) * (180.0F / Math.PI));
-        } else {
-            yRot = Mth.lerp(partialTick, entity.yRotO, entity.getYRot());
-            xRot = Mth.lerp(partialTick, entity.xRotO, entity.getXRot());
-        }
+        // The synced rotation, not the velocity. Steering happens on the server only, so
+        // the client copy of the delta movement never changes after the spawn packet —
+        // reading it drew every missile frozen at its launch heading and dead level, no
+        // matter where it was actually going.
+        float yRot = Mth.rotLerp(partialTick, entity.yRotO, entity.getYRot());
+        float xRot = Mth.lerp(partialTick, entity.xRotO, entity.getXRot());
 
-        // The model is authored nose-along-negative-X, so it is turned to match the
-        // heading and then shifted so its middle sits on the entity origin.
-        pose.mulPose(Axis.YP.rotationDegrees(-yRot - 90.0f));
+        // The model is authored nose-along-negative-X. Yaw 0 faces south, so the nose
+        // needs a quarter turn on top of the heading; without it the airframe flew
+        // tail-first.
+        pose.mulPose(Axis.YP.rotationDegrees(90.0f - yRot));
         pose.mulPose(Axis.ZP.rotationDegrees(xRot));
         pose.translate(-0.5D, -0.5D, -0.5D);
 

@@ -285,9 +285,9 @@ public class C4CodeScreen extends Screen {
 
     @Override
     public void onClose() {
-        // Planting continues into the timer; disarming or backing out just closes.
+        // Planting continues into the trigger; disarming or backing out just closes.
         if (this.verdict == 1 && !this.disarming && !this.abandoned) {
-            C4SettingsClient.open(this.pos, C4BlockEntity.DEFAULT_SECONDS);
+            C4ModeClient.open(this.pos);
             return;
         }
         super.onClose();

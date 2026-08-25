@@ -1,5 +1,65 @@
 # Changelog
 
+## 1.0.5
+
+Create Warnautics 1.0.5: the C4 breaching charge, wire cutters and a defusal minigame, a guided cruise missile, and mines that leave the ground looking like something happened to it.
+
+NOTE: The small, medium and large bomb recipes are all roughly twice as expensive as in 1.0.3, and the medium and large now want an impact fuze. Existing bombs are unaffected.
+
+### Added
+
+* **C4 charge** — thrown, sticks where it lands, and set with the settings key
+   * A keypad code is chosen when planting; the same code is the only way to stop the fuse
+   * The code is stored and compared on the server alone and never travels to a client
+   * Screen and detonator lamp blink with the countdown, and the timer cog turns while it runs
+   * Breaking a live charge sets it off partway through; mining the block out from under one drops it, still ticking, onto whatever is below
+* **Detonator** — a charge can be set to answer a radio set instead of its own clock
+   * Planting runs code, then trigger, then timer. A charge set to answer a detonator has no fuse to set, so it arms on the trigger page and the timer page never opens
+   * Pairing is physical: touch the armed charge with the set. Firing reaches 250 blocks, and past that the plunger sends nothing
+   * One set holds up to twelve charges, listed with their coordinates on the tooltip, and the plunger fires the whole ring at once
+   * Sneak + right-click a charge to take it off the set; sneak + right-click in the open drops all of them
+   * A charge set to remote wears an aerial. Armed, it shows the lamp alone with a dark screen and a still cog — there is no clock behind it to turn. Paired, the screen lights and the cog turns: there is a set at the other end now
+   * The set shows its own lamp lit while it holds anything, and lets charges go on its own once they are gone
+* **Air-raid siren** — a post that wails on a redstone signal, or on its own
+   * The settings key opens it: sound on its own or not, watched radius, how long it keeps wailing after the threat has passed, and whether it is listening for inbound missiles, falling bombs, or both
+   * A missile merely crossing the sky does not set it off; one turned this way does
+   * Nothing announces the all-clear. The wail simply runs out, so standing under it you find out the same way everyone else does
+   * Two layers, held open as looping voices and crossfaded by distance: close by it is the wail with the swell under it, and by a hundred and twenty blocks only the swell is left. Walking away fades between them across sixty blocks rather than switching
+   * Breaking a post stops it. The wail is not a fired sample that has to finish
+* **Wire cutters** — open the panel on a live charge for three coloured wires
+   * One defuses, one detonates, one halves the remaining time; which is which is rolled per charge and never sent to the client
+   * Cuts persist, so closing the panel does not hand back a fresh board
+   * The cutters hinge shut as the arm swings, in first and third person alike
+* **Cruise missile guidance**
+   * A flight plan typed on the settings key, or a hull painted with the new target designator and tracked as it moves
+   * Steering is rate limited: terrain along the route is cleared, but anything that appears in front of the nose cannot be dodged
+   * The airframe now places vertically as well as horizontally
+* **Target designator** — pair with a missile, then hold attack on a hull within arm's reach to lock it
+* **Breaker of Skies** plays quietly where it lies and whistles as it falls, and turns up in dungeon loot
+* Public `WarnauticsBlockDetonateEvent` and `WarnauticsBlockChipEvent` for add-ons to veto individual blocks
+
+### Changed
+
+* Antipersonnel mine fragments leave in a flat fan at shin height rather than an upward cone, with their own particle
+* Both mines scar the ground around them: stone to cobble, turf to dirt, brick to cracked
+* Blasts near a Sable sub-level go through the normal explosion again, which Sable already extends to hulls, instead of a bounded stand-in that skipped it
+* Bomb recipes roughly doubled in cost across all three sizes
+* The cruise missile now costs more than the large bomb rather than half of it: same explosive filler and powder charges, on top of the guidance, the airframe and the engine. The pattern is 9x5 instead of 9x3, so an existing crafter array needs extending
+* Antipersonnel mines are survivable. They were sharing the shell curve the bombs use, which came out at eighty-odd damage at the seat — four times over what it takes to kill anyone, at any range inside the burst. On their own curve now: standing on one leaves about two hearts before fragments, a couple of blocks away leaves five or six, and cover cuts it again. The antivehicle mine is unchanged
+
+### Fixed
+
+* Fixed blast particles vanishing 32 blocks away — `sendParticles` without a player hardcodes short range, so effects now carry to view distance
+* Fixed a guided missile always flying straight: the airframe was cleared before its flight plan was read, so the plan was always gone by launch
+* Fixed a cruise missile flying straight through a Sable physics hull without going off — a hull's blocks are not where the hull appears to be, so the ordinary sweep along the flight path found nothing there
+* Fixed an intercept round never leaving the rack. It launches itself on the first contact its network paints, because the thing it exists to stop is already inbound by the time anyone could throw a lever; redstone still fires it early
+* The intercept mode is hidden entirely without Create Radar, instead of offering a mode that armed the missile against a picture nobody was painting
+* Fixed the target designator mining the block it was aimed at instead of painting it
+* Fixed concussion being cancelled by the death it was caused by; it now plays over the death screen and clears on respawn
+* Fixed the C4 fuse resetting to 15 seconds when its screen was opened and closed
+* Fixed missing-texture particles when walking on a cruise missile
+* Fixed the C4 and keypad panels drawing over furniture belonging to the timer sheet
+
 ## 1.0.3
 
 Create Warnautics 1.0.3, a compatibility fix for the animated creative-tab banner.

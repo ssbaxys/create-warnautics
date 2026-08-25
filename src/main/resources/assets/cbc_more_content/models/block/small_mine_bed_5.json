@@ -1,0 +1,147 @@
+{
+  "format_version": "1.21.11",
+  "credit": "by creat560",
+  "parent": "minecraft:block/block",
+  "textures": {
+    "1": "cbc_more_content:block/small_mine",
+    "particle": "cbc_more_content:block/small_mine"
+  },
+  "elements": [
+    {
+      "from": [
+        4,
+        -7.0,
+        4
+      ],
+      "to": [
+        12,
+        -6.6875,
+        12
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            8,
+            0,
+            16,
+            2
+          ],
+          "texture": "#1"
+        },
+        "east": {
+          "uv": [
+            8,
+            3,
+            16,
+            5
+          ],
+          "texture": "#1"
+        },
+        "south": {
+          "uv": [
+            8,
+            0,
+            16,
+            2
+          ],
+          "texture": "#1"
+        },
+        "west": {
+          "uv": [
+            8,
+            3,
+            16,
+            5
+          ],
+          "texture": "#1"
+        },
+        "up": {
+          "uv": [
+            8,
+            8,
+            0,
+            0
+          ],
+          "texture": "#1"
+        },
+        "down": {
+          "uv": [
+            0,
+            0,
+            8,
+            8
+          ],
+          "texture": "#1"
+        }
+      }
+    },
+    {
+      "from": [
+        6,
+        -6.6875,
+        6
+      ],
+      "to": [
+        10,
+        -5.6875,
+        10
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            8,
+            2,
+            12,
+            3
+          ],
+          "texture": "#1"
+        },
+        "east": {
+          "uv": [
+            8,
+            2,
+            12,
+            3
+          ],
+          "texture": "#1"
+        },
+        "south": {
+          "uv": [
+            8,
+            2,
+            12,
+            3
+          ],
+          "texture": "#1"
+        },
+        "west": {
+          "uv": [
+            8,
+            2,
+            12,
+            3
+          ],
+          "texture": "#1"
+        },
+        "up": {
+          "uv": [
+            6,
+            6,
+            2,
+            2
+          ],
+          "texture": "#1"
+        },
+        "down": {
+          "uv": [
+            2,
+            2,
+            6,
+            6
+          ],
+          "texture": "#1"
+        }
+      }
+    }
+  ]
+}

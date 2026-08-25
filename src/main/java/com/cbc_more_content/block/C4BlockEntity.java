@@ -7,6 +7,9 @@ import com.cbc_more_content.effects.BombExplosionHandler;
 import com.cbc_more_content.registry.ModBlockEntities;
 import com.cbc_more_content.registry.ModSounds;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -65,6 +68,8 @@ public class C4BlockEntity extends BlockEntity {
     private int detonateWire = -1;
     /** Bitmask of wires already cut. Synced, and persists across closing the panel. */
     private int cutMask;
+    /** Waiting on a detonator instead of counting down. */
+    private boolean remote;
 
     public C4BlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.C4.get(), pos, state);
@@ -88,13 +93,17 @@ public class C4BlockEntity extends BlockEntity {
      * {@link #arm()}: nothing about landing should replay the arming sound or restart
      * the countdown from the top.
      */
-    public void restore(int fuseSeconds, int remaining, int code, boolean armed) {
+    public void restore(int fuseSeconds, int remaining, int code, boolean armed, boolean remote) {
         this.fuseSeconds = Mth.clamp(fuseSeconds, MIN_SECONDS, MAX_SECONDS);
         this.remaining = remaining;
         this.code = code;
         this.sinceLastBeep = START_INTERVAL;
         this.setChanged();
-        if (armed && remaining > 0) {
+        this.setRemote(remote);
+        // A charge parked on a detonator carries a negative fuse rather than a running
+        // one, so it lands still waiting on a set instead of quietly going inert. Not
+        // paired, though: it moved, and whatever set held it is holding the old cell.
+        if (armed && (remote || remaining > 0)) {
             this.setFuseState(Fuse.ARMED);
         }
     }
@@ -124,6 +133,60 @@ public class C4BlockEntity extends BlockEntity {
             this.tamperTicks = Math.max(1, ticks);
             this.setChanged();
         }
+    }
+
+    /** True when this charge answers to a detonator rather than to its own clock. */
+    public boolean isRemote() {
+        return this.remote;
+    }
+
+    public void setRemote(boolean value) {
+        if (this.remote == value) {
+            return;
+        }
+        this.remote = value;
+        this.setChanged();
+        if (this.level == null) {
+            return;
+        }
+        // The aerial is part of the model, so which trigger mode is set has to reach the
+        // block state and not only this block entity.
+        BlockState state = this.level.getBlockState(this.worldPosition);
+        if (state.hasProperty(C4Block.RECEIVER) && state.getValue(C4Block.RECEIVER) != value) {
+            this.level.setBlock(this.worldPosition,
+                    state.setValue(C4Block.RECEIVER, value), Block.UPDATE_CLIENTS);
+        }
+        BlockState updated = this.level.getBlockState(this.worldPosition);
+        this.level.sendBlockUpdated(this.worldPosition, updated, updated, Block.UPDATE_CLIENTS);
+    }
+
+    /** Armed and waiting: the lamp is lit, the fuse is not running. */
+    public boolean isWaitingOnRemote() {
+        return this.remote && this.isArmed() && this.remaining < 0;
+    }
+
+    /**
+     * The detonator pressed, on a whole ring at once. Returns how many answered.
+     * <p>
+     * Every charge is lifted out of the world before any of them goes off. Firing them
+     * one at a time meant the first blast deleted the rest of the ring on its way out, and
+     * the charges still queued behind it were simply gone by the time their turn came.
+     */
+    public static int fireRing(ServerLevel server, List<BlockPos> ring) {
+        List<BlockPos> live = new ArrayList<>(ring.size());
+        for (BlockPos at : ring) {
+            if (server.getBlockEntity(at) instanceof C4BlockEntity charge
+                    && charge.isWaitingOnRemote()) {
+                live.add(at);
+            }
+        }
+        for (BlockPos at : live) {
+            server.setBlock(at, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+        }
+        for (BlockPos at : live) {
+            explode(server, Vec3.atCenterOf(at));
+        }
+        return live.size();
     }
 
     public boolean isArmed() {
@@ -223,6 +286,8 @@ public class C4BlockEntity extends BlockEntity {
     /** Stops the countdown and clears the code, leaving the charge placed and inert. */
     public void disarm() {
         this.remaining = 0;
+        // Through the setter, so a disarmed charge loses its aerial along with its mode.
+        this.setRemote(false);
         this.code = -1;
         this.sinceLastBeep = START_INTERVAL;
         this.cutMask = 0;
@@ -235,11 +300,27 @@ public class C4BlockEntity extends BlockEntity {
         if (this.level == null || this.isArmed()) {
             return;
         }
-        this.remaining = this.fuseSeconds * 20;
+        // A remote charge is armed but silent: negative marks it as parked, waiting
+        // for a detonator rather than for its own clock to run out.
+        this.remaining = this.remote ? -1 : this.fuseSeconds * 20;
         this.sinceLastBeep = START_INTERVAL;
         this.setChanged();
         this.rollWires(this.level.random);
+        // A remote charge comes up on the lamp alone: live, but with a dark screen and a
+        // still cog, because it has nothing to say until a set is paired with it.
         this.setFuseState(Fuse.ARMED);
+    }
+
+    /**
+     * A detonator taking this charge on, or letting it go. Paired is the only state in
+     * which a remote charge lights its screen and turns its cog — it now has a set at the
+     * other end, and that is what the panel is reporting.
+     */
+    public void setPaired(boolean paired) {
+        if (!this.remote || !this.isArmed()) {
+            return;
+        }
+        this.setFuseState(paired ? Fuse.LIT : Fuse.ARMED);
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state, C4BlockEntity be) {
@@ -250,7 +331,11 @@ public class C4BlockEntity extends BlockEntity {
             be.blow(server, pos);
             return;
         }
-        if (be.remaining <= 0) {
+        if (be.remaining < 0) {
+            // Parked on a detonator. Still fires if someone starts pulling it off.
+            return;
+        }
+        if (be.remaining == 0) {
             be.blow(server, pos);
             return;
         }
@@ -276,8 +361,13 @@ public class C4BlockEntity extends BlockEntity {
     }
 
     private void setFuseState(Fuse fuse) {
-        BlockState state = this.getBlockState();
-        if (this.level == null || state.getValue(C4Block.STATE) == fuse) {
+        if (this.level == null) {
+            return;
+        }
+        // Read back rather than trusting the cached copy: setting the trigger mode also
+        // rewrites this block state, and a stale snapshot here would undo the aerial.
+        BlockState state = this.level.getBlockState(this.worldPosition);
+        if (!state.hasProperty(C4Block.STATE) || state.getValue(C4Block.STATE) == fuse) {
             return;
         }
         // Clients only — a blinking lamp must not spam neighbour updates every beep.
@@ -313,6 +403,7 @@ public class C4BlockEntity extends BlockEntity {
         this.defuseWire = tag.contains("DefuseWire") ? tag.getInt("DefuseWire") : -1;
         this.detonateWire = tag.contains("DetonateWire") ? tag.getInt("DetonateWire") : -1;
         this.cutMask = tag.getInt("CutWires");
+        this.remote = tag.getBoolean("Remote");
     }
 
     @Override
@@ -326,6 +417,7 @@ public class C4BlockEntity extends BlockEntity {
         tag.putInt("DefuseWire", this.defuseWire);
         tag.putInt("DetonateWire", this.detonateWire);
         tag.putInt("CutWires", this.cutMask);
+        tag.putBoolean("Remote", this.remote);
     }
 
     /**
@@ -340,6 +432,7 @@ public class C4BlockEntity extends BlockEntity {
         // the same board. The roles never do.
         tag.putIntArray("WireColours", this.wireColours);
         tag.putInt("CutWires", this.cutMask);
+        tag.putBoolean("Remote", this.remote);
         return tag;
     }
 

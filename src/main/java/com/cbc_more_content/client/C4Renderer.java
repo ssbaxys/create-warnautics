@@ -32,16 +32,16 @@ import com.mojang.math.Axis;
 @OnlyIn(Dist.CLIENT)
 public class C4Renderer implements BlockEntityRenderer<C4BlockEntity> {
     /** Cog centre in model space, from the authored geometry. */
-    private static final float PIVOT_X = 10.0f / 16.0f;
-    private static final float PIVOT_Y = 4.09f / 16.0f;
-    private static final float PIVOT_Z = 8.0f / 16.0f;
+    private static final float PIVOT_X = 8.0f / 16.0f;
+    private static final float PIVOT_Y = 4.1f / 16.0f;
+    private static final float PIVOT_Z = 6.0f / 16.0f;
     /** Degrees per tick. Whole revolutions per 90 ticks, so the angle never jumps. */
     private static final float DEGREES_PER_TICK = 4.0f;
     private static final long REVOLUTION_TICKS = 90L;
 
-    public static final ModelResourceLocation COG = standalone("block/c4_cog");
-    public static final ModelResourceLocation COG_ARMED = standalone("block/c4_cog_armed");
-    public static final ModelResourceLocation COG_LIT = standalone("block/c4_cog_lit");
+    public static final ModelResourceLocation COG = standalone("block/c4/cog");
+    public static final ModelResourceLocation COG_ARMED = standalone("block/c4/cog_armed");
+    public static final ModelResourceLocation COG_LIT = standalone("block/c4/cog_lit");
 
     public C4Renderer(BlockEntityRendererProvider.Context context) {
     }
@@ -74,9 +74,14 @@ public class C4Renderer implements BlockEntityRenderer<C4BlockEntity> {
             case LIT -> COG_LIT;
         });
 
+        // A running fuse turns the cog. A remote charge has none, so it only turns once a
+        // set has taken it on — which is the same thing that lights its screen, so the
+        // lit state is the whole tell and nothing extra has to be synced for it.
+        boolean turning = fuse != Fuse.IDLE && (!be.isRemote() || fuse == Fuse.LIT);
+
         pose.pushPose();
         applyFacing(pose, state.getValue(C4Block.FACING), state.getValue(C4Block.ROTATION));
-        if (fuse != Fuse.IDLE) {
+        if (turning) {
             long ticks = be.getLevel().getGameTime() % REVOLUTION_TICKS;
             float spin = (ticks + partialTick) * DEGREES_PER_TICK;
             pose.translate(PIVOT_X, PIVOT_Y, PIVOT_Z);

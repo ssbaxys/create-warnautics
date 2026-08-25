@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 import com.mojang.serialization.MapCodec;
 
 import net.minecraft.core.BlockPos;
+import com.cbc_more_content.block.CruiseMissileBlockEntity.Guidance;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
@@ -77,26 +78,60 @@ public class CruiseMissileBlock extends BaseEntityBlock {
     @Nullable
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        Direction nose = context.getNearestLookingDirection().getOpposite();
-        BlockState state = this.defaultBlockState().setValue(FACING, nose).setValue(PART, Part.BODY);
         Level level = context.getLevel();
         BlockPos pos = context.getClickedPos();
+        Direction nose = noseFor(context);
+
         // All three cells have to be free, or the missile would place half-formed.
-        if (!canOccupy(level, pos.relative(nose)) || !canOccupy(level, pos.relative(nose.getOpposite()))) {
-            return null;
+        for (Direction axis : new Direction[] {nose, nose.getOpposite()}) {
+            // Straddling the clicked cell, for a click into open space.
+            if (canOccupy(level, pos.relative(axis))
+                    && canOccupy(level, pos.relative(axis.getOpposite()))) {
+                return this.defaultBlockState().setValue(FACING, axis).setValue(PART, Part.BODY);
+            }
+            // Standing out of the clicked cell, tail first. Clicking the top of a block
+            // puts the cell behind the body inside that block, so an upright missile could
+            // never be placed at all — which is why it only ever went up while sneaking,
+            // where the airframe was laid flat into open air instead.
+            if (canOccupy(level, pos.relative(axis))
+                    && canOccupy(level, pos.relative(axis, 2))) {
+                return this.defaultBlockState().setValue(FACING, axis).setValue(PART, Part.TAIL);
+            }
         }
-        return state;
+        return null;
+    }
+
+    /**
+     * Which way the nose points.
+     * <p>
+     * Read off the clicked face rather than off where the player happens to be looking:
+     * the old rule took the nearest looking direction and reversed it, which pointed the
+     * nose back at the player on a level click and flipped between upright and flat on a
+     * few degrees of pitch. Clicking the ground stands the missile up, clicking a wall
+     * sends it out of that wall, and sneaking lays it flat along the way the player faces.
+     */
+    private static Direction noseFor(BlockPlaceContext context) {
+        if (context.getPlayer() != null && context.getPlayer().isShiftKeyDown()) {
+            return context.getHorizontalDirection();
+        }
+        return context.getClickedFace();
     }
 
     private static boolean canOccupy(LevelReader level, BlockPos pos) {
-        return level.getBlockState(pos).canBeReplaced();
+        return !level.isOutsideBuildHeight(pos) && level.getBlockState(pos).canBeReplaced();
     }
 
     @Override
     public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
         Direction nose = state.getValue(FACING);
-        level.setBlock(pos.relative(nose), state.setValue(PART, Part.NOSE), Block.UPDATE_ALL);
-        level.setBlock(pos.relative(nose.getOpposite()), state.setValue(PART, Part.TAIL), Block.UPDATE_ALL);
+        BlockPos body = bodyPos(pos, state);
+        // The middle goes down first. Every other cell deletes itself the moment it finds
+        // no body beside it, so writing an end before the middle exists would wipe it out
+        // on the very update that placed it.
+        level.setBlock(body, state.setValue(PART, Part.BODY), Block.UPDATE_ALL);
+        level.setBlock(body.relative(nose), state.setValue(PART, Part.NOSE), Block.UPDATE_ALL);
+        level.setBlock(body.relative(nose.getOpposite()), state.setValue(PART, Part.TAIL),
+                Block.UPDATE_ALL);
     }
 
     /** Position of the middle segment, whichever part was clicked. */
@@ -214,13 +249,27 @@ public class CruiseMissileBlock extends BaseEntityBlock {
     }
 
     /** Clears all three cells and puts a missile entity in their place. */
-    private static void launch(net.minecraft.server.level.ServerLevel level, BlockPos pos, BlockState state) {
+    public static void launch(net.minecraft.server.level.ServerLevel level, BlockPos pos, BlockState state) {
         BlockPos body = bodyPos(pos, state);
         BlockState bodyState = level.getBlockState(body);
         if (!bodyState.is(state.getBlock())) {
             return;
         }
         Direction nose = bodyState.getValue(FACING);
+
+        // Read the flight plan first. Clearing the cells destroys the block entity that
+        // holds it, so doing this afterwards left every missile unguided no matter what
+        // it had been told.
+        Guidance mode = Guidance.NONE;
+        BlockPos aim = null;
+        int lock = -1;
+        BlockPos radar = null;
+        if (level.getBlockEntity(body) instanceof CruiseMissileBlockEntity guidance) {
+            mode = guidance.guidance();
+            aim = guidance.target();
+            lock = guidance.lockedSubLevel();
+            radar = guidance.controller();
+        }
 
         // Remove the airframe before spawning, so the missile cannot collide with the
         // rack it just left.
@@ -250,11 +299,16 @@ public class CruiseMissileBlock extends BaseEntityBlock {
             heading = frame.orientation() == null ? frame.vel() : frame.orientation();
         }
 
-        if (level.getBlockEntity(body) instanceof CruiseMissileBlockEntity guidance) {
-            missile.setGuidance(guidance.guidance(), guidance.target(), guidance.lockedSubLevel());
-        }
+        missile.setGuidance(mode, aim, lock);
+        missile.setController(radar);
         missile.setPos(centre);
-        missile.launch(heading);
+        if (nose == Direction.UP) {
+            // Cold launch. A rack standing on end throws the airframe clear on gas and
+            // lights the motor well above whatever it was standing in.
+            missile.ejectUpward();
+        } else {
+            missile.launch(heading);
+        }
         spawnLevel.addFreshEntity(missile);
 
         level.playSound(null, body, com.cbc_more_content.registry.ModSounds.CRUISE_MISSILE_LAUNCH.get(),
@@ -265,6 +319,20 @@ public class CruiseMissileBlock extends BaseEntityBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return state.getValue(PART) == Part.BODY ? new CruiseMissileBlockEntity(pos, state) : null;
+    }
+
+    /** Only an intercept round has anything to do while it sits on the rack. */
+    @Nullable
+    @Override
+    public <T extends BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<T> getTicker(
+            Level level, BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<T> type) {
+        if (level.isClientSide || state.getValue(PART) != Part.BODY) {
+            return null;
+        }
+        return createTickerHelper(type,
+                com.cbc_more_content.registry.ModBlockEntities.CRUISE_MISSILE.get(),
+                CruiseMissileBlockEntity::serverTick);
     }
 
     @Override

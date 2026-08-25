@@ -1,58 +1,112 @@
 {
   "variants": {
-    "armed=false,burial=0": {
+    "armed=false,burial=0,in_bed=false": {
       "model": "cbc_more_content:block/small_mine"
     },
-    "armed=false,burial=1": {
+    "armed=false,burial=0,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_0"
+    },
+    "armed=false,burial=1,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_1"
     },
-    "armed=false,burial=2": {
+    "armed=false,burial=1,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_1"
+    },
+    "armed=false,burial=2,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_2"
     },
-    "armed=false,burial=3": {
+    "armed=false,burial=2,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_2"
+    },
+    "armed=false,burial=3,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_3"
     },
-    "armed=false,burial=4": {
+    "armed=false,burial=3,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_3"
+    },
+    "armed=false,burial=4,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_4"
     },
-    "armed=false,burial=5": {
+    "armed=false,burial=4,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_4"
+    },
+    "armed=false,burial=5,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_5"
     },
-    "armed=false,burial=6": {
+    "armed=false,burial=5,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_5"
+    },
+    "armed=false,burial=6,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_6"
     },
-    "armed=false,burial=7": {
+    "armed=false,burial=6,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_6"
+    },
+    "armed=false,burial=7,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_7"
     },
-    "armed=false,burial=8": {
+    "armed=false,burial=7,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_7"
+    },
+    "armed=false,burial=8,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_8"
     },
-    "armed=true,burial=0": {
+    "armed=false,burial=8,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_8"
+    },
+    "armed=true,burial=0,in_bed=false": {
       "model": "cbc_more_content:block/small_mine"
     },
-    "armed=true,burial=1": {
+    "armed=true,burial=0,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_0"
+    },
+    "armed=true,burial=1,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_1"
     },
-    "armed=true,burial=2": {
+    "armed=true,burial=1,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_1"
+    },
+    "armed=true,burial=2,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_2"
     },
-    "armed=true,burial=3": {
+    "armed=true,burial=2,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_2"
+    },
+    "armed=true,burial=3,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_3"
     },
-    "armed=true,burial=4": {
+    "armed=true,burial=3,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_3"
+    },
+    "armed=true,burial=4,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_4"
     },
-    "armed=true,burial=5": {
+    "armed=true,burial=4,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_4"
+    },
+    "armed=true,burial=5,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_5"
     },
-    "armed=true,burial=6": {
+    "armed=true,burial=5,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_5"
+    },
+    "armed=true,burial=6,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_6"
     },
-    "armed=true,burial=7": {
+    "armed=true,burial=6,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_6"
+    },
+    "armed=true,burial=7,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_7"
     },
-    "armed=true,burial=8": {
+    "armed=true,burial=7,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_7"
+    },
+    "armed=true,burial=8,in_bed=false": {
       "model": "cbc_more_content:block/small_mine_buried_8"
+    },
+    "armed=true,burial=8,in_bed=true": {
+      "model": "cbc_more_content:block/small_mine_bed_8"
     }
   }
 }

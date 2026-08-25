@@ -2,6 +2,6 @@
   "selector": "cbc_more_content:sea_bomb",
   "priority": 2000,
   "properties": {
-    "sable:mass": 2.0
+    "sable:mass": 1.0
   }
 }

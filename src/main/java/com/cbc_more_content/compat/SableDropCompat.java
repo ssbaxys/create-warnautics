@@ -17,6 +17,7 @@ import dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer;
 import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
 import dev.ryanhcode.sable.companion.math.BoundingBox3dc;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
+import dev.ryanhcode.sable.neoforge.mixinhelper.compatibility.create.raycasts.SableRaycastHelper;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.SubLevel;
 import rbasamoyai.createbigcannons.CBCCompatTransformers;
@@ -90,6 +91,63 @@ public final class SableDropCompat {
         } catch (Throwable ignored) {
             return -1;
         }
+    }
+
+    /**
+     * First hull block a world-space segment runs into, in world space, or null when the
+     * path is clear of every sub-level.
+     * <p>
+     * A hull's blocks are not where the hull appears to be — they sit off in the plot grid
+     * and are drawn through the sub-level's pose — so an ordinary {@code level.clip} along
+     * a flight path sweeps through open air and reports nothing. That is why a missile
+     * flew straight through a physics ship. Ordinary bombs do not, because they are Big
+     * Cannons projectiles and go through Create's raycast, which Sable patches.
+     * <p>
+     * So this goes through the same door rather than mapping coordinates by hand. Sable
+     * walks the ray through its own sub-levels and hands back which one a block belonged
+     * to along with the block; only the mapping of that block back out to world space is
+     * ours, and even that is checked before it is used.
+     */
+    public static Vec3 clipSubLevels(ServerLevel level, Vec3 from, Vec3 to) {
+        Vec3[] hit = new Vec3[1];
+        try {
+            SableRaycastHelper.rayCastUntilWithSublevels(level, from, to,
+                    // World blocks are the ordinary clip's business, not this one's.
+                    worldPos -> false,
+                    (sub, plotPos) -> {
+                        if (hit[0] != null || sub == null || sub.isRemoved()) {
+                            return false;
+                        }
+                        BlockState state = readState(level, plotPos);
+                        if (state == null || state.isAir()
+                                || state.getCollisionShape(level, plotPos).isEmpty()) {
+                            return false;
+                        }
+                        Vec3 mapped = sub.logicalPose()
+                                .transformPosition(Vec3.atCenterOf(plotPos));
+                        // If the pose puts it somewhere it plainly cannot be, take where
+                        // the missile itself got to rather than firing a warhead off into
+                        // the storage grid.
+                        hit[0] = nearSegment(mapped, from, to) ? mapped : to;
+                        return true;
+                    });
+        } catch (Throwable ignored) {
+        }
+        return hit[0];
+    }
+
+    /** How far off the flight path a mapped hit may land and still be believed. */
+    private static final double MAPPING_SLACK = 8.0D;
+
+    /** Whether a point lies close enough to a segment to be a hit on it. */
+    private static boolean nearSegment(Vec3 point, Vec3 from, Vec3 to) {
+        Vec3 span = to.subtract(from);
+        double lengthSqr = span.lengthSqr();
+        Vec3 nearest = lengthSqr < 1.0E-6D
+                ? from
+                : from.add(span.scale(Math.max(0.0D, Math.min(1.0D,
+                        point.subtract(from).dot(span) / lengthSqr))));
+        return point.distanceToSqr(nearest) <= MAPPING_SLACK * MAPPING_SLACK;
     }
 
     /** World-space centre of a sub-level by id, or null once it is gone. */

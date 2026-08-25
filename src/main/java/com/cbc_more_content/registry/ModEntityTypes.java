@@ -4,6 +4,7 @@ import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.munitions.C4Projectile;
 import com.cbc_more_content.munitions.CruiseMissileProjectile;
+import com.cbc_more_content.entity.TripwireEntity;
 import com.cbc_more_content.munitions.DropBombProjectile;
 import com.cbc_more_content.munitions.SeaBombProjectile;
 
@@ -61,6 +62,35 @@ public final class ModEntityTypes {
                     // instead of teleporting between ten-tick snapshots.
                     .updateInterval(1)
                     .build("c4"));
+
+    /** Strung between two posts and then left alone, so it is tracked far and rarely updated. */
+    public static final DeferredHolder<EntityType<?>, EntityType<TripwireEntity>> TRIPWIRE =
+            ENTITY_TYPES.register("tripwire", () -> EntityType.Builder
+                    .<TripwireEntity>of(TripwireEntity::new, MobCategory.MISC)
+                    .sized(0.2f, 0.2f)
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .build("tripwire"));
+
+    /** A bounding charge in the air, for the second or so between the pop and the burst. */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.cbc_more_content.entity.BoundingMineEntity>>
+            BOUNDING_MINE = ENTITY_TYPES.register("bounding_mine", () -> EntityType.Builder
+                    .<com.cbc_more_content.entity.BoundingMineEntity>of(
+                            com.cbc_more_content.entity.BoundingMineEntity::new, MobCategory.MISC)
+                    .sized(0.3f, 0.4f)
+                    .clientTrackingRange(8)
+                    .updateInterval(1)
+                    .build("bounding_mine"));
+
+    /** A chunk thrown clear of a blast; short-lived, so it never needs to travel far. */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.cbc_more_content.entity.BlastDebrisEntity>>
+            BLAST_DEBRIS = ENTITY_TYPES.register("blast_debris", () -> EntityType.Builder
+                    .<com.cbc_more_content.entity.BlastDebrisEntity>of(
+                            com.cbc_more_content.entity.BlastDebrisEntity::new, MobCategory.MISC)
+                    .sized(0.4f, 0.4f)
+                    .clientTrackingRange(6)
+                    .updateInterval(2)
+                    .build("blast_debris"));
 
     private static DeferredHolder<EntityType<?>, EntityType<DropBombProjectile>> dropBomb(String id, BombSize size) {
         return ENTITY_TYPES.register(id, () -> EntityType.Builder

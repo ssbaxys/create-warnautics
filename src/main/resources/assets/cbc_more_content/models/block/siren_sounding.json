@@ -1,0 +1,146 @@
+{
+  "parent": "block/block",
+  "textures": {
+    "particle": "cbc_more_content:block/siren",
+    "body": "cbc_more_content:block/siren",
+    "horn": "cbc_more_content:block/siren_horn_lit"
+  },
+  "elements": [
+    {
+      "from": [
+        6,
+        0,
+        6
+      ],
+      "to": [
+        10,
+        10,
+        10
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            6,
+            0,
+            10,
+            10
+          ],
+          "texture": "#body"
+        },
+        "east": {
+          "uv": [
+            6,
+            0,
+            10,
+            10
+          ],
+          "texture": "#body"
+        },
+        "south": {
+          "uv": [
+            6,
+            0,
+            10,
+            10
+          ],
+          "texture": "#body"
+        },
+        "west": {
+          "uv": [
+            6,
+            0,
+            10,
+            10
+          ],
+          "texture": "#body"
+        },
+        "up": {
+          "uv": [
+            6,
+            6,
+            10,
+            10
+          ],
+          "texture": "#body"
+        },
+        "down": {
+          "uv": [
+            6,
+            6,
+            10,
+            10
+          ],
+          "texture": "#body"
+        }
+      }
+    },
+    {
+      "from": [
+        3,
+        9,
+        3
+      ],
+      "to": [
+        13,
+        16,
+        13
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            3,
+            4,
+            13,
+            11
+          ],
+          "texture": "#horn"
+        },
+        "east": {
+          "uv": [
+            3,
+            4,
+            13,
+            11
+          ],
+          "texture": "#horn"
+        },
+        "south": {
+          "uv": [
+            3,
+            4,
+            13,
+            11
+          ],
+          "texture": "#horn"
+        },
+        "west": {
+          "uv": [
+            3,
+            4,
+            13,
+            11
+          ],
+          "texture": "#horn"
+        },
+        "up": {
+          "uv": [
+            3,
+            3,
+            13,
+            13
+          ],
+          "texture": "#horn"
+        },
+        "down": {
+          "uv": [
+            3,
+            3,
+            13,
+            13
+          ],
+          "texture": "#body"
+        }
+      }
+    }
+  ]
+}

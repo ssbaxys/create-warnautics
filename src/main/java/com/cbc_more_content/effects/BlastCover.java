@@ -26,6 +26,8 @@ public final class BlastCover {
     private static final double STEP = 0.5D;
     /** Resistance that roughly halves the blast. Stone is 6, so about two blocks of it. */
     private static final double HALF_ABSORB = 12.0D;
+    /** Samples per body axis at full quality: 3 gives 27 rays. */
+    private static final int FULL_SAMPLES = 3;
     /** No single block may count for more, so bedrock cannot go infinite. */
     private static final double MAX_BLOCK_RESISTANCE = 1800.0D;
 
@@ -53,20 +55,31 @@ public final class BlastCover {
      * @param destroyed packed positions this blast is removing; treated as already gone
      */
     public static Result evaluate(Level level, Vec3 center, Entity entity, LongSet destroyed) {
+        return evaluate(level, center, entity, destroyed, FULL_SAMPLES);
+    }
+
+    /**
+     * Cover at a chosen number of samples per body axis. Full quality takes three (27
+     * rays); a burst running at reduced detail takes two (8 rays), which is coarser
+     * without letting one point decide whether a target is in the open.
+     */
+    public static Result evaluate(
+            Level level, Vec3 center, Entity entity, LongSet destroyed, int samplesPerAxis) {
         AABB box = entity.getBoundingBox();
-        // Sample the body rather than one point: partial cover behind a low wall should
-        // protect the legs and leave the head exposed.
-        double[] xs = {box.minX + 0.1D, (box.minX + box.maxX) * 0.5D, box.maxX - 0.1D};
-        double[] ys = {box.minY + 0.1D, (box.minY + box.maxY) * 0.5D, box.maxY - 0.1D};
-        double[] zs = {box.minZ + 0.1D, (box.minZ + box.maxZ) * 0.5D, box.maxZ - 0.1D};
+        int perAxis = Mth.clamp(samplesPerAxis, 1, FULL_SAMPLES);
 
         double transmissionSum = 0.0D;
         int open = 0;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
 
-        for (double x : xs) {
-            for (double y : ys) {
-                for (double z : zs) {
+        // Sample the body rather than one point: partial cover behind a low wall should
+        // protect the legs and leave the head exposed.
+        for (int xi = 0; xi < perAxis; xi++) {
+            double x = sampleAxis(box.minX, box.maxX, xi, perAxis);
+            for (int yi = 0; yi < perAxis; yi++) {
+                double y = sampleAxis(box.minY, box.maxY, yi, perAxis);
+                for (int zi = 0; zi < perAxis; zi++) {
+                    double z = sampleAxis(box.minZ, box.maxZ, zi, perAxis);
                     double absorbed = absorbAlong(level, center, x, y, z, destroyed, cursor);
                     if (absorbed <= 0.0D) {
                         open++;
@@ -76,10 +89,18 @@ public final class BlastCover {
             }
         }
 
-        int samples = xs.length * ys.length * zs.length;
+        int samples = perAxis * perAxis * perAxis;
         return new Result(
                 Mth.clamp(transmissionSum / samples, 0.0D, 1.0D),
                 open / (double) samples);
+    }
+
+    /** Spreads the samples across the body, keeping clear of its very edges. */
+    private static double sampleAxis(double min, double max, int index, int count) {
+        if (count == 1) {
+            return (min + max) * 0.5D;
+        }
+        return min + 0.1D + (max - min - 0.2D) * index / (count - 1.0D);
     }
 
     /** Total explosion resistance standing between two points. */

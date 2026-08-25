@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "facing=north,sounding=false": {
+      "model": "cbc_more_content:block/siren"
+    },
+    "facing=north,sounding=true": {
+      "model": "cbc_more_content:block/siren_sounding"
+    },
+    "facing=east,sounding=false": {
+      "model": "cbc_more_content:block/siren",
+      "y": 90
+    },
+    "facing=east,sounding=true": {
+      "model": "cbc_more_content:block/siren_sounding",
+      "y": 90
+    },
+    "facing=south,sounding=false": {
+      "model": "cbc_more_content:block/siren",
+      "y": 180
+    },
+    "facing=south,sounding=true": {
+      "model": "cbc_more_content:block/siren_sounding",
+      "y": 180
+    },
+    "facing=west,sounding=false": {
+      "model": "cbc_more_content:block/siren",
+      "y": 270
+    },
+    "facing=west,sounding=true": {
+      "model": "cbc_more_content:block/siren_sounding",
+      "y": 270
+    }
+  }
+}

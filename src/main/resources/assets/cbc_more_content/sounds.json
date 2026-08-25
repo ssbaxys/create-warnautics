@@ -168,5 +168,25 @@
         "name": "cbc_more_content:c4_armed"
       }
     ]
+  },
+  "siren": {
+    "subtitle": "subtitles.cbc_more_content.siren",
+    "sounds": [
+      {
+        "name": "cbc_more_content:siren",
+        "volume": 1.0,
+        "pitch": 1.0
+      }
+    ]
+  },
+  "siren_distant": {
+    "subtitle": "subtitles.cbc_more_content.siren_distant",
+    "sounds": [
+      {
+        "name": "cbc_more_content:siren_distant",
+        "volume": 1.0,
+        "pitch": 1.0
+      }
+    ]
   }
 }

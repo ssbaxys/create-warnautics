@@ -11,7 +11,7 @@ public final class MissileTargetClient {
     private MissileTargetClient() {
     }
 
-    public static void open(BlockPos pos, BlockPos current) {
-        Minecraft.getInstance().setScreen(new MissileTargetScreen(pos, current));
+    public static void open(BlockPos pos, BlockPos current, int mode) {
+        Minecraft.getInstance().setScreen(new MissileTargetScreen(pos, current, mode));
     }
 }

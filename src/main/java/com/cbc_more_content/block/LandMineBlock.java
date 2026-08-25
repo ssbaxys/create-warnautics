@@ -33,6 +33,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -55,8 +56,14 @@ public class LandMineBlock extends Block implements IWrenchable {
     /** How far the mine has been dug in: 0 sitting proud, {@link #MAX_BURIAL} flush. */
     public static final IntegerProperty BURIAL = IntegerProperty.create("burial", 0, 8);
     public static final int MAX_BURIAL = 8;
+    /** Planted into a bed rather than into the ground; the whole charge drops onto the bedding. */
+    public static final BooleanProperty IN_BED = BooleanProperty.create("in_bed");
+    /** How far the model sinks so it lies on a mattress instead of hovering over it. */
+    private static final double BED_DROP = 7.0D / 16.0D;
     /** Ticks after place before the mine can detonate. */
     public static final int ARM_DELAY_TICKS = 20;
+    /** How often a proximity charge looks around itself. */
+    private static final int PROXIMITY_INTERVAL = 2;
     /**
      * Physics and wheel casts may report the same mine several times per sub-step.
      * Keep at most one server task per mine until that task has run.
@@ -77,7 +84,8 @@ public class LandMineBlock extends Block implements IWrenchable {
         this.type = type;
         this.registerDefaultState(this.stateDefinition.any()
                 .setValue(ARMED, false)
-                .setValue(BURIAL, 0));
+                .setValue(BURIAL, 0)
+                .setValue(IN_BED, false));
     }
 
     public MineType getMineType() {
@@ -91,13 +99,53 @@ public class LandMineBlock extends Block implements IWrenchable {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(ARMED, BURIAL);
+        builder.add(ARMED, BURIAL, IN_BED);
     }
 
     @Nullable
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return this.defaultBlockState().setValue(ARMED, false).setValue(BURIAL, 0);
+        // Clicking the top of a bed puts the charge in the air cell above it, which is
+        // the only place it can live; from there it is dropped onto the bedding.
+        boolean bed = this.type.beddable
+                && context.getLevel().getBlockState(context.getClickedPos().below())
+                        .getBlock() instanceof net.minecraft.world.level.block.BedBlock;
+        return this.defaultBlockState()
+                .setValue(ARMED, false)
+                .setValue(BURIAL, 0)
+                .setValue(IN_BED, bed);
+    }
+
+    /** A charge laid in a bed goes with the bed, and no mine sits on open water. */
+    @Override
+    protected boolean canSurvive(BlockState state, net.minecraft.world.level.LevelReader level, BlockPos pos) {
+        if (state.getValue(IN_BED)) {
+            return level.getBlockState(pos.below()).getBlock()
+                    instanceof net.minecraft.world.level.block.BedBlock;
+        }
+        BlockState below = level.getBlockState(pos.below());
+        return !below.isAir() && below.getFluidState().isEmpty();
+    }
+
+    /**
+     * Ground a charge can actually be dug into: anything a shovel is the right tool for
+     * — soil, sand, gravel, snow, clay. Stone, planks and open water are not.
+     */
+    private static boolean isDiggableGround(
+            net.minecraft.world.level.LevelReader level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        return state.is(net.minecraft.tags.BlockTags.MINEABLE_WITH_SHOVEL)
+                && state.getFluidState().isEmpty();
+    }
+
+    @Override
+    protected BlockState updateShape(
+            BlockState state, net.minecraft.core.Direction direction, BlockState neighborState,
+            net.minecraft.world.level.LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
+        if (direction == net.minecraft.core.Direction.DOWN && !state.canSurvive(level, pos)) {
+            return Blocks.AIR.defaultBlockState();
+        }
+        return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
     }
 
     @Override
@@ -112,7 +160,42 @@ public class LandMineBlock extends Block implements IWrenchable {
         if (!state.getValue(ARMED)) {
             level.setBlock(pos, state.setValue(ARMED, true), Block.UPDATE_CLIENTS);
             level.playSound(null, pos, SoundEvents.STONE_BUTTON_CLICK_ON, SoundSource.BLOCKS, 0.35f, 0.6f);
+            if (this.type.triggerReach > 0.0D) {
+                level.scheduleTick(pos, this, PROXIMITY_INTERVAL);
+            }
+            return;
         }
+        if (this.type.triggerReach <= 0.0D) {
+            return;
+        }
+        // A charge that notices someone nearby cannot wait to be stepped on, so it keeps
+        // its own watch. Polling rather than a contact hook because there is no callback
+        // for "an entity moved through the cell next to mine".
+        if (this.sweepForProximity(level, pos, state)) {
+            return;
+        }
+        level.scheduleTick(pos, this, PROXIMITY_INTERVAL);
+    }
+
+    /**
+     * Looks a little way past the charge's own cell for anything worth going off at.
+     *
+     * @return true once it has gone off, so nothing reschedules against a dead block
+     */
+    private boolean sweepForProximity(ServerLevel level, BlockPos pos, BlockState state) {
+        double reach = this.type.triggerReach;
+        AABB around = new AABB(pos).inflate(reach);
+        for (LivingEntity living : level.getEntitiesOfClass(LivingEntity.class, around, LivingEntity::isAlive)) {
+            if (living.isSpectator()) {
+                continue;
+            }
+            if (living instanceof Player player && player.getAbilities().flying) {
+                continue;
+            }
+            this.trip(level, pos, state);
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -127,12 +210,13 @@ public class LandMineBlock extends Block implements IWrenchable {
     private VoxelShape buriedShape(BlockState state) {
         int burial = state.getValue(BURIAL);
         if (burial <= 0) {
-            return this.type.shape;
+            return state.getValue(IN_BED) ? this.type.shape.move(0.0D, -BED_DROP, 0.0D) : this.type.shape;
         }
         var bounds = this.type.shape.bounds();
         double top = Math.max(0.05D, bounds.maxY - burial / (double) MAX_BURIAL * bounds.maxY);
-        return Block.box(bounds.minX * 16.0D, bounds.minY * 16.0D, bounds.minZ * 16.0D,
+        VoxelShape shape = Block.box(bounds.minX * 16.0D, bounds.minY * 16.0D, bounds.minZ * 16.0D,
                 bounds.maxX * 16.0D, top * 16.0D, bounds.maxZ * 16.0D);
+        return state.getValue(IN_BED) ? shape.move(0.0D, -BED_DROP, 0.0D) : shape;
     }
 
     /**
@@ -151,8 +235,30 @@ public class LandMineBlock extends Block implements IWrenchable {
             Player player,
             net.minecraft.world.InteractionHand hand,
             BlockHitResult hit) {
+        if (player != null && player.isShiftKeyDown()) {
+            // Sneaking lifts it out whatever is in hand, so a shovel is not a trap.
+            return digUp(state, level, pos, player)
+                    == net.minecraft.world.InteractionResult.PASS
+                    ? net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION
+                    : net.minecraft.world.ItemInteractionResult.sidedSuccess(level.isClientSide);
+        }
+        if (state.getValue(IN_BED)) {
+            // No digging in bedding: a charge in a bed is worked down by hand, and the
+            // last click brings it back up so a bad guess can be undone.
+            sinkInBedding(state, level, pos);
+            return net.minecraft.world.ItemInteractionResult.sidedSuccess(level.isClientSide);
+        }
         if (!(stack.getItem() instanceof net.minecraft.world.item.ShovelItem)) {
             return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+        if (!isDiggableGround(level, pos.below())) {
+            // A charge is dug into loose ground, not pressed into stone or floated on
+            // water. Without this a mine could be sunk flush anywhere at all, which made
+            // the whole burial mechanic a way of hiding one inside a solid floor.
+            if (!level.isClientSide) {
+                level.playSound(null, pos, SoundEvents.STONE_HIT, SoundSource.BLOCKS, 0.5f, 1.4f);
+            }
+            return net.minecraft.world.ItemInteractionResult.sidedSuccess(level.isClientSide);
         }
         int burial = state.getValue(BURIAL);
         if (burial >= MAX_BURIAL) {
@@ -160,15 +266,7 @@ public class LandMineBlock extends Block implements IWrenchable {
         }
 
         if (!level.isClientSide) {
-            // getDestroySpeed is the shovel's own tier speed: 2 for wood up to 9 for
-            // netherite. One stage always lands, so even the worst tool makes progress.
-            // Vanilla shovel speeds run 2 (wood) to 9 (netherite). Dividing by 1.2
-            // spreads them across the eight burial stages so the tiers actually differ
-            // in how many scoops a charge takes, instead of collapsing into two groups.
-            float speed = Math.max(1.0f, stack.getItem().getDestroySpeed(
-                    stack, net.minecraft.world.level.block.Blocks.DIRT.defaultBlockState()));
-            int stages = Math.max(1, Math.round(speed / 1.2f));
-            int next = Math.min(MAX_BURIAL, burial + stages);
+            int next = Math.min(MAX_BURIAL, burial + shovelStages(stack));
             level.setBlock(pos, state.setValue(BURIAL, next), Block.UPDATE_CLIENTS);
 
             level.playSound(null, pos, SoundEvents.ROOTED_DIRT_BREAK, SoundSource.BLOCKS,
@@ -189,9 +287,103 @@ public class LandMineBlock extends Block implements IWrenchable {
     }
 
     @Override
+    protected InteractionResult useWithoutItem(
+            BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
+        if (player.isShiftKeyDown()) {
+            return digUp(state, level, pos, player);
+        }
+        if (!state.getValue(IN_BED)) {
+            return InteractionResult.PASS;
+        }
+        sinkInBedding(state, level, pos);
+        return InteractionResult.sidedSuccess(level.isClientSide);
+    }
+
+    /**
+     * Working a charge back up, one notch at a time — the mirror of burying it, not a
+     * way of pocketing it. The same stages, so a charge can be brought back to sitting
+     * proud exactly as gradually as it was hidden.
+     */
+    private InteractionResult digUp(BlockState state, Level level, BlockPos pos, Player player) {
+        int burial = state.getValue(BURIAL);
+        if (burial <= 0) {
+            // Already fully exposed: nothing to uncover, so leave the click alone.
+            return InteractionResult.PASS;
+        }
+        if (!level.isClientSide) {
+            int stages = state.getValue(IN_BED)
+                    ? 1
+                    : shovelStages(player.getMainHandItem());
+            level.setBlock(pos, state.setValue(BURIAL, Math.max(0, burial - stages)),
+                    Block.UPDATE_CLIENTS);
+            level.playSound(null, pos, SoundEvents.ROOTED_DIRT_BREAK, SoundSource.BLOCKS,
+                    0.7f, 1.15f);
+        }
+        return InteractionResult.sidedSuccess(level.isClientSide);
+    }
+
+    /**
+     * How many burial stages one scoop moves, from the tool's own tier speed. Vanilla
+     * shovels run 2 (wood) to 9 (netherite); bare hands always manage one.
+     */
+    private static int shovelStages(ItemStack stack) {
+        if (!(stack.getItem() instanceof net.minecraft.world.item.ShovelItem)) {
+            return 1;
+        }
+        float speed = Math.max(1.0f, stack.getItem().getDestroySpeed(
+                stack, net.minecraft.world.level.block.Blocks.DIRT.defaultBlockState()));
+        return Math.max(1, Math.round(speed / 1.2f));
+    }
+
+    /**
+     * One notch further into the bedding, wrapping back to sitting proud at the end, so
+     * a charge can be worked from plainly visible down to barely a bump and back.
+     */
+    private static void sinkInBedding(BlockState state, Level level, BlockPos pos) {
+        if (level.isClientSide) {
+            return;
+        }
+        int next = (state.getValue(BURIAL) + 1) % (MAX_BURIAL + 1);
+        level.setBlock(pos, state.setValue(BURIAL, next), Block.UPDATE_CLIENTS);
+        level.playSound(null, pos, SoundEvents.WOOL_HIT, SoundSource.BLOCKS,
+                0.5f, 0.9f + next * 0.03f);
+    }
+
+    /**
+     * Anyone turning in sets off a charge laid in either half of the bed. Walking across
+     * one is already covered by {@code entityInside}, but a sleeper folds into a box far
+     * too small to reach the cell the charge sits in.
+     */
+    public static boolean detonateBeddedMines(ServerLevel level, BlockPos bedPos) {
+        BlockState bed = level.getBlockState(bedPos);
+        BlockPos[] halves = bed.getBlock() instanceof net.minecraft.world.level.block.BedBlock
+                ? new BlockPos[] {bedPos,
+                        bedPos.relative(net.minecraft.world.level.block.BedBlock
+                                .getConnectedDirection(bed))}
+                : new BlockPos[] {bedPos};
+        for (BlockPos half : halves) {
+            BlockPos above = half.above();
+            if (!level.isLoaded(above)) {
+                continue;
+            }
+            BlockState state = level.getBlockState(above);
+            if (state.getBlock() instanceof LandMineBlock && state.getValue(IN_BED)
+                    && state.getValue(ARMED)) {
+                detonate(level, above, state);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
     protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        // Same thin disc — entities actually intersect it (pressure-plate style).
-        return this.type.shape;
+        // Same thin disc — entities actually intersect it (pressure-plate style). One
+        // lying in a bed has none at all: the bedding is what you stand on, and a lip
+        // above it would give the charge away by tripping anyone walking across.
+        return state.getValue(IN_BED)
+                ? net.minecraft.world.phys.shapes.Shapes.empty()
+                : this.type.shape;
     }
 
     @Override
@@ -228,7 +420,23 @@ public class LandMineBlock extends Block implements IWrenchable {
         if (living instanceof Player player && player.getAbilities().flying) {
             return;
         }
-        detonate((ServerLevel) level, pos, state);
+        if (state.getValue(IN_BED) && !standingOnTheBedding(pos, living)) {
+            return;
+        }
+        this.trip((ServerLevel) level, pos, state);
+    }
+
+    /**
+     * Whether someone is actually on the bed rather than merely beside it.
+     * <p>
+     * A charge in a bed lives in the air cell above the mattress, and anyone standing on
+     * the floor next to that bed is nearly two blocks tall, so their body reaches into
+     * the cell and set the thing off from across the room. Only feet at or above the
+     * bedding count.
+     */
+    private static boolean standingOnTheBedding(BlockPos pos, LivingEntity living) {
+        double bedding = pos.getY() - BED_DROP;
+        return living.getY() >= bedding - 0.1D;
     }
 
     /** Called from Sable / Offroad soft-compat (physics or wheel raycast). */
@@ -271,6 +479,29 @@ public class LandMineBlock extends Block implements IWrenchable {
                 PENDING_VEHICLE_DETONATIONS.remove(pending);
             }
         }));
+    }
+
+    /**
+     * Sets the charge off in whatever way it goes off — straight away for most, or by
+     * throwing itself clear first for a bounding one.
+     */
+    private void trip(ServerLevel level, BlockPos pos, BlockState state) {
+        if (this.type != MineType.BOUNDING) {
+            detonate(level, pos, state);
+            return;
+        }
+        if (!level.isLoaded(pos) || level.getBlockState(pos).getBlock() != this) {
+            return;
+        }
+        level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+
+        var thrown = com.cbc_more_content.entity.BoundingMineEntity.pop(
+                level, Vec3.atBottomCenterOf(pos).add(0.0D, 0.15D, 0.0D));
+        level.addFreshEntity(thrown);
+        thrown.playPop();
+        level.sendParticles(net.minecraft.core.particles.ParticleTypes.LARGE_SMOKE,
+                pos.getX() + 0.5D, pos.getY() + 0.1D, pos.getZ() + 0.5D,
+                8, 0.18D, 0.02D, 0.18D, 0.02D);
     }
 
     public static void detonate(ServerLevel level, BlockPos pos, BlockState state) {

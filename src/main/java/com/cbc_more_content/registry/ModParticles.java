@@ -20,6 +20,10 @@ public final class ModParticles {
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MISSILE_EXHAUST =
             PARTICLE_TYPES.register("missile_exhaust", () -> new SimpleParticleType(false));
 
+    /** Cold ejection gas, before the motor lights. No heat, no glow — just pressure. */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MISSILE_GAS =
+            PARTICLE_TYPES.register("missile_gas", () -> new SimpleParticleType(false));
+
     private ModParticles() {
     }
 }

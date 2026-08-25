@@ -32,6 +32,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
@@ -55,16 +56,31 @@ public class C4Block extends BaseEntityBlock {
      * blockstate JSON cannot represent at all.
      */
     public static final IntegerProperty ROTATION = IntegerProperty.create("rotation", 0, 3);
+    /**
+     * Whether the aerial is fitted. Set from the charge's trigger mode, and in the block
+     * state rather than only in the block entity because it is what picks the model.
+     */
+    public static final BooleanProperty RECEIVER = BooleanProperty.create("receiver");
 
     /**
      * The charge as it sits on a floor, taken from the authored model: casing slab,
      * screen cage above it, and the detonator torch. Everything else in the model is a
      * zero-thickness plane and gets no collision.
      */
-    private static final double[][] PARTS_UP = {
-            {2.0D, 0.0D, 3.0D, 14.0D, 3.0D, 13.0D},
-            {4.8D, 1.8D, 3.8D, 12.2D, 6.2D, 12.2D},
-            {3.0D, 1.0D, 1.0D, 6.0D, 9.0D, 4.0D},
+    private static final double[][] PARTS_FLAT = {
+            {3.0D, 0.0D, 2.0D, 13.0D, 3.0D, 14.0D},
+            {3.8D, 1.8D, 3.8D, 12.2D, 6.2D, 11.2D},
+            {1.0D, 0.0D, 10.0D, 4.0D, 11.0D, 13.0D},
+    };
+    /**
+     * The same charge on a wall. Casing and cage sit where they do on the floor, but the
+     * authored wall model stands its torch off to the side and runs it past the edge of
+     * the block, so that part is its own box and is clipped back to the cell.
+     */
+    private static final double[][] PARTS_WALL = {
+            {3.0D, 0.0D, 2.0D, 13.0D, 3.0D, 14.0D},
+            {3.8D, 1.8D, 3.8D, 12.2D, 6.2D, 11.2D},
+            {12.0D, 1.0D, 9.0D, 15.0D, 4.0D, 16.0D},
     };
     private static final Map<Long, VoxelShape> SHAPES = buildShapes();
 
@@ -73,6 +89,7 @@ public class C4Block extends BaseEntityBlock {
         this.registerDefaultState(this.stateDefinition.any()
                 .setValue(FACING, Direction.UP)
                 .setValue(STATE, Fuse.IDLE)
+                .setValue(RECEIVER, false)
                 .setValue(ROTATION, 0));
     }
 
@@ -88,7 +105,7 @@ public class C4Block extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, STATE, ROTATION);
+        builder.add(FACING, STATE, RECEIVER, ROTATION);
     }
 
     @Nullable
@@ -174,7 +191,16 @@ public class C4Block extends BaseEntityBlock {
     protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         Direction face = state.getValue(FACING);
         BlockPos support = pos.relative(face.getOpposite());
-        return level.getBlockState(support).isFaceSturdy(level, support, face);
+        BlockState behind = level.getBlockState(support);
+        if (behind.isFaceSturdy(level, support, face)) {
+            return true;
+        }
+        // Stairs, slabs, beds and the rest have no sturdy face to offer, but there is
+        // plenty of block there to press a charge against. The model is allowed to sit
+        // a little way into the surface rather than refuse the placement outright.
+        return !behind.isAir()
+                && !behind.canBeReplaced()
+                && !behind.getCollisionShape(level, support).isEmpty();
     }
 
     /**
@@ -205,25 +231,32 @@ public class C4Block extends BaseEntityBlock {
     }
 
     /**
-     * Rotates {@link #PARTS_UP} into every facing and turn using the same transform
+     * Rotates the authored parts into every facing and turn using the same transform
      * {@code blockstates/c4.json} applies, so outline, collision and model agree.
      */
     private static Map<Long, VoxelShape> buildShapes() {
         Map<Long, VoxelShape> shapes = new HashMap<>();
         for (Direction facing : Direction.values()) {
+            double[][] parts = facing.getAxis().isVertical() ? PARTS_FLAT : PARTS_WALL;
             for (int rotation = 0; rotation < 4; rotation++) {
                 VoxelShape shape = Shapes.empty();
-                for (double[] part : PARTS_UP) {
+                for (double[] part : parts) {
                     double[] a = place(facing, rotation, part[0], part[1], part[2]);
                     double[] b = place(facing, rotation, part[3], part[4], part[5]);
                     shape = Shapes.or(shape, Block.box(
-                            Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.min(a[2], b[2]),
-                            Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(a[2], b[2])));
+                            clip(Math.min(a[0], b[0])), clip(Math.min(a[1], b[1])),
+                            clip(Math.min(a[2], b[2])), clip(Math.max(a[0], b[0])),
+                            clip(Math.max(a[1], b[1])), clip(Math.max(a[2], b[2]))));
                 }
                 shapes.put(shapeKey(facing, rotation), shape);
             }
         }
         return shapes;
+    }
+
+    /** Model geometry may run past the cell; a collision box may not. */
+    private static double clip(double value) {
+        return Mth.clamp(value, 0.0D, 16.0D);
     }
 
     /** Facing tilt first, then the quarter turns — the order the blockstate composes in. */

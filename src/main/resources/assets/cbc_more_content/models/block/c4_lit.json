@@ -1,7 +1,0 @@
-{
-  "parent": "cbc_more_content:block/c4",
-  "textures": {
-    "2": "cbc_more_content:block/c_bomb_powered",
-    "particle": "cbc_more_content:block/c_bomb_powered"
-  }
-}
