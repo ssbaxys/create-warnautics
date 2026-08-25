@@ -119,11 +119,13 @@ public final class DropBombUtil {
         bomb.setChargePower(1.0f);
         bomb.setFuze(new ItemStack(CBCItems.IMPACT_FUZE.get()));
 
-        bomb.xo = pos.x;
-        bomb.yo = pos.y;
-        bomb.zo = pos.z;
-        bomb.xOld = pos.x;
-        bomb.yOld = pos.y;
-        bomb.zOld = pos.z;
+        // Both sets of previous-tick fields are seeded from where the bomb was just put,
+        // so its first tick does not interpolate in from wherever the entity was created.
+        //
+        // Through the vanilla method rather than by assignment. xOld and its pair are
+        // widened for the development workspace and are private in a shipped game, so
+        // writing them compiled cleanly here and then threw IllegalAccessError on the
+        // first bomb any real player released — see issue #2.
+        bomb.setOldPosAndRot();
     }
 }

@@ -49,6 +49,8 @@ NOTE: The small, medium and large bomb recipes are all roughly twice as expensiv
 
 ### Fixed
 
+* Fixed a crash the moment a rack released a bomb or torpedo on a redstone signal ([#2](https://github.com/ssbaxys/create-warnautics/issues/2)). The launch seeded the projectile's previous-tick position by writing `xOld` directly — a field the development workspace exposes and a shipped game keeps private, so it compiled cleanly here and threw `IllegalAccessError` for everybody else. It goes through the vanilla method now
+* NeoForge 21.1.234 and up, instead of only the exact build the release happened to be compiled on. The declared range was pinned to the compiler's own version, which locked out anyone on an older 21.1; the mod is now built against 21.1.234 so the floor is one the code is actually known to run on
 * Fixed blast particles vanishing 32 blocks away — `sendParticles` without a player hardcodes short range, so effects now carry to view distance
 * Fixed a guided missile always flying straight: the airframe was cleared before its flight plan was read, so the plan was always gone by launch
 * Fixed a cruise missile flying straight through a Sable physics hull without going off — a hull's blocks are not where the hull appears to be, so the ordinary sweep along the flight path found nothing there
