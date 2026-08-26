@@ -31,17 +31,20 @@ public final class SirenSoundManager {
     }
 
     /** A post has started, or is still going. Idempotent — the keepalive lands often. */
-    public static void wail(BlockPos pos) {
+    public static void wail(BlockPos pos, int remainingTicks) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             return;
         }
         Voices voices = ACTIVE.get(pos);
         if (voices != null && !voices.near.isStopped() && !voices.far.isStopped()) {
+            // Already running: this is a keepalive, so it only tops the clock back up.
+            voices.near.refresh(remainingTicks);
+            voices.far.refresh(remainingTicks);
             return;
         }
-        SirenSoundInstance near = new SirenSoundInstance(pos, false);
-        SirenSoundInstance far = new SirenSoundInstance(pos, true);
+        SirenSoundInstance near = new SirenSoundInstance(pos, false, remainingTicks);
+        SirenSoundInstance far = new SirenSoundInstance(pos, true, remainingTicks);
         ACTIVE.put(pos.immutable(), new Voices(near, far));
         mc.getSoundManager().play(near);
         mc.getSoundManager().play(far);

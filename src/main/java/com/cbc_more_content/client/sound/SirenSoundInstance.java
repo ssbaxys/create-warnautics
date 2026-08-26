@@ -45,13 +45,23 @@ public final class SirenSoundInstance extends AbstractTickableSoundInstance {
     private final boolean far;
     private boolean closing;
     private int fadeTicks;
+    /**
+     * How much wail the post said it had left, counted down here.
+     * <p>
+     * The voice used to live or die on {@code getBlockState} alone, which meant it died
+     * the moment the listener walked past their own render distance — the chunk goes, the
+     * lookup reads air, and a raid two hundred blocks off fell silent even though the far
+     * layer is mixed to carry three hundred and thirty.
+     */
+    private int ticksLeft;
 
-    public SirenSoundInstance(BlockPos pos, boolean far) {
+    public SirenSoundInstance(BlockPos pos, boolean far, int remainingTicks) {
         super(far ? ModSounds.SIREN_DISTANT.get() : ModSounds.SIREN.get(),
                 far ? SoundSource.WEATHER : SoundSource.BLOCKS,
                 RandomSource.create(pos.asLong()));
         this.pos = pos.immutable();
         this.far = far;
+        this.ticksLeft = remainingTicks;
         this.looping = true;
         this.delay = 0;
         // Positioned, so the post can still be located by ear, but with the engine's own
@@ -80,6 +90,11 @@ public final class SirenSoundInstance extends AbstractTickableSoundInstance {
         this.closing = true;
     }
 
+    /** A keepalive arrived: the post is still going, and this is how much it has left. */
+    public void refresh(int remainingTicks) {
+        this.ticksLeft = Math.max(this.ticksLeft, remainingTicks);
+    }
+
     @Override
     public void tick() {
         Minecraft mc = Minecraft.getInstance();
@@ -87,9 +102,19 @@ public final class SirenSoundInstance extends AbstractTickableSoundInstance {
             this.stop();
             return;
         }
-        if (this.closing || !sounding(mc.level.getBlockState(this.pos))) {
+        // Only worth asking the block when the listener actually has that chunk. Close
+        // enough to have it, a post that stops sounding — or is broken outright — goes
+        // quiet at once, which is the case that matters. Too far to have it, the post's
+        // own count is all there is to go on.
+        boolean loaded = mc.level.hasChunkAt(this.pos);
+        if (this.closing
+                || (loaded && !sounding(mc.level.getBlockState(this.pos)))
+                || (!loaded && this.ticksLeft <= 0)) {
             this.fadeOut();
             return;
+        }
+        if (this.ticksLeft > 0) {
+            this.ticksLeft--;
         }
         this.fadeTicks = 0;
         this.volume = Mth.lerp(GLIDE, this.volume, this.gain((float) listenerDistance()));

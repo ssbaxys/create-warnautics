@@ -9,21 +9,29 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
 
 /**
- * Client-bound: a post has started wailing, or is still at it.
+ * Client-bound: a post is wailing, and for roughly how much longer.
  * <p>
- * Only ever a start. Stopping is not sent, because the client already knows — the voices
- * watch the block's own sounding state, which is what makes a siren go quiet the moment
- * it is broken rather than finishing its sample first.
+ * The remaining time is what lets a listener walk away from a raid and still hear it out.
+ * Past the simulation distance the server stops ticking the post entirely — no more
+ * keepalives, and the client's own copy of that chunk is gone too — so a voice that
+ * depended on either went quiet at about a hundred and sixty blocks, well inside the range
+ * the far layer is mixed for. Told how long it has, the client can run the rest itself.
+ * <p>
+ * Stopping is still never sent. A listener close enough to have the chunk loaded sees the
+ * block stop sounding, which is what makes a broken post go quiet at once.
  */
-public record SirenWailPayload(BlockPos pos) implements CustomPacketPayload {
+public record SirenWailPayload(BlockPos pos, int remainingTicks) implements CustomPacketPayload {
 
     public static final Type<SirenWailPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "siren_wail"));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, SirenWailPayload> STREAM_CODEC =
             StreamCodec.of(
-                    (buf, payload) -> buf.writeBlockPos(payload.pos),
-                    buf -> new SirenWailPayload(buf.readBlockPos()));
+                    (buf, payload) -> {
+                        buf.writeBlockPos(payload.pos);
+                        buf.writeVarInt(payload.remainingTicks);
+                    },
+                    buf -> new SirenWailPayload(buf.readBlockPos(), buf.readVarInt()));
 
     @Override
     public Type<? extends CustomPacketPayload> type() {

@@ -46,6 +46,15 @@ public class SirenBlockEntity extends BlockEntity {
     private static final int KEEPALIVE_TICKS = 40;
     /** How far the wail is worth sending at all; past this no layer is audible. */
     private static final double AUDIBLE = 340.0D;
+    /**
+     * What a signal-held post promises a listener before the next keepalive.
+     * <p>
+     * A held post has no end to quote — the lever decides — so it hands out a little more
+     * than the gap between reminders and relies on the next one arriving. If the post
+     * stops being ticked at all, that is the server no longer simulating it, and the wail
+     * running out a few seconds later is the honest outcome.
+     */
+    private static final int HELD_GRACE = KEEPALIVE_TICKS * 3;
     /** Above this something is on its way somewhere; below it, it is not moving. */
     private static final double MOVING = 0.01D;
     /** Cosine of how far off the beam an inbound missile may be and still be inbound. */
@@ -153,7 +162,9 @@ public class SirenBlockEntity extends BlockEntity {
         if (!(this.level instanceof ServerLevel server)) {
             return;
         }
-        var payload = new com.cbc_more_content.network.SirenWailPayload(this.worldPosition);
+        int remaining = Math.max(this.lingerTicks, this.held ? HELD_GRACE : 0);
+        var payload = new com.cbc_more_content.network.SirenWailPayload(
+                this.worldPosition, remaining);
         double reachSqr = AUDIBLE * AUDIBLE;
         double x = this.worldPosition.getX() + 0.5D;
         double y = this.worldPosition.getY() + 0.5D;
