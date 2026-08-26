@@ -130,8 +130,8 @@ Server config, written to `serverconfig/cbc_more_content-server.toml` on first w
 
 # Disclaimer 
 
-Some modules, code snippets, comments, and changelog entries may be written or refined with the assistance of AI, as English is ssbaxy's second language. I, Wizardtastic, review the generated content as a native English speaker to make sure it is clear and accurate.
-If you notice any awkward wording, mistakes, or anything else we may have missed, feel free to report it or submit a correction.
+AI tools may be used during development to create or refine code, modules, comments, documentation, and changelog entries.
+All content is reviewed and approved by the project maintainers before release. Final responsibility for the project remains with the maintainers.
 
 # License
 
