@@ -8,17 +8,17 @@
     "C": {
       "tag": "c:ingots/copper"
     },
-    "R": {
-      "item": "minecraft:redstone"
-    },
     "N": {
       "item": "minecraft:note_block"
+    },
+    "S": {
+      "item": "create:shaft"
     }
   },
   "pattern": [
     "CIC",
     "INI",
-    "IRI"
+    "ISI"
   ],
   "result": {
     "count": 1,

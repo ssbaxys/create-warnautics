@@ -54,14 +54,25 @@ public final class SirenSoundInstance extends AbstractTickableSoundInstance {
      * layer is mixed to carry three hundred and thirty.
      */
     private int ticksLeft;
+    /**
+     * How much voice the rotor has, 0 to 1, eased toward whatever the post last reported.
+     * <p>
+     * A siren is a rotor in a housing, so the note follows the shaft: spinning it up winds
+     * the wail up with it and letting it slow lets the wail down. Eased rather than
+     * stepped, because the post only reports when the speed has actually moved.
+     */
+    private float voice;
+    private float targetVoice;
 
-    public SirenSoundInstance(BlockPos pos, boolean far, int remainingTicks) {
+    public SirenSoundInstance(BlockPos pos, boolean far, int remainingTicks, float voice) {
         super(far ? ModSounds.SIREN_DISTANT.get() : ModSounds.SIREN.get(),
                 far ? SoundSource.WEATHER : SoundSource.BLOCKS,
                 RandomSource.create(pos.asLong()));
         this.pos = pos.immutable();
         this.far = far;
         this.ticksLeft = remainingTicks;
+        this.voice = voice;
+        this.targetVoice = voice;
         this.looping = true;
         this.delay = 0;
         // Positioned, so the post can still be located by ear, but with the engine's own
@@ -74,7 +85,7 @@ public final class SirenSoundInstance extends AbstractTickableSoundInstance {
         // Opened at the mix it belongs at, and never at nothing: the sound engine drops a
         // sound whose volume is zero when it is handed over, so a voice starting silent
         // would be thrown away before it ever got a tick to fade itself up.
-        this.volume = Math.max(0.01f, this.gain((float) listenerDistance()));
+        this.volume = Math.max(0.01f, this.gain((float) listenerDistance()) * Math.max(0.05f, voice));
     }
 
     public BlockPos pos() {
@@ -90,9 +101,10 @@ public final class SirenSoundInstance extends AbstractTickableSoundInstance {
         this.closing = true;
     }
 
-    /** A keepalive arrived: the post is still going, and this is how much it has left. */
-    public void refresh(int remainingTicks) {
+    /** A keepalive arrived: how much the post has left, and how hard its rotor is turning. */
+    public void refresh(int remainingTicks, float voice) {
         this.ticksLeft = Math.max(this.ticksLeft, remainingTicks);
+        this.targetVoice = voice;
     }
 
     @Override
@@ -117,7 +129,11 @@ public final class SirenSoundInstance extends AbstractTickableSoundInstance {
             this.ticksLeft--;
         }
         this.fadeTicks = 0;
-        this.volume = Mth.lerp(GLIDE, this.volume, this.gain((float) listenerDistance()));
+        this.voice = Mth.lerp(GLIDE, this.voice, this.targetVoice);
+        this.volume = Mth.lerp(GLIDE, this.volume,
+                this.gain((float) listenerDistance()) * this.voice);
+        // A rotor wound right down takes the note with it rather than leaving a hum.
+        this.pitch = (this.far ? 0.92f : 1.0f) * Mth.lerp(this.voice, 0.82f, 1.0f);
     }
 
     /** How far the listener is from the post; the whole mix is a function of this. */

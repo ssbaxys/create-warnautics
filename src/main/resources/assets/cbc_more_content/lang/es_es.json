@@ -156,7 +156,7 @@
     "gui.cbc_more_content.siren.watch_missiles": "Misiles",
     "gui.cbc_more_content.siren.watch_bombs": "Explosiones",
     "gui.cbc_more_content.siren.apply": "Aplicar",
-    "gui.cbc_more_content.siren.hint": "La redstone siempre la activa",
+    "gui.cbc_more_content.siren.hint": "Necesita un eje debajo; la redstone la activa",
     "subtitles.cbc_more_content.siren": "La sirena aulla",
     "subtitles.cbc_more_content.siren_distant": "Sirenas a lo lejos",
     "gui.cbc_more_content.c4.next": "Siguiente",

@@ -334,8 +334,8 @@ public final class ModNetworking {
             }
             try {
                 Class.forName("com.cbc_more_content.client.sound.SirenSoundManager")
-                        .getMethod("wail", BlockPos.class, int.class)
-                        .invoke(null, payload.pos(), payload.remainingTicks());
+                        .getMethod("wail", BlockPos.class, int.class, float.class)
+                        .invoke(null, payload.pos(), payload.remainingTicks(), payload.voice());
             } catch (ReflectiveOperationException e) {
                 CBCMoreContent.LOGGER.debug("Siren voices unavailable: {}", e.toString());
             }

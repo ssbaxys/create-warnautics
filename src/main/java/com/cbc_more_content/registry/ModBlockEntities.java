@@ -28,7 +28,12 @@ public final class ModBlockEntities {
     /** What an air-raid post is watching for, and how long it has left to wail. */
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SirenBlockEntity>> SIREN =
             BLOCK_ENTITIES.register("siren", () -> BlockEntityType.Builder
-                    .of(SirenBlockEntity::new, ModBlocks.SIREN.get())
+                    // Through a lambda rather than a constructor reference: a Create
+                    // machine is handed its own type. Read off the block being placed
+                    // rather than off the holder, which cannot name itself here.
+                    .of((pos, state) -> new SirenBlockEntity(
+                            ModBlockEntities.SIREN.get(), pos, state),
+                            ModBlocks.SIREN.get())
                     .build(null));
 
     private ModBlockEntities() {

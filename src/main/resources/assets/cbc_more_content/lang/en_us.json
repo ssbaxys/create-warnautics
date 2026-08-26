@@ -163,7 +163,7 @@
     "gui.cbc_more_content.siren.watch_missiles": "Missiles",
     "gui.cbc_more_content.siren.watch_bombs": "Blasts",
     "gui.cbc_more_content.siren.apply": "Apply",
-    "gui.cbc_more_content.siren.hint": "Redstone always sounds it",
+    "gui.cbc_more_content.siren.hint": "Needs a shaft below; redstone sounds it",
     "subtitles.cbc_more_content.siren": "Air-raid siren wails",
     "subtitles.cbc_more_content.siren_distant": "Sirens, somewhere far off",
     "gui.cbc_more_content.c4.next": "Next",

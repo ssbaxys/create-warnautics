@@ -6,6 +6,8 @@ import com.cbc_more_content.munitions.SeaBombProjectile;
 import com.cbc_more_content.registry.ModBlockEntities;
 import com.cbc_more_content.siren.BlastLog;
 import com.cbc_more_content.siren.SirenSettings;
+import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
+import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -15,25 +17,31 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
- * An air-raid post: what it is watching for, and how much longer it has to wail.
+ * An air-raid post: what it is watching for, how much longer it has to wail, and how hard
+ * its rotor is being turned.
  * <p>
  * Two separate reasons to be sounding, and they behave differently on purpose. A signal
  * simply holds the post up and lets go of it — the operator is standing at the lever and
  * does not want to argue with a timer. A sighting sets the linger running instead, and
  * that keeps going after whatever was seen has come and gone, because the whole point of
  * one is that nothing announces the all-clear.
+ * <p>
+ * Neither of them makes a sound on their own. The note is the rotor, so drive decides
+ * whether there is one at all and how loud it is; the rest only decides whether the post
+ * is trying.
  */
-public class SirenBlockEntity extends BlockEntity {
+public class SirenBlockEntity extends KineticBlockEntity {
     /**
      * How often the post looks around.
      * <p>
@@ -59,6 +67,17 @@ public class SirenBlockEntity extends BlockEntity {
     private static final double MOVING = 0.01D;
     /** Cosine of how far off the beam an inbound missile may be and still be inbound. */
     private static final double INBOUND_DOT = 0.25D;
+    /**
+     * Rotor speed, in RPM, at which the post is at full voice. A shaft off a windmill
+     * will not do; a gearbox stepped up to a working speed will.
+     */
+    private static final float FULL_VOICE_RPM = 64.0f;
+    /** Below this the rotor is barely turning and there is no note to speak of. */
+    private static final float STALL_RPM = 1.0f;
+    /** Quietest a turning rotor gets, so a slow one is faint rather than absent. */
+    private static final float FLOOR_VOICE = 0.18f;
+    /** What the housing costs the network. A rotor in a horn is not free to spin. */
+    private static final float STRESS_IMPACT = 8.0f;
 
     private SirenSettings settings = SirenSettings.DEFAULT;
     /** Ticks of linger left, from a sighting. Nothing to do with the signal. */
@@ -68,8 +87,45 @@ public class SirenBlockEntity extends BlockEntity {
     /** Ticks until listeners are reminded this post is still going. */
     private int keepalive;
 
-    public SirenBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.SIREN.get(), pos, state);
+    /** Loudness last sent out, so a drifting speed does not spam every listener. */
+    private float announcedVoice = -1.0f;
+
+    public SirenBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+        super(type, pos, state);
+    }
+
+    @Override
+    public void addBehaviours(java.util.List<BlockEntityBehaviour> behaviours) {
+        super.addBehaviours(behaviours);
+    }
+
+    @Override
+    public float calculateStressApplied() {
+        this.lastStressApplied = STRESS_IMPACT;
+        return STRESS_IMPACT;
+    }
+
+    /**
+     * How loud the rotor is, 0 when it is not turning at all.
+     * <p>
+     * Read from the kinetic speed, which Create already keeps on both sides, so a
+     * listener standing next to the post hears it follow the gearbox without anything
+     * of ours being synced for it.
+     */
+    public float voice() {
+        float rpm = Math.abs(this.getSpeed());
+        if (rpm < STALL_RPM) {
+            return 0.0f;
+        }
+        float scaled = Mth.clamp(rpm / FULL_VOICE_RPM, 0.0f, 1.0f);
+        // Square-rooted: the first turns of the rotor are most of the loudness, and
+        // doubling an already-fast shaft should be a small change rather than a large one.
+        return Mth.lerp((float) Math.sqrt(scaled), FLOOR_VOICE, 1.0f);
+    }
+
+    /** Whether there is drive enough to make a note. */
+    public boolean isTurning() {
+        return this.voice() > 0.0f;
     }
 
     public SirenSettings settings() {
@@ -88,7 +144,17 @@ public class SirenBlockEntity extends BlockEntity {
         }
     }
 
+    /**
+     * Trying to sound, and able to. The two are separate on purpose: a post with the
+     * lever thrown and no drive is still armed, it simply has no voice, and it starts
+     * making one the moment the shaft turns rather than needing to be told again.
+     */
     public boolean isWailing() {
+        return this.wants() && this.isTurning();
+    }
+
+    /** Whether anything is asking this post to sound, drive aside. */
+    private boolean wants() {
         return this.held || this.lingerTicks > 0;
     }
 
@@ -110,31 +176,38 @@ public class SirenBlockEntity extends BlockEntity {
         this.refresh();
     }
 
-    public static void serverTick(Level level, BlockPos pos, BlockState state, SirenBlockEntity be) {
-        if (!(level instanceof ServerLevel server)) {
+    @Override
+    public void tick() {
+        // Create's own bookkeeping first: the speed everything below reads is its answer.
+        super.tick();
+        if (!(this.level instanceof ServerLevel server)) {
             return;
         }
+        BlockPos pos = this.worldPosition;
 
         // The signal is read fresh every tick rather than remembered. A post that had been
         // switched on once went on wailing out the whole linger after the line went dead,
         // because being told by a lever and being told by a sighting were the same state.
-        be.held = level.hasNeighborSignal(pos);
+        this.held = server.hasNeighborSignal(pos);
 
-        if (be.settings.watchesAnything() && level.getGameTime() % SCAN_INTERVAL == 0
-                && be.threatNearby(server, pos)) {
-            be.raise();
+        if (this.settings.watchesAnything() && server.getGameTime() % SCAN_INTERVAL == 0
+                && this.threatNearby(server, pos)) {
+            this.raise();
         }
-        if (be.lingerTicks > 0) {
-            be.lingerTicks--;
+        if (this.lingerTicks > 0) {
+            this.lingerTicks--;
         }
 
-        be.refresh();
-        if (!be.isWailing()) {
+        this.refresh();
+        if (!this.isWailing()) {
             return;
         }
-        if (--be.keepalive <= 0) {
-            be.keepalive = KEEPALIVE_TICKS;
-            be.announce();
+        // A rotor that has changed pace has to be reported before the next keepalive,
+        // or the gearbox would be turned up and nothing would happen for two seconds.
+        boolean voiceMoved = Math.abs(this.voice() - this.announcedVoice) > 0.05f;
+        if (--this.keepalive <= 0 || voiceMoved) {
+            this.keepalive = KEEPALIVE_TICKS;
+            this.announce();
         }
     }
 
@@ -163,8 +236,10 @@ public class SirenBlockEntity extends BlockEntity {
             return;
         }
         int remaining = Math.max(this.lingerTicks, this.held ? HELD_GRACE : 0);
+        float voice = this.voice();
+        this.announcedVoice = voice;
         var payload = new com.cbc_more_content.network.SirenWailPayload(
-                this.worldPosition, remaining);
+                this.worldPosition, remaining, voice);
         double reachSqr = AUDIBLE * AUDIBLE;
         double x = this.worldPosition.getX() + 0.5D;
         double y = this.worldPosition.getY() + 0.5D;
@@ -262,34 +337,22 @@ public class SirenBlockEntity extends BlockEntity {
     }
 
     private void sync() {
-        if (this.level != null) {
-            BlockState state = this.level.getBlockState(this.worldPosition);
-            this.level.sendBlockUpdated(this.worldPosition, state, state, Block.UPDATE_CLIENTS);
-        }
+        // Create's own path, so the settings ride the same packet as the kinetic state
+        // rather than racing a second one against it.
+        this.sendData();
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.read(tag, registries, clientPacket);
         this.settings = SirenSettings.load(tag.getCompound("Settings"));
         this.lingerTicks = tag.getInt("Linger");
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.write(tag, registries, clientPacket);
         tag.put("Settings", this.settings.save());
         tag.putInt("Linger", this.lingerTicks);
-    }
-
-    /** The settings screen reads these off the client copy, so all of it travels. */
-    @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-        return this.saveWithoutMetadata(registries);
-    }
-
-    @Override
-    public Packet<ClientGamePacketListener> getUpdatePacket() {
-        return ClientboundBlockEntityDataPacket.create(this);
     }
 }

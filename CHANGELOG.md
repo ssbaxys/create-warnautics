@@ -1,8 +1,8 @@
 # Changelog
 
-## 1.0.6
+## 1.0.7
 
-Create Warnautics 1.0.6: the C4 breaching charge, wire cutters and a defusal minigame, a guided cruise missile, and mines that leave the ground looking like something happened to it.
+Create Warnautics 1.0.7: the C4 breaching charge, wire cutters and a defusal minigame, a guided cruise missile, and mines that leave the ground looking like something happened to it.
 
 NOTE: The small, medium and large bomb recipes are all roughly twice as expensive as in 1.0.3, and the medium and large now want an impact fuze. Existing bombs are unaffected.
 
@@ -26,7 +26,9 @@ NOTE: The small, medium and large bomb recipes are all roughly twice as expensiv
 * **`/cw panel`** — an operator-only switchboard with one large lever
    * The switch is server-wide and saved with the world. What a blast looks like belongs to the server everyone is on, not to each client, so one person sets it and every player gets the change
    * The permission is checked again when the switch is thrown, not only when the command opens the screen
-* **Air-raid siren** — a post that wails on a redstone signal, or on its own
+* **Air-raid siren** — a driven post that wails on a redstone signal, or on its own
+   * A Create machine: it takes a shaft from below and costs the network stress like anything else. A siren is a rotor in a housing, so drive is what makes a note at all — with the lever thrown and no shaft it is armed and silent, and it finds its voice the moment the shaft turns
+   * The faster the rotor, the louder it is. Full voice at 64 RPM, and a slow shaft is faint rather than absent; the pitch sags as it winds down, so spinning one up and letting it die reads as a rotor rather than a switch
    * The settings key opens it: sound on its own or not, watched radius, how long it keeps wailing after the threat has passed, and whether it is listening for inbound missiles, falling bombs, or both
    * A missile merely crossing the sky does not set it off; one turned this way does
    * Nothing announces the all-clear. The wail simply runs out, so standing under it you find out the same way everyone else does

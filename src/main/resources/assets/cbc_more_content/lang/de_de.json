@@ -156,7 +156,7 @@
     "gui.cbc_more_content.siren.watch_missiles": "Raketen",
     "gui.cbc_more_content.siren.watch_bombs": "Explosionen",
     "gui.cbc_more_content.siren.apply": "Übernehmen",
-    "gui.cbc_more_content.siren.hint": "Redstone löst sie immer aus",
+    "gui.cbc_more_content.siren.hint": "Braucht eine Welle unten; Redstone löst aus",
     "subtitles.cbc_more_content.siren": "Sirene heult",
     "subtitles.cbc_more_content.siren_distant": "Sirenen in der Ferne",
     "gui.cbc_more_content.c4.next": "Weiter",

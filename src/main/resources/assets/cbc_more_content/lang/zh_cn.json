@@ -156,7 +156,7 @@
     "gui.cbc_more_content.siren.watch_missiles": "导弹",
     "gui.cbc_more_content.siren.watch_bombs": "爆炸",
     "gui.cbc_more_content.siren.apply": "应用",
-    "gui.cbc_more_content.siren.hint": "红石总是能触发",
+    "gui.cbc_more_content.siren.hint": "下方需要传动轴；红石触发",
     "subtitles.cbc_more_content.siren": "警报器长鸣",
     "subtitles.cbc_more_content.siren_distant": "远处的警报声",
     "gui.cbc_more_content.c4.next": "下一步",
