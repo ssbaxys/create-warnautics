@@ -166,6 +166,23 @@ public final class BombExplosionHandler {
             // mod would be dressed twice, once here and once by that listener.
             CannonBlastFx.own(explosion::explode);
 
+            // Second pass over what the first one refused. The ordinary model charges
+            // resistance linearly, which is built so that TNT can never touch obsidian
+            // and has the side effect that nothing else can either — a warhead sized to
+            // breach a bunker took the dirt around it and left the bunker unmarked. This
+            // charges a sub-linear curve, so soft ground is unaffected (it is already
+            // gone) and payload size decides how far into hard material a blast reaches.
+            if (canDamageTerrain) {
+                List<BlockPos> fractured =
+                        BlastFracture.gather(level, pos, blockPower, explosion.getToBlow());
+                if (!fractured.isEmpty()) {
+                    // Through the same protection gate as everything else: a claim that
+                    // stops a bomb has to stop the heavy end of one too.
+                    explosion.getToBlow().addAll(
+                            BlastProtection.filter(level, pos, blockPower, fractured));
+                }
+            }
+
             // Fired while getToBlow() is still intact so add-ons can veto individual
             // positions before the cap, the core vaporization and finalizeExplosion
             // consume it. It runs ahead of the entity pass because that pass treats
