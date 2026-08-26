@@ -53,6 +53,7 @@ NOTE: The small, medium and large bomb recipes are all roughly twice as expensiv
 * Blasts near a Sable sub-level go through the normal explosion again, which Sable already extends to hulls, instead of a bounded stand-in that skipped it
 * Bomb recipes roughly doubled in cost across all three sizes
 * The cruise missile now costs more than the large bomb rather than half of it: same explosive filler and powder charges, on top of the guidance, the airframe and the engine. The pattern is 9x5 instead of 9x3, so an existing crafter array needs extending
+* The cruise missile flies faster and burns longer: 1.4 blocks a tick over nine and a half seconds, so about 265 blocks of powered range instead of 130. Its lookahead grew with it, since avoidance is a nudge held against a turn circle that is now twenty-five blocks wide, and the proximity ring was widened past one tick of travel so a faster run-in cannot step over it
 * Antipersonnel mines are survivable. They were sharing the shell curve the bombs use, which came out at eighty-odd damage at the seat — four times over what it takes to kill anyone, at any range inside the burst. On their own curve now: standing on one leaves about two hearts before fragments, a couple of blocks away leaves five or six, and cover cuts it again. The antivehicle mine is unchanged
 
 ### Fixed

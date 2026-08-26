@@ -40,12 +40,12 @@ import net.minecraft.world.phys.AABB;
  */
 public class CruiseMissileProjectile extends Entity {
     /**
-     * Powered flight, in ticks. At the cruise speed below this is roughly 130 blocks of
-     * range — far enough to be a standoff weapon, short enough that the missile comes
-     * down while the launch site is still on screen.
+     * Powered flight, in ticks. At the cruise speed below this is roughly 265 blocks of
+     * range — a standoff weapon that reaches past what you can see from the rack, without
+     * turning into something you fire at a map reference and forget about.
      */
-    public static final int FUEL_TICKS = 115;
-    private static final double CRUISE_SPEED = 1.15D;
+    public static final int FUEL_TICKS = 190;
+    private static final double CRUISE_SPEED = 1.4D;
     /** Unpowered descent. Steeper than a shell so burnout reads as the engine dying. */
     private static final double GRAVITY = 0.085D;
     /** Horizontal speed bleeds off quickly once there is no thrust holding it up. */
@@ -72,8 +72,14 @@ public class CruiseMissileProjectile extends Entity {
      * it is inside the turn circle and cannot be avoided.
      */
     private static final double TURN_RATE = 0.055D;
-    /** How far ahead it looks for something to lean around. */
-    private static final double LOOKAHEAD = 14.0D;
+    /**
+     * How far ahead it looks for something to lean around.
+     * <p>
+     * Scaled with the cruise speed rather than left where it was. Avoidance is a nudge
+     * held against a turn circle of about twenty-five blocks, and a faster airframe that
+     * looked no further ahead would simply meet the hillside sooner.
+     */
+    private static final double LOOKAHEAD = 17.0D;
     /**
      * Inside this range the missile is on its terminal run: obstacle avoidance is
      * dropped and it turns much harder. Avoidance is what used to make it miss — the
@@ -83,8 +89,13 @@ public class CruiseMissileProjectile extends Entity {
     private static final double TERMINAL_RANGE = 32.0D;
     /** Terminal turn rate, enough to pull a dive onto a point it is nearly on top of. */
     private static final double TERMINAL_TURN_RATE = 0.2D;
-    /** Close enough to burst. The warhead is far wider than this. */
-    private static final double FUSE_RANGE = 2.0D;
+    /**
+     * Close enough to burst. The warhead is far wider than this.
+     * <p>
+     * Kept above one tick of travel on the terminal run-in, or the ring could be stepped
+     * clean over between two ticks and the burst left to the closest-approach test alone.
+     */
+    private static final double FUSE_RANGE = 2.4D;
     /** Terminal run-in: the last stretch is flown faster than the cruise. */
     private static final double TERMINAL_BOOST = 1.45D;
     /** Cosine of the sharpest course change a target can make without being noticed. */
