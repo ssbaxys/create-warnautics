@@ -83,21 +83,21 @@ public class SirenBlockEntity extends BlockEntity {
         return this.held || this.lingerTicks > 0;
     }
 
-    /** A sighting: start the linger, or top it up if one is already running. */
-    public void raise() {
+    /**
+     * A sighting: start the linger, or top it up if one is already running.
+     * <p>
+     * Private, and it must stay that way. This is the only thing that writes the linger,
+     * and the linger is what keeps a post going once whatever set it off has gone. A
+     * redstone signal must never come through here — it only ever holds the post up, and
+     * the one time this was wired to a signal, cutting the line left it wailing out the
+     * full forty-five seconds with no way to stop it.
+     */
+    private void raise() {
         int wanted = Math.max(20, this.settings.lingerSeconds() * 20);
         if (wanted > this.lingerTicks) {
             this.lingerTicks = wanted;
             this.setChanged();
         }
-        this.refresh();
-    }
-
-    /** Cut short, whatever was holding it. */
-    public void silence() {
-        this.lingerTicks = 0;
-        this.held = false;
-        this.setChanged();
         this.refresh();
     }
 

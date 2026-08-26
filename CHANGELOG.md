@@ -26,6 +26,7 @@ NOTE: The small, medium and large bomb recipes are all roughly twice as expensiv
    * Nothing announces the all-clear. The wail simply runs out, so standing under it you find out the same way everyone else does
    * Two layers, held open as looping voices and crossfaded by distance: close by it is the wail with the swell under it, and by a hundred and twenty blocks only the swell is left. Walking away fades between them across sixty blocks rather than switching
    * Breaking a post stops it. The wail is not a fired sample that has to finish
+   * A signal holds the post and lets it go. Only a sighting starts the linger, so cutting the line stops the wail within a tick rather than leaving it running out a timer nobody asked for
 * **Wire cutters** — open the panel on a live charge for three coloured wires
    * One defuses, one detonates, one halves the remaining time; which is which is rolled per charge and never sent to the client
    * Cuts persist, so closing the panel does not hand back a fresh board

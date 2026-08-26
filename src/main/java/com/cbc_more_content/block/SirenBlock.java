@@ -93,14 +93,8 @@ public class SirenBlock extends BaseEntityBlock {
         return createTickerHelper(type, ModBlockEntities.SIREN.get(), SirenBlockEntity::serverTick);
     }
 
-    /** A signal is picked up on the next tick, along with everything else it watches. */
-    @Override
-    protected void neighborChanged(
-            BlockState state, Level level, BlockPos pos, Block neighborBlock,
-            BlockPos neighborPos, boolean movedByPiston) {
-        if (!level.isClientSide && level.hasNeighborSignal(pos)
-                && level.getBlockEntity(pos) instanceof SirenBlockEntity siren) {
-            siren.raise();
-        }
-    }
+    // No neighborChanged override on purpose. It used to call raise() when a signal
+    // appeared, which is the sighting path — so throwing a lever started the full linger
+    // and the post went on wailing for three quarters of a minute after the line was cut.
+    // The post reads the signal for itself every tick, and a signal only ever holds it.
 }
