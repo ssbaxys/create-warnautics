@@ -130,7 +130,8 @@ Server config, written to `serverconfig/cbc_more_content-server.toml` on first w
 
 # Disclaimer 
 
-Various code comments and changelogs are generated with the assistance of AI due to english being ssbaxys second language. I, Wizardtastic, will be double checking all of them as a native English speaker. If you spot any that I have missed, please report them and/or submit a correction.
+Some modules, code snippets, comments, and changelog entries may be written or refined with the assistance of AI, as English is ssbaxy's second language. I, Wizardtastic, review the generated content as a native English speaker to make sure it is clear and accurate.
+If you notice any awkward wording, mistakes, or anything else we may have missed, feel free to report it or submit a correction.
 
 # License
 
