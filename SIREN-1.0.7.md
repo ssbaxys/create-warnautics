@@ -1,15 +1,15 @@
-# Сирена — 1.0.7
+# Siren — 1.0.7
 
-* Сирена стала механизмом Create: работает от вала снизу
-* Под ней виден вращающийся вал
-* Нагрузка на сеть — 1024
-* Лампа загорается от редстоуна сразу, даже без вращения
-* Звук появляется только когда есть вращение
-* Чем быстрее вал, тем громче: 64 об/мин — полная громкость, 32 — половина, 0 — тишина
-* Выше 64 об/мин громче не станет
-* На малых оборотах звук ниже по тону
-* Новая модель и текстуры, отдельный вид для включённой
-* В крафте вместо редстоуна теперь вал
-* Снял редстоун — замолкает сразу, а не догудывает таймер
-* Слышно и когда отходишь далеко, а не только рядом
-* Сломал сирену — звук обрывается, а не доигрывает до конца
+* The siren is a Create machine now: it runs off a shaft from below
+* You can see the shaft turning underneath it
+* Costs 1024 stress
+* The lamp lights on redstone straight away, even with no rotation
+* Sound only comes once something is turning it
+* The faster the shaft, the louder it gets: 64 RPM is full volume, 32 is half, 0 is silence
+* Past 64 RPM it does not get any louder
+* At low speed the note sits lower
+* New model and textures, with its own look while it is running
+* The recipe takes a shaft instead of redstone
+* Cut the redstone and it stops at once instead of running out a timer
+* Still audible when you walk away, not just up close
+* Break it and the sound cuts off instead of finishing the clip
