@@ -81,6 +81,9 @@ public class CBCMoreContentClient {
         event.registerEntityRenderer(ModEntityTypes.CRUISE_MISSILE.get(),
                 com.cbc_more_content.client.CruiseMissileRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.C4.get(), C4Renderer::new);
+        // The turning stub of shaft in the socket under a post.
+        event.registerBlockEntityRenderer(ModBlockEntities.SIREN.get(),
+                com.cbc_more_content.client.SirenRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.CRUISE_MISSILE.get(),
                 CruiseMissileBlockRenderer::new);
     }

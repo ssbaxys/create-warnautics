@@ -74,10 +74,14 @@ public class SirenBlockEntity extends KineticBlockEntity {
     private static final float FULL_VOICE_RPM = 64.0f;
     /** Below this the rotor is barely turning and there is no note to speak of. */
     private static final float STALL_RPM = 1.0f;
-    /** Quietest a turning rotor gets, so a slow one is faint rather than absent. */
-    private static final float FLOOR_VOICE = 0.18f;
-    /** What the housing costs the network. A rotor in a horn is not free to spin. */
-    private static final float STRESS_IMPACT = 8.0f;
+    /**
+      * What the housing costs the network.
+      * <p>
+      * Heavy on purpose. A siren rotor is a compressor being spun against the air it is
+      * shifting, and a post that could be run off a hand crank would make the whole
+      * business of driving it a formality.
+      */
+    private static final float STRESS_IMPACT = 1024.0f;
 
     private SirenSettings settings = SirenSettings.DEFAULT;
     /** Ticks of linger left, from a sighting. Nothing to do with the signal. */
@@ -117,10 +121,10 @@ public class SirenBlockEntity extends KineticBlockEntity {
         if (rpm < STALL_RPM) {
             return 0.0f;
         }
-        float scaled = Mth.clamp(rpm / FULL_VOICE_RPM, 0.0f, 1.0f);
-        // Square-rooted: the first turns of the rotor are most of the loudness, and
-        // doubling an already-fast shaft should be a small change rather than a large one.
-        return Mth.lerp((float) Math.sqrt(scaled), FLOOR_VOICE, 1.0f);
+        // Straight proportion: half the speed is half the voice, and past full speed
+        // there is nothing left to give. A curve here read as the post being loud almost
+        // as soon as it turned at all, which made the gearbox between them pointless.
+        return Mth.clamp(rpm / FULL_VOICE_RPM, 0.0f, 1.0f);
     }
 
     /** Whether there is drive enough to make a note. */
@@ -154,7 +158,7 @@ public class SirenBlockEntity extends KineticBlockEntity {
     }
 
     /** Whether anything is asking this post to sound, drive aside. */
-    private boolean wants() {
+    public boolean wants() {
         return this.held || this.lingerTicks > 0;
     }
 
@@ -211,12 +215,14 @@ public class SirenBlockEntity extends KineticBlockEntity {
         }
     }
 
-    /** Brings the horn into line with whatever is holding the post up, and opens voices. */
+    /** Brings the lamp and the horn into line, and opens voices when one starts. */
     private void refresh() {
         boolean wailing = this.isWailing();
         boolean was = this.getBlockState().hasProperty(SirenBlock.SOUNDING)
                 && this.getBlockState().getValue(SirenBlock.SOUNDING);
-        this.setSounding(wailing);
+        // The lamp follows the control circuit, the horn follows the rotor. A post lit
+        // and silent is one waiting for drive.
+        this.setStates(this.wants(), wailing);
         if (wailing && !was) {
             this.keepalive = KEEPALIVE_TICKS;
             this.announce();
@@ -323,17 +329,23 @@ public class SirenBlockEntity extends KineticBlockEntity {
         return motion.normalize().dot(toPost.normalize()) >= INBOUND_DOT;
     }
 
-    /** The horn lighting up is a block state, so it draws without anything being synced. */
-    private void setSounding(boolean sounding) {
+    /** Both lights are block states, so they draw without anything being synced. */
+    private void setStates(boolean powered, boolean sounding) {
         if (this.level == null) {
             return;
         }
         BlockState state = this.level.getBlockState(this.worldPosition);
-        if (state.hasProperty(SirenBlock.SOUNDING)
-                && state.getValue(SirenBlock.SOUNDING) != sounding) {
-            this.level.setBlock(this.worldPosition,
-                    state.setValue(SirenBlock.SOUNDING, sounding), Block.UPDATE_CLIENTS);
+        if (!state.hasProperty(SirenBlock.POWERED) || !state.hasProperty(SirenBlock.SOUNDING)) {
+            return;
         }
+        if (state.getValue(SirenBlock.POWERED) == powered
+                && state.getValue(SirenBlock.SOUNDING) == sounding) {
+            return;
+        }
+        this.level.setBlock(this.worldPosition,
+                state.setValue(SirenBlock.POWERED, powered)
+                        .setValue(SirenBlock.SOUNDING, sounding),
+                Block.UPDATE_CLIENTS);
     }
 
     private void sync() {

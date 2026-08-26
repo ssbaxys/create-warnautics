@@ -27,12 +27,13 @@ NOTE: The small, medium and large bomb recipes are all roughly twice as expensiv
    * The switch is server-wide and saved with the world. What a blast looks like belongs to the server everyone is on, not to each client, so one person sets it and every player gets the change
    * The permission is checked again when the switch is thrown, not only when the command opens the screen
 * **Air-raid siren** — a driven post that wails on a redstone signal, or on its own
-   * A Create machine: it takes a shaft from below and costs the network stress like anything else. A siren is a rotor in a housing, so drive is what makes a note at all — with the lever thrown and no shaft it is armed and silent, and it finds its voice the moment the shaft turns
-   * The faster the rotor, the louder it is. Full voice at 64 RPM, and a slow shaft is faint rather than absent; the pitch sags as it winds down, so spinning one up and letting it die reads as a rotor rather than a switch
+   * A Create machine: it takes a shaft from below, shows the shaft turning in its socket, and costs the network 1024 stress. A siren is a rotor in a housing, so drive is what makes a note at all — with the lever thrown and no shaft it is armed and silent, and it finds its voice the moment the shaft turns
+   * The faster the rotor, the louder it is, in straight proportion: full voice at 64 RPM, half at 32, nothing at rest, and no more to give past 64. The pitch sags as it winds down, so spinning one up and letting it die reads as a rotor rather than a switch
    * The settings key opens it: sound on its own or not, watched radius, how long it keeps wailing after the threat has passed, and whether it is listening for inbound missiles, falling bombs, or both
    * A missile merely crossing the sky does not set it off; one turned this way does
    * Nothing announces the all-clear. The wail simply runs out, so standing under it you find out the same way everyone else does
    * Two layers, held open as looping voices and crossfaded by distance: close by it is the wail with the swell under it, and by a hundred and twenty blocks only the swell is left. Walking away fades between them across sixty blocks rather than switching
+   * The lamp is the control circuit and lights on a signal alone, drive or no drive. A post standing lit and silent is one armed and waiting for a shaft
    * Breaking a post stops it. The wail is not a fired sample that has to finish
    * A signal holds the post and lets it go. Only a sighting starts the linger, so cutting the line stops the wail within a tick rather than leaving it running out a timer nobody asked for
    * Walking away from a raid no longer silences it. The voices used to live on a block lookup alone, so they died at the listener's own render distance — a post two hundred blocks off went quiet even though the far layer is mixed to carry three hundred and thirty. The post now says how long it has left and the client runs the rest out itself
