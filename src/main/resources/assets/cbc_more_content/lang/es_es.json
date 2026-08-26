@@ -159,5 +159,13 @@
     "gui.cbc_more_content.siren.hint": "La redstone siempre la activa",
     "subtitles.cbc_more_content.siren": "La sirena aulla",
     "subtitles.cbc_more_content.siren_distant": "Sirenas a lo lejos",
-    "gui.cbc_more_content.c4.next": "Siguiente"
+    "gui.cbc_more_content.c4.next": "Siguiente",
+    "gui.cbc_more_content.panel.title": "Panel de Warnautics",
+    "gui.cbc_more_content.panel.cannon_fx": "Efectos de explosión de Big Cannons",
+    "gui.cbc_more_content.panel.on": "SÍ",
+    "gui.cbc_more_content.panel.off": "NO",
+    "gui.cbc_more_content.panel.scope": "Se aplica a todos en este servidor",
+    "message.cbc_more_content.panel.cannon_fx_on": "Efectos de explosión activados para todos",
+    "message.cbc_more_content.panel.cannon_fx_off": "Efectos de explosión desactivados para todos",
+    "command.cbc_more_content.panel.player_only": "El panel necesita un jugador"
 }

@@ -159,5 +159,13 @@
     "gui.cbc_more_content.siren.hint": "红石总是能触发",
     "subtitles.cbc_more_content.siren": "警报器长鸣",
     "subtitles.cbc_more_content.siren_distant": "远处的警报声",
-    "gui.cbc_more_content.c4.next": "下一步"
+    "gui.cbc_more_content.c4.next": "下一步",
+    "gui.cbc_more_content.panel.title": "Warnautics 控制台",
+    "gui.cbc_more_content.panel.cannon_fx": "Big Cannons 爆炸效果",
+    "gui.cbc_more_content.panel.on": "开",
+    "gui.cbc_more_content.panel.off": "关",
+    "gui.cbc_more_content.panel.scope": "对本服务器所有人生效",
+    "message.cbc_more_content.panel.cannon_fx_on": "已为所有人开启爆炸效果",
+    "message.cbc_more_content.panel.cannon_fx_off": "已为所有人关闭爆炸效果",
+    "command.cbc_more_content.panel.player_only": "控制台需要一名玩家"
 }

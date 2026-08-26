@@ -161,7 +161,10 @@ public final class BombExplosionHandler {
         // in the crater free to cook off — that is the rack chain reaction that made
         // multi-bomb aircraft unusable.
         BombSympatheticDetonation.runBombBlast(() -> {
-            explosion.explode();
+            // Marked as ours while it runs. This is a Big Cannons ShellExplosion, and
+            // CannonBlastFx watches for exactly those — without this every bomb in the
+            // mod would be dressed twice, once here and once by that listener.
+            CannonBlastFx.own(explosion::explode);
 
             // Fired while getToBlow() is still intact so add-ons can veto individual
             // positions before the cap, the core vaporization and finalizeExplosion

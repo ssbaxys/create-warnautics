@@ -166,5 +166,13 @@
     "gui.cbc_more_content.siren.hint": "Redstone always sounds it",
     "subtitles.cbc_more_content.siren": "Air-raid siren wails",
     "subtitles.cbc_more_content.siren_distant": "Sirens, somewhere far off",
-    "gui.cbc_more_content.c4.next": "Next"
+    "gui.cbc_more_content.c4.next": "Next",
+    "gui.cbc_more_content.panel.title": "Warnautics control",
+    "gui.cbc_more_content.panel.cannon_fx": "Big Cannons blast effects",
+    "gui.cbc_more_content.panel.on": "ON",
+    "gui.cbc_more_content.panel.off": "OFF",
+    "gui.cbc_more_content.panel.scope": "Applies to everyone on this server",
+    "message.cbc_more_content.panel.cannon_fx_on": "Cannon blast effects on, server-wide",
+    "message.cbc_more_content.panel.cannon_fx_off": "Cannon blast effects off, server-wide",
+    "command.cbc_more_content.panel.player_only": "The panel needs a player to open it on"
 }

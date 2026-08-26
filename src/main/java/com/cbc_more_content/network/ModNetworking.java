@@ -9,6 +9,7 @@ import com.cbc_more_content.item.WireCuttersItem;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
@@ -85,7 +86,15 @@ public final class ModNetworking {
                 .playToClient(
                         SirenWailPayload.TYPE,
                         SirenWailPayload.STREAM_CODEC,
-                        ModNetworking::handleSirenWail);
+                        ModNetworking::handleSirenWail)
+                .playToClient(
+                        OpenControlPanelPayload.TYPE,
+                        OpenControlPanelPayload.STREAM_CODEC,
+                        ModNetworking::handleOpenControlPanel)
+                .playToServer(
+                        ControlPanelPayload.TYPE,
+                        ControlPanelPayload.STREAM_CODEC,
+                        ModNetworking::handleControlPanel);
     }
 
     private static void handleConcussion(ConcussionPayload payload, IPayloadContext context) {
@@ -278,6 +287,45 @@ public final class ModNetworking {
     }
 
     /** The flight plan is typed on a screen, so it is re-checked here like the rest. */
+    /** The switchboard, opened by an operator who ran the command. */
+    private static void handleOpenControlPanel(OpenControlPanelPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!FMLEnvironment.dist.isClient()) {
+                return;
+            }
+            try {
+                Class.forName("com.cbc_more_content.client.gui.ControlPanelClient")
+                        .getMethod("open", boolean.class)
+                        .invoke(null, payload.cannonFx());
+            } catch (ReflectiveOperationException e) {
+                CBCMoreContent.LOGGER.debug("Control panel unavailable: {}", e.toString());
+            }
+        });
+    }
+
+    /**
+     * A switch thrown on the panel. Re-checked against the same permission level the
+     * command needs: having a screen open is not authority, and nothing stops a client
+     * from sending this without ever having run the command.
+     */
+    private static void handleControlPanel(ControlPanelPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)
+                    || !player.hasPermissions(
+                            com.cbc_more_content.command.WarnauticsCommands.PERMISSION_LEVEL)) {
+                return;
+            }
+            com.cbc_more_content.settings.WarnauticsServerSettings.get(player.server)
+                    .setCannonFx(payload.cannonFx());
+            player.displayClientMessage(Component.translatable(payload.cannonFx()
+                            ? "message.cbc_more_content.panel.cannon_fx_on"
+                            : "message.cbc_more_content.panel.cannon_fx_off")
+                    .withStyle(payload.cannonFx()
+                            ? net.minecraft.ChatFormatting.GREEN
+                            : net.minecraft.ChatFormatting.GRAY), true);
+        });
+    }
+
     /** A post has started, or is still going; the client holds its voices open. */
     private static void handleSirenWail(SirenWailPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {

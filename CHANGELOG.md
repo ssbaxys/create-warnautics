@@ -1,8 +1,8 @@
 # Changelog
 
-## 1.0.5
+## 1.0.6
 
-Create Warnautics 1.0.5: the C4 breaching charge, wire cutters and a defusal minigame, a guided cruise missile, and mines that leave the ground looking like something happened to it.
+Create Warnautics 1.0.6: the C4 breaching charge, wire cutters and a defusal minigame, a guided cruise missile, and mines that leave the ground looking like something happened to it.
 
 NOTE: The small, medium and large bomb recipes are all roughly twice as expensive as in 1.0.3, and the medium and large now want an impact fuze. Existing bombs are unaffected.
 
@@ -20,6 +20,12 @@ NOTE: The small, medium and large bomb recipes are all roughly twice as expensiv
    * Sneak + right-click a charge to take it off the set; sneak + right-click in the open drops all of them
    * A charge set to remote wears an aerial. Armed, it shows the lamp alone with a dark screen and a still cog — there is no clock behind it to turn. Paired, the screen lights and the cog turns: there is a set at the other end now
    * The set shows its own lamp lit while it holds anything, and lets charges go on its own once they are gone
+* **Big Cannons blasts get this mod's effects** — the flash, the late roll from a long way off, the concussion, the thrown debris and the scarred ground, on shells and mortar rounds and flak bursts rather than only on the mod's own bombs
+   * The profile is picked from the blast's own radius, so a shell is dressed to the size it actually is and add-on munitions built on the same explosion types are covered without knowing about them
+   * Shrapnel bursts are left alone: a cloud of fragments is not a detonation, and a mushroom on each one would bury the map
+* **`/cw panel`** — an operator-only switchboard with one large lever
+   * The switch is server-wide and saved with the world. What a blast looks like belongs to the server everyone is on, not to each client, so one person sets it and every player gets the change
+   * The permission is checked again when the switch is thrown, not only when the command opens the screen
 * **Air-raid siren** — a post that wails on a redstone signal, or on its own
    * The settings key opens it: sound on its own or not, watched radius, how long it keeps wailing after the threat has passed, and whether it is listening for inbound missiles, falling bombs, or both
    * A missile merely crossing the sky does not set it off; one turned this way does

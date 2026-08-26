@@ -159,5 +159,13 @@
     "gui.cbc_more_content.siren.hint": "La redstone la déclenche toujours",
     "subtitles.cbc_more_content.siren": "La sirène hurle",
     "subtitles.cbc_more_content.siren_distant": "Sirènes au loin",
-    "gui.cbc_more_content.c4.next": "Suivant"
+    "gui.cbc_more_content.c4.next": "Suivant",
+    "gui.cbc_more_content.panel.title": "Pupitre Warnautics",
+    "gui.cbc_more_content.panel.cannon_fx": "Effets d'explosion Big Cannons",
+    "gui.cbc_more_content.panel.on": "OUI",
+    "gui.cbc_more_content.panel.off": "NON",
+    "gui.cbc_more_content.panel.scope": "S'applique à tout le serveur",
+    "message.cbc_more_content.panel.cannon_fx_on": "Effets d'explosion activés pour tous",
+    "message.cbc_more_content.panel.cannon_fx_off": "Effets d'explosion désactivés pour tous",
+    "command.cbc_more_content.panel.player_only": "Le pupitre a besoin d'un joueur"
 }
