@@ -9,6 +9,7 @@ import org.joml.Vector3f;
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.client.BombFlashClient;
+import com.cbc_more_content.client.FlashRenderMode;
 
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.light.data.PointLightData;
@@ -72,8 +73,11 @@ public final class VeilBombFx {
 
     public static void onFlash(BombFlashClient.Flash flash) {
         try {
-            if (!com.cbc_more_content.config.WarnauticsClientConfig.bombLights()
-                    && !com.cbc_more_content.config.WarnauticsClientConfig.screenEffects()) {
+            // Sodium Extras changes the same render-state boundaries used by Veil.
+            // Use the renderer-independent overlay path in that combination.
+            if (FlashRenderMode.sodiumExtrasLoaded()
+                    || (!com.cbc_more_content.config.WarnauticsClientConfig.bombLights()
+                    && !com.cbc_more_content.config.WarnauticsClientConfig.screenEffects())) {
                 return;
             }
             if (LIGHTS.size() >= MAX_ACTIVE_LIGHTS) {
@@ -102,7 +106,8 @@ public final class VeilBombFx {
 
             LIGHTS.add(new ActiveLight(flash, light, skyLight));
 
-            if (com.cbc_more_content.config.WarnauticsClientConfig.screenEffects()) {
+            if (com.cbc_more_content.config.WarnauticsClientConfig.screenEffects()
+                    && !FlashRenderMode.sodiumExtrasLoaded()) {
                 PostProcessingManager post = VeilRenderSystem.renderer().getPostProcessingManager();
                 if (!post.isActive(PIPELINE)) {
                     post.add(50, PIPELINE);
@@ -183,7 +188,8 @@ public final class VeilBombFx {
             // Brightness zero is insufficient: Veil still submits the light cube.
             // Remove the handle whenever the camera intersects (or nearly touches)
             // that cube, then recreate it only after the camera is safely outside.
-            if (!com.cbc_more_content.config.WarnauticsClientConfig.bombLights()
+            if (FlashRenderMode.sodiumExtrasLoaded()
+                    || !com.cbc_more_content.config.WarnauticsClientConfig.bombLights()
                     || cameraIntersectsLightVolume(camPos, lightX, lightY, lightZ, renderedRadius)) {
                 freeMainHandle(active);
             } else {
@@ -192,7 +198,8 @@ public final class VeilBombFx {
             if (active.handle != null) {
                 active.handle.markDirty();
             }
-            if (!com.cbc_more_content.config.WarnauticsClientConfig.bombLights()
+            if (FlashRenderMode.sodiumExtrasLoaded()
+                    || !com.cbc_more_content.config.WarnauticsClientConfig.bombLights()
                     || cameraIntersectsLightVolume(
                             camPos, active.flash.pos.x, skyY, active.flash.pos.z, skyRadius)) {
                 freeSkyHandle(active);
@@ -348,7 +355,8 @@ public final class VeilBombFx {
                 uLook = 0.0f;
                 uProximity = 0.0f;
                 uSkyGlow = 0.0f;
-            } else if (com.cbc_more_content.config.WarnauticsClientConfig.screenEffects()
+            } else if (!FlashRenderMode.sodiumExtrasLoaded()
+                    && com.cbc_more_content.config.WarnauticsClientConfig.screenEffects()
                     && !post.isActive(PIPELINE)
                     && (targetIntensity > 0.01f || !LIGHTS.isEmpty())) {
                 post.add(50, PIPELINE);

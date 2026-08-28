@@ -2,6 +2,7 @@ package com.cbc_more_content.client.veil;
 
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.client.ConcussionClient;
+import com.cbc_more_content.client.FlashRenderMode;
 
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.post.PostProcessingManager;
@@ -42,7 +43,8 @@ public final class VeilConcussionFx {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
-        boolean wanted = com.cbc_more_content.config.WarnauticsClientConfig.screenEffects()
+        boolean wanted = !FlashRenderMode.sodiumExtrasLoaded()
+                && com.cbc_more_content.config.WarnauticsClientConfig.screenEffects()
                 && mc.level != null
                 && mc.player != null
                 && mc.player.isAlive()
