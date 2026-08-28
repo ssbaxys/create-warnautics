@@ -81,7 +81,7 @@ public class SirenBlockEntity extends KineticBlockEntity {
       * shifting, and a post that could be run off a hand crank would make the whole
       * business of driving it a formality.
       */
-    private static final float STRESS_IMPACT = 1024.0f;
+    private static final float STRESS_IMPACT = 1.0f;
 
     private SirenSettings settings = SirenSettings.DEFAULT;
     /** Ticks of linger left, from a sighting. Nothing to do with the signal. */
