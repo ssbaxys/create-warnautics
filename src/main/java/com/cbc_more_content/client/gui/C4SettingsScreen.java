@@ -1,11 +1,9 @@
 package com.cbc_more_content.client.gui;
 
-import java.util.Locale;
-
 import com.cbc_more_content.block.C4BlockEntity;
 import com.cbc_more_content.network.ConfigureC4Payload;
 import com.cbc_more_content.registry.ModSounds;
-
+import java.util.Locale;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -87,12 +85,14 @@ public class C4SettingsScreen extends Screen {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
         WarnauticsGuiTextures.C4_SETTINGS.render(graphics, this.guiLeft, this.guiTop);
 
-        graphics.drawCenteredString(this.font, this.title,
-                this.guiLeft + PANEL_W / 2, this.guiTop + 4, 0xE8E2CF);
+        graphics.drawCenteredString(this.font, this.title, this.guiLeft + PANEL_W / 2, this.guiTop + 4, 0xE8E2CF);
 
-        graphics.drawCenteredString(this.font,
+        graphics.drawCenteredString(
+                this.font,
                 Component.literal(String.format(Locale.ROOT, "%d s", this.seconds)),
-                this.guiLeft + PANEL_W / 2, this.guiTop + 30, 0xFFB036);
+                this.guiLeft + PANEL_W / 2,
+                this.guiTop + 30,
+                0xFFB036);
 
         this.renderTrack(graphics, mouseX, mouseY);
         this.renderButton(graphics, mouseX, mouseY);
@@ -108,10 +108,9 @@ public class C4SettingsScreen extends Screen {
         graphics.fill(x, y + 6, x + TRACK_W, y + 7, 0xFF6C745E);
 
         // End labels, so the usable range is readable without dragging first.
-        graphics.drawString(this.font, String.valueOf(C4BlockEntity.MIN_SECONDS),
-                x - 14, y + 4, 0x9AA08C, false);
-        graphics.drawString(this.font, String.valueOf(C4BlockEntity.MAX_SECONDS),
-                x + TRACK_W + 4, y + 4, 0x9AA08C, false);
+        graphics.drawString(this.font, String.valueOf(C4BlockEntity.MIN_SECONDS), x - 14, y + 4, 0x9AA08C, false);
+        graphics.drawString(
+                this.font, String.valueOf(C4BlockEntity.MAX_SECONDS), x + TRACK_W + 4, y + 4, 0x9AA08C, false);
 
         int knobX = x + Math.round(this.progress() * (TRACK_W - KNOB_W));
         boolean hot = this.dragging || this.overTrack(mouseX, mouseY);
@@ -126,11 +125,13 @@ public class C4SettingsScreen extends Screen {
         int y = this.guiTop + BUTTON_Y;
         boolean hot = this.overButton(mouseX, mouseY);
         graphics.fill(x, y, x + BUTTON_W, y + BUTTON_H, 0xFF12140F);
-        graphics.fill(x + 1, y + 1, x + BUTTON_W - 1, y + BUTTON_H - 1,
-                hot ? 0xFF4A5042 : 0xFF3A3F34);
-        graphics.drawCenteredString(this.font,
+        graphics.fill(x + 1, y + 1, x + BUTTON_W - 1, y + BUTTON_H - 1, hot ? 0xFF4A5042 : 0xFF3A3F34);
+        graphics.drawCenteredString(
+                this.font,
                 Component.translatable("gui.cbc_more_content.c4.arm"),
-                x + BUTTON_W / 2, y + 5, hot ? 0xFFB036 : 0xE8E2CF);
+                x + BUTTON_W / 2,
+                y + 5,
+                hot ? 0xFFB036 : 0xE8E2CF);
     }
 
     private float progress() {
@@ -191,8 +192,7 @@ public class C4SettingsScreen extends Screen {
     private void slideTo(double mouseX) {
         int x = this.guiLeft + TRACK_X;
         float t = Mth.clamp((float) (mouseX - x - KNOB_W / 2.0D) / (TRACK_W - KNOB_W), 0.0f, 1.0f);
-        this.setSeconds(Math.round(Mth.lerp(t,
-                C4BlockEntity.MIN_SECONDS, C4BlockEntity.MAX_SECONDS)));
+        this.setSeconds(Math.round(Mth.lerp(t, C4BlockEntity.MIN_SECONDS, C4BlockEntity.MAX_SECONDS)));
     }
 
     /** Detents on whole seconds, each with its own click. */
@@ -204,8 +204,7 @@ public class C4SettingsScreen extends Screen {
         this.seconds = clamped;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) {
-            mc.player.playSound(SoundEvents.STONE_BUTTON_CLICK_ON, 0.22f,
-                    1.1f + this.progress() * 0.7f);
+            mc.player.playSound(SoundEvents.STONE_BUTTON_CLICK_ON, 0.22f, 1.1f + this.progress() * 0.7f);
         }
     }
 
@@ -216,8 +215,7 @@ public class C4SettingsScreen extends Screen {
         if (mc.player != null) {
             mc.player.playSound(ModSounds.C4_BUTTON.get(), 0.9f, 0.85f);
         }
-        PacketDistributor.sendToServer(
-                new ConfigureC4Payload(this.pos, this.seconds, true, false));
+        PacketDistributor.sendToServer(new ConfigureC4Payload(this.pos, this.seconds, true, false));
         this.onClose();
     }
 
@@ -227,8 +225,7 @@ public class C4SettingsScreen extends Screen {
         // Nothing is sent when the slider was never moved, so opening the screen to read
         // the timer and closing it again cannot overwrite the setting.
         if (!this.armed && this.seconds != this.openedWith) {
-            PacketDistributor.sendToServer(
-                    new ConfigureC4Payload(this.pos, this.seconds, false, false));
+            PacketDistributor.sendToServer(new ConfigureC4Payload(this.pos, this.seconds, false, false));
         }
         super.onClose();
     }

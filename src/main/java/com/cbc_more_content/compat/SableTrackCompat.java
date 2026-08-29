@@ -1,17 +1,5 @@
 package com.cbc_more_content.compat;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import javax.annotation.Nullable;
-
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.phys.Vec3;
-
 import dev.ryanhcode.sable.api.sublevel.ClientSubLevelContainer;
 import dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer;
 import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
@@ -19,6 +7,15 @@ import dev.ryanhcode.sable.companion.math.BoundingBox3dc;
 import dev.ryanhcode.sable.sublevel.ClientSubLevel;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.SubLevel;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import javax.annotation.Nullable;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Watching hulls move, for the designator.
@@ -36,8 +33,7 @@ public final class SableTrackCompat {
 
     private static final Map<UUID, Vec3> PREVIOUS = new HashMap<>();
 
-    private SableTrackCompat() {
-    }
+    private SableTrackCompat() {}
 
     /** A moving hull as the designator sees it. */
     public record Track(UUID id, Vec3 centre, double size, double speed) {
@@ -70,7 +66,8 @@ public final class SableTrackCompat {
                 if (box == null || id == null) {
                     continue;
                 }
-                Vec3 centre = new Vec3((box.minX() + box.maxX()) * 0.5D,
+                Vec3 centre = new Vec3(
+                        (box.minX() + box.maxX()) * 0.5D,
                         (box.minY() + box.maxY()) * 0.5D,
                         (box.minZ() + box.maxZ()) * 0.5D);
                 seen.put(id, centre);
@@ -83,8 +80,8 @@ public final class SableTrackCompat {
                 if (speed < MOVING) {
                     continue;
                 }
-                double size = Math.max(Math.max(box.maxX() - box.minX(), box.maxY() - box.minY()),
-                        box.maxZ() - box.minZ());
+                double size =
+                        Math.max(Math.max(box.maxX() - box.minX(), box.maxY() - box.minY()), box.maxZ() - box.minZ());
                 moving.add(new Track(id, centre, size, speed));
             }
             PREVIOUS.keySet().retainAll(seen.keySet());
@@ -113,9 +110,7 @@ public final class SableTrackCompat {
                 return -1;
             }
             SubLevel sub = container.getSubLevel(id);
-            return sub instanceof ServerSubLevel server && !server.isRemoved()
-                    ? server.getRuntimeId()
-                    : -1;
+            return sub instanceof ServerSubLevel server && !server.isRemoved() ? server.getRuntimeId() : -1;
         } catch (Throwable ignored) {
             return -1;
         }
@@ -134,9 +129,12 @@ public final class SableTrackCompat {
                 return null;
             }
             BoundingBox3dc box = sub.boundingBox();
-            return box == null ? null : new Vec3((box.minX() + box.maxX()) * 0.5D,
-                    (box.minY() + box.maxY()) * 0.5D,
-                    (box.minZ() + box.maxZ()) * 0.5D);
+            return box == null
+                    ? null
+                    : new Vec3(
+                            (box.minX() + box.maxX()) * 0.5D,
+                            (box.minY() + box.maxY()) * 0.5D,
+                            (box.minZ() + box.maxZ()) * 0.5D);
         } catch (Throwable ignored) {
             return null;
         }

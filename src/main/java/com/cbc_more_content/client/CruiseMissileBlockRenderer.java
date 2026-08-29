@@ -6,7 +6,6 @@ import com.cbc_more_content.registry.ModBlocks;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -30,8 +29,7 @@ import net.neoforged.api.distmarker.OnlyIn;
  */
 @OnlyIn(Dist.CLIENT)
 public class CruiseMissileBlockRenderer implements BlockEntityRenderer<CruiseMissileBlockEntity> {
-    public CruiseMissileBlockRenderer(BlockEntityRendererProvider.Context context) {
-    }
+    public CruiseMissileBlockRenderer(BlockEntityRendererProvider.Context context) {}
 
     @Override
     public void render(
@@ -57,9 +55,10 @@ public class CruiseMissileBlockRenderer implements BlockEntityRenderer<CruiseMis
         BlockState flat = ModBlocks.CRUISE_MISSILE.get().defaultBlockState();
         BakedModel model = mc.getBlockRenderer().getBlockModel(flat);
         VertexConsumer consumer = buffers.getBuffer(RenderType.cutout());
-        mc.getBlockRenderer().getModelRenderer().renderModel(
-                pose.last(), consumer, flat, model,
-                1.0f, 1.0f, 1.0f, packedLight, OverlayTexture.NO_OVERLAY);
+        mc.getBlockRenderer()
+                .getModelRenderer()
+                .renderModel(
+                        pose.last(), consumer, flat, model, 1.0f, 1.0f, 1.0f, packedLight, OverlayTexture.NO_OVERLAY);
 
         pose.popPose();
     }

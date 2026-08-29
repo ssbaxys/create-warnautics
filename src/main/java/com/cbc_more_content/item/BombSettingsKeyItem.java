@@ -1,14 +1,12 @@
 package com.cbc_more_content.item;
 
-import java.util.List;
-
-import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.block.C4Block;
 import com.cbc_more_content.block.CruiseMissileBlock;
 import com.cbc_more_content.block.CruiseMissileBlockEntity;
-import com.cbc_more_content.block.C4BlockEntity;
 import com.cbc_more_content.block.DropBombBlock;
-
+import com.cbc_more_content.util.ReflectiveDispatcher;
+import java.util.List;
+import javax.annotation.Nullable;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -16,15 +14,14 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResultHolder;
-import javax.annotation.Nullable;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -64,8 +61,7 @@ public class BombSettingsKeyItem extends Item {
                 return InteractionResult.CONSUME;
             }
             setBindingSet(key, pos);
-            level.playSound(null, pos, SoundEvents.UI_BUTTON_CLICK.value(),
-                    SoundSource.BLOCKS, 0.8f, 1.7f);
+            level.playSound(null, pos, SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.BLOCKS, 0.8f, 1.7f);
             say(context.getPlayer(), "message.cbc_more_content.key.bind_mode", ChatFormatting.AQUA);
             return InteractionResult.CONSUME;
         }
@@ -80,16 +76,16 @@ public class BombSettingsKeyItem extends Item {
                 return InteractionResult.PASS;
             }
             if (guidance.guidance() != CruiseMissileBlockEntity.Guidance.INTERCEPT) {
-                say(context.getPlayer(), "message.cbc_more_content.key.not_intercept",
-                        ChatFormatting.RED);
+                say(context.getPlayer(), "message.cbc_more_content.key.not_intercept", ChatFormatting.RED);
                 return InteractionResult.CONSUME;
             }
             boolean rebound = guidance.bindController(bindingSet);
-            level.playSound(null, body, SoundEvents.AMETHYST_BLOCK_CHIME,
-                    SoundSource.BLOCKS, 0.8f, rebound ? 1.1f : 1.5f);
-            say(context.getPlayer(), rebound
-                    ? "message.cbc_more_content.key.rebound"
-                    : "message.cbc_more_content.key.bound", ChatFormatting.GREEN);
+            level.playSound(
+                    null, body, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 0.8f, rebound ? 1.1f : 1.5f);
+            say(
+                    context.getPlayer(),
+                    rebound ? "message.cbc_more_content.key.rebound" : "message.cbc_more_content.key.bound",
+                    ChatFormatting.GREEN);
             return InteractionResult.CONSUME;
         }
 
@@ -132,12 +128,9 @@ public class BombSettingsKeyItem extends Item {
         }
 
         if (level.isClientSide) {
-            openScreen(pos,
-                    state.getValue(DropBombBlock.RELEASE_DELAY),
-                    state.getValue(DropBombBlock.CASSETTE));
+            openScreen(pos, state.getValue(DropBombBlock.RELEASE_DELAY), state.getValue(DropBombBlock.CASSETTE));
         } else {
-            level.playSound(null, pos, SoundEvents.ITEM_FRAME_ROTATE_ITEM,
-                    SoundSource.BLOCKS, 0.5f, 1.4f);
+            level.playSound(null, pos, SoundEvents.ITEM_FRAME_ROTATE_ITEM, SoundSource.BLOCKS, 0.5f, 1.4f);
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
     }
@@ -159,10 +152,10 @@ public class BombSettingsKeyItem extends Item {
                 || !(player instanceof net.minecraft.server.level.ServerPlayer viewer)) {
             return;
         }
-        var settings = com.cbc_more_content.radar.InterceptSettingsStore.get(server)
-                .forController(controller);
-        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(viewer,
-                new com.cbc_more_content.network.OpenRadarSettingsPayload(controller, settings));
+        var settings =
+                com.cbc_more_content.radar.InterceptSettingsStore.get(server).forController(controller);
+        net.neoforged.neoforge.network.PacketDistributor.sendToPlayer(
+                viewer, new com.cbc_more_content.network.OpenRadarSettingsPayload(controller, settings));
     }
 
     /** The radar set this key is currently handing out, or null when it is idle. */
@@ -173,9 +166,7 @@ public class BombSettingsKeyItem extends Item {
             return null;
         }
         CompoundTag tag = data.copyTag().getCompound("BindingSet");
-        return tag.contains("X")
-                ? new BlockPos(tag.getInt("X"), tag.getInt("Y"), tag.getInt("Z"))
-                : null;
+        return tag.contains("X") ? new BlockPos(tag.getInt("X"), tag.getInt("Y"), tag.getInt("Z")) : null;
     }
 
     private static void setBindingSet(ItemStack stack, BlockPos set) {
@@ -199,51 +190,42 @@ public class BombSettingsKeyItem extends Item {
      * server, matching how the mod already gates its other client-only entry points.
      */
     private static void openScreen(BlockPos pos, int storedDelay, int cassette) {
-        try {
-            Class.forName("com.cbc_more_content.client.gui.BombSettingsClient")
-                    .getMethod("open", BlockPos.class, int.class, int.class)
-                    .invoke(null, pos, storedDelay, cassette);
-        } catch (ReflectiveOperationException e) {
-            CBCMoreContent.LOGGER.debug("Bomb settings screen unavailable: {}", e.toString());
-        }
+        ReflectiveDispatcher.invoke(
+                "com.cbc_more_content.client.gui.BombSettingsClient",
+                "open",
+                new Class<?>[] {BlockPos.class, int.class, int.class},
+                pos,
+                storedDelay,
+                cassette);
     }
 
     private static void openMissileScreen(BlockPos pos, BlockPos current, int mode) {
-        try {
-            Class.forName("com.cbc_more_content.client.gui.MissileTargetClient")
-                    .getMethod("open", BlockPos.class, BlockPos.class, int.class)
-                    .invoke(null, pos, current, mode);
-        } catch (ReflectiveOperationException e) {
-            CBCMoreContent.LOGGER.debug("Missile target screen unavailable: {}", e.toString());
-        }
+        ReflectiveDispatcher.invoke(
+                "com.cbc_more_content.client.gui.MissileTargetClient",
+                "open",
+                new Class<?>[] {BlockPos.class, BlockPos.class, int.class},
+                pos,
+                current,
+                mode);
     }
 
     private static void openSirenScreen(BlockPos pos) {
-        try {
-            Class.forName("com.cbc_more_content.client.gui.SirenSettingsClient")
-                    .getMethod("open", BlockPos.class)
-                    .invoke(null, pos);
-        } catch (ReflectiveOperationException e) {
-            CBCMoreContent.LOGGER.debug("Siren settings unavailable: {}", e.toString());
-        }
+        ReflectiveDispatcher.invoke(
+                "com.cbc_more_content.client.gui.SirenSettingsClient", "open", new Class<?>[] {BlockPos.class}, pos);
     }
 
     private static void openC4CodeScreen(BlockPos pos, boolean disarming) {
-        try {
-            Class.forName("com.cbc_more_content.client.gui.C4CodeClient")
-                    .getMethod("open", BlockPos.class, boolean.class)
-                    .invoke(null, pos, disarming);
-        } catch (ReflectiveOperationException e) {
-            CBCMoreContent.LOGGER.debug("C4 keypad unavailable: {}", e.toString());
-        }
+        ReflectiveDispatcher.invoke(
+                "com.cbc_more_content.client.gui.C4CodeClient",
+                "open",
+                new Class<?>[] {BlockPos.class, boolean.class},
+                pos,
+                disarming);
     }
 
     @Override
     public void appendHoverText(
-            ItemStack stack,
-            Item.TooltipContext context,
-            List<Component> tooltip,
-            TooltipFlag flag) {
+            ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.translatable("tooltip.cbc_more_content.settings_key"));
         if (com.cbc_more_content.compat.RadarCompat.loaded()) {
             tooltip.add(Component.translatable("tooltip.cbc_more_content.settings_key.radar")

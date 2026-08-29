@@ -16,6 +16,7 @@ import net.minecraft.util.Mth;
 public record InterceptSettings(float minSpeed, int maxRange, boolean hullsOnly) {
     /** Blocks per tick. Below this a contact is parked or drifting, not worth a missile. */
     public static final float MIN_SPEED_FLOOR = 0.0f;
+
     public static final float MIN_SPEED_CEILING = 2.0f;
     public static final int RANGE_FLOOR = 32;
     public static final int RANGE_CEILING = 400;

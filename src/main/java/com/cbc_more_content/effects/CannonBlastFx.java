@@ -3,7 +3,6 @@ package com.cbc_more_content.effects;
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.settings.WarnauticsServerSettings;
-
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
@@ -12,7 +11,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.level.ExplosionEvent;
-
 import rbasamoyai.createbigcannons.munitions.ImpactExplosion;
 import rbasamoyai.createbigcannons.munitions.ShellExplosion;
 import rbasamoyai.createbigcannons.munitions.autocannon.flak.FlakExplosion;
@@ -31,7 +29,9 @@ import rbasamoyai.createbigcannons.munitions.big_cannon.mortar_stone.MortarStone
  * so any munition — this mod's, Big Cannons' own, or an add-on's built on the same
  * explosion types — is dressed to the size it actually is.
  */
-@EventBusSubscriber(modid = CBCMoreContent.MOD_ID, value = {Dist.CLIENT, Dist.DEDICATED_SERVER})
+@EventBusSubscriber(
+        modid = CBCMoreContent.MOD_ID,
+        value = {Dist.CLIENT, Dist.DEDICATED_SERVER})
 public final class CannonBlastFx {
     /** Below this a blast is a bursting autocannon round, not something worth a mushroom. */
     private static final float MIN_RADIUS = 1.5f;
@@ -40,6 +40,7 @@ public final class CannonBlastFx {
      * shell's own configured power is what decides how big the hole is.
      */
     private static final float MEDIUM_RADIUS = 4.0f;
+
     private static final float LARGE_RADIUS = 7.0f;
     /** Scorched, churned ground well past the hole itself. */
     private static final double SCUFF_FACTOR = 1.8D;
@@ -55,8 +56,7 @@ public final class CannonBlastFx {
      */
     private static int reentry;
 
-    private CannonBlastFx() {
-    }
+    private CannonBlastFx() {}
 
     /** Runs a blast this mod is already dressing itself, so this listener leaves it alone. */
     public static void own(Runnable blast) {

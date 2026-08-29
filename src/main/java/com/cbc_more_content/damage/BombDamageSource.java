@@ -13,18 +13,18 @@ import net.minecraft.world.level.Level;
  */
 public class BombDamageSource extends DamageSource {
     public static final String[] DEATH_KEYS = {
-            "death.attack.cbc_more_content.aerial_bombing.1",
-            "death.attack.cbc_more_content.aerial_bombing.2",
-            "death.attack.cbc_more_content.aerial_bombing.3",
-            "death.attack.cbc_more_content.aerial_bombing.4",
-            "death.attack.cbc_more_content.aerial_bombing.5",
-            "death.attack.cbc_more_content.aerial_bombing.6",
-            "death.attack.cbc_more_content.aerial_bombing.7",
-            "death.attack.cbc_more_content.aerial_bombing.8",
-            "death.attack.cbc_more_content.aerial_bombing.9",
-            "death.attack.cbc_more_content.aerial_bombing.10",
-            "death.attack.cbc_more_content.aerial_bombing.11",
-            "death.attack.cbc_more_content.aerial_bombing.12"
+        "death.attack.cbc_more_content.aerial_bombing.1",
+        "death.attack.cbc_more_content.aerial_bombing.2",
+        "death.attack.cbc_more_content.aerial_bombing.3",
+        "death.attack.cbc_more_content.aerial_bombing.4",
+        "death.attack.cbc_more_content.aerial_bombing.5",
+        "death.attack.cbc_more_content.aerial_bombing.6",
+        "death.attack.cbc_more_content.aerial_bombing.7",
+        "death.attack.cbc_more_content.aerial_bombing.8",
+        "death.attack.cbc_more_content.aerial_bombing.9",
+        "death.attack.cbc_more_content.aerial_bombing.10",
+        "death.attack.cbc_more_content.aerial_bombing.11",
+        "death.attack.cbc_more_content.aerial_bombing.12"
     };
 
     public BombDamageSource(Holder<DamageType> type) {

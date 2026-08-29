@@ -16,8 +16,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * paying for thousands of updates in one tick.
  */
 public final class BlastRubble {
-    private BlastRubble() {
-    }
+    private BlastRubble() {}
 
     /** Air on land, a water source anywhere the sea would immediately close back in. */
     public static BlockState replacementFor(BlockGetter level, BlockPos pos, BlockState removed) {

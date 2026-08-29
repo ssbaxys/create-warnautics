@@ -2,7 +2,6 @@ package com.cbc_more_content.radar;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -25,8 +24,8 @@ public class InterceptSettingsStore extends SavedData {
     private final Map<BlockPos, InterceptSettings> byController = new HashMap<>();
 
     public static InterceptSettingsStore get(ServerLevel level) {
-        return level.getDataStorage().computeIfAbsent(
-                new Factory<>(InterceptSettingsStore::new, InterceptSettingsStore::load), NAME);
+        return level.getDataStorage()
+                .computeIfAbsent(new Factory<>(InterceptSettingsStore::new, InterceptSettingsStore::load), NAME);
     }
 
     public InterceptSettings forController(BlockPos controller) {
@@ -43,8 +42,9 @@ public class InterceptSettingsStore extends SavedData {
         ListTag entries = tag.getList("Controllers", Tag.TAG_COMPOUND);
         for (int i = 0; i < entries.size(); i++) {
             CompoundTag entry = entries.getCompound(i);
-            NbtUtils.readBlockPos(entry, "Pos").ifPresent(pos ->
-                    store.byController.put(pos, InterceptSettings.load(entry.getCompound("Settings"))));
+            NbtUtils.readBlockPos(entry, "Pos")
+                    .ifPresent(
+                            pos -> store.byController.put(pos, InterceptSettings.load(entry.getCompound("Settings"))));
         }
         return store;
     }

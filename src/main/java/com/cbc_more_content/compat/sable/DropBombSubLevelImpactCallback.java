@@ -1,11 +1,6 @@
 package com.cbc_more_content.compat.sable;
 
-import javax.annotation.Nullable;
-
-import org.joml.Vector3d;
-
 import com.cbc_more_content.block.DropBombBlock;
-
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.api.physics.callback.BlockSubLevelCollisionCallback;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
@@ -13,9 +8,11 @@ import dev.ryanhcode.sable.physics.config.block_properties.PhysicsBlockPropertyH
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem;
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
+import org.joml.Vector3d;
 
 /**
  * When a drop bomb is part of a Sable sub-level and that body hits another sub-level
@@ -29,15 +26,11 @@ public final class DropBombSubLevelImpactCallback implements BlockSubLevelCollis
     /** A loose physics bomb behaves like its released projectile on the first real hit. */
     private static final double LOOSE_BOMB_TRIGGER_VELOCITY = 0.5D;
 
-    private DropBombSubLevelImpactCallback() {
-    }
+    private DropBombSubLevelImpactCallback() {}
 
     @Override
     public CollisionResult sable$onCollision(
-            BlockPos hitBlockPos,
-            @Nullable BlockPos otherHitBlockPos,
-            Vector3d impactPosition,
-            double impactVelocity) {
+            BlockPos hitBlockPos, @Nullable BlockPos otherHitBlockPos, Vector3d impactPosition, double impactVelocity) {
         SubLevelPhysicsSystem system;
         try {
             system = SubLevelPhysicsSystem.getCurrentlySteppingSystem();

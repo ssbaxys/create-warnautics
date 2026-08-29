@@ -1,7 +1,6 @@
 package com.cbc_more_content.network;
 
 import com.cbc_more_content.CBCMoreContent;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -14,8 +13,8 @@ import net.minecraft.resources.ResourceLocation;
  */
 public record C4CodePayload(BlockPos pos, int code, boolean disarm) implements CustomPacketPayload {
 
-    public static final Type<C4CodePayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "c4_code"));
+    public static final Type<C4CodePayload> TYPE =
+            new Type<>(ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "c4_code"));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, C4CodePayload> STREAM_CODEC =
             StreamCodec.of(C4CodePayload::write, C4CodePayload::read);

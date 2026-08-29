@@ -1,18 +1,16 @@
 package com.cbc_more_content.client.veil;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-
-import org.joml.Vector3f;
-
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.light.data.PointLightData;
 import foundry.veil.api.client.render.light.renderer.LightRenderHandle;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
+import org.joml.Vector3f;
 
 /**
  * A real light on the nozzle of a missile under power, so the plume throws illumination
@@ -33,6 +31,7 @@ public final class VeilMissileFx {
 
     /** Ignition burst: brief, bright, and gone — sells the motor lighting off gas alone. */
     private static final float FLASH_RADIUS = 11.0f;
+
     private static final Vector3f FLASH_COLOR = new Vector3f(1.0f, 0.86f, 0.62f);
     private static final int FLASH_TICKS = 7;
 
@@ -40,8 +39,7 @@ public final class VeilMissileFx {
     private static final java.util.List<Flash> FLASHES = new java.util.ArrayList<>();
     private static boolean unavailable;
 
-    private VeilMissileFx() {
-    }
+    private VeilMissileFx() {}
 
     /**
      * True while the camera is inside a light volume of this size centred on {@code at},
@@ -51,9 +49,7 @@ public final class VeilMissileFx {
         var camera = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera();
         Vec3 eye = camera.getPosition();
         double extent = RADIUS + VOLUME_MARGIN;
-        return Math.abs(eye.x - at.x) <= extent
-                && Math.abs(eye.y - at.y) <= extent
-                && Math.abs(eye.z - at.z) <= extent;
+        return Math.abs(eye.x - at.x) <= extent && Math.abs(eye.y - at.y) <= extent && Math.abs(eye.z - at.z) <= extent;
     }
 
     /** One-shot light burst at the nozzle the instant the motor catches. */
@@ -124,8 +120,8 @@ public final class VeilMissileFx {
                         .setRadius(RADIUS)
                         .setBrightness(1.0f);
                 light.setPosition(nozzle.x, nozzle.y, nozzle.z);
-                tracked = new Tracked(light,
-                        VeilRenderSystem.renderer().getLightRenderer().addLight(light));
+                tracked = new Tracked(
+                        light, VeilRenderSystem.renderer().getLightRenderer().addLight(light));
                 LIGHTS.put(missile.getId(), tracked);
             }
 

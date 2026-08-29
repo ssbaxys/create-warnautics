@@ -4,7 +4,6 @@ import com.cbc_more_content.block.C4BlockEntity;
 import com.cbc_more_content.block.C4BlockEntity.WireResult;
 import com.cbc_more_content.network.C4WirePayload;
 import com.cbc_more_content.registry.ModSounds;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -32,6 +31,7 @@ public class C4WireScreen extends Screen {
     private static final int WIRE_GAP = 17;
     /** How far the cut ends spring apart, in pixels. */
     private static final int SNAP_GAP = 9;
+
     private static final int VERDICT_TICKS = 26;
 
     private final BlockPos pos;
@@ -85,8 +85,7 @@ public class C4WireScreen extends Screen {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
         WarnauticsGuiTextures.C4_PANEL.render(graphics, this.guiLeft, this.guiTop);
 
-        graphics.drawCenteredString(this.font, this.title,
-                this.guiLeft + PANEL_W / 2, this.guiTop + 6, 0xE8E2CF);
+        graphics.drawCenteredString(this.font, this.title, this.guiLeft + PANEL_W / 2, this.guiTop + 6, 0xE8E2CF);
 
         float now = this.time + partialTick;
         for (int wire = 0; wire < C4BlockEntity.WIRE_COUNT; wire++) {
@@ -104,8 +103,7 @@ public class C4WireScreen extends Screen {
         // The charge remembers what has been cut, so reopening the panel shows the same
         // board rather than three fresh wires.
         boolean cut = wire == this.cutWire || alreadyCut(wire);
-        boolean hot = this.result == WireResult.NOTHING && !cut
-                && this.overWire(mouseX, mouseY, wire);
+        boolean hot = this.result == WireResult.NOTHING && !cut && this.overWire(mouseX, mouseY, wire);
 
         // Terminals the wire runs between, so it reads as wired into something.
         graphics.fill(x - 8, y - 2, x - 2, y + WIRE_H + 2, 0xFF1C1E1B);
@@ -137,29 +135,34 @@ public class C4WireScreen extends Screen {
 
     private void renderVerdict(GuiGraphics graphics, float now) {
         if (this.result == WireResult.NOTHING) {
-            this.drawFitted(graphics,
+            this.drawFitted(
+                    graphics,
                     Component.translatable("gui.cbc_more_content.c4.wires.hint"),
-                    this.guiTop + PANEL_H - 17, 0x9AA08C);
+                    this.guiTop + PANEL_H - 17,
+                    0x9AA08C);
             return;
         }
 
-        String key = switch (this.result) {
-            case DEFUSED -> "gui.cbc_more_content.c4.wires.defused";
-            case DETONATED -> "gui.cbc_more_content.c4.wires.detonated";
-            default -> "gui.cbc_more_content.c4.wires.accelerated";
-        };
-        int colour = switch (this.result) {
-            case DEFUSED -> 0x6FD46F;
-            case DETONATED -> 0xFF5B4A;
-            default -> 0xFFB036;
-        };
+        String key =
+                switch (this.result) {
+                    case DEFUSED -> "gui.cbc_more_content.c4.wires.defused";
+                    case DETONATED -> "gui.cbc_more_content.c4.wires.detonated";
+                    default -> "gui.cbc_more_content.c4.wires.accelerated";
+                };
+        int colour =
+                switch (this.result) {
+                    case DEFUSED -> 0x6FD46F;
+                    case DETONATED -> 0xFF5B4A;
+                    default -> 0xFFB036;
+                };
         // A short pulse on the verdict rather than a flat line of text.
         float pulse = 0.7f + 0.3f * Mth.sin((now - this.cutTime) * 0.6f);
-        int shake = this.result == WireResult.DETONATED
-                ? Math.round(Mth.sin((now - this.cutTime) * 3.4f) * 2.0f)
-                : 0;
-        graphics.drawCenteredString(this.font, Component.translatable(key),
-                this.guiLeft + PANEL_W / 2 + shake, this.guiTop + PANEL_H - 17,
+        int shake = this.result == WireResult.DETONATED ? Math.round(Mth.sin((now - this.cutTime) * 3.4f) * 2.0f) : 0;
+        graphics.drawCenteredString(
+                this.font,
+                Component.translatable(key),
+                this.guiLeft + PANEL_W / 2 + shake,
+                this.guiTop + PANEL_H - 17,
                 (((int) (pulse * 255.0f)) << 24) | colour);
     }
 
@@ -184,15 +187,12 @@ public class C4WireScreen extends Screen {
 
     private boolean alreadyCut(int wire) {
         Minecraft mc = Minecraft.getInstance();
-        return mc.level != null
-                && mc.level.getBlockEntity(this.pos) instanceof C4BlockEntity c4
-                && c4.isWireCut(wire);
+        return mc.level != null && mc.level.getBlockEntity(this.pos) instanceof C4BlockEntity c4 && c4.isWireCut(wire);
     }
 
     private int colourOf(int wire) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level != null
-                && mc.level.getBlockEntity(this.pos) instanceof C4BlockEntity c4) {
+        if (mc.level != null && mc.level.getBlockEntity(this.pos) instanceof C4BlockEntity c4) {
             return c4.wireColour(wire);
         }
         return C4BlockEntity.WIRE_PALETTE[wire % C4BlockEntity.WIRE_PALETTE.length];
@@ -201,8 +201,7 @@ public class C4WireScreen extends Screen {
     private boolean overWire(double mouseX, double mouseY, int wire) {
         int x = this.guiLeft + WIRE_X;
         int y = this.guiTop + WIRE_TOP + wire * WIRE_GAP;
-        return mouseX >= x - 8 && mouseX <= x + WIRE_W + 8
-                && mouseY >= y - 3 && mouseY <= y + WIRE_H + 3;
+        return mouseX >= x - 8 && mouseX <= x + WIRE_W + 8 && mouseY >= y - 3 && mouseY <= y + WIRE_H + 3;
     }
 
     @Override

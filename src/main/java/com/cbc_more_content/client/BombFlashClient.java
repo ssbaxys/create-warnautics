@@ -1,14 +1,12 @@
 package com.cbc_more_content.client;
 
+import com.cbc_more_content.bomb.BombSize;
+import com.cbc_more_content.network.BombFlashPayload;
+import com.cbc_more_content.util.ReflectiveDispatcher;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-
-import com.cbc_more_content.CBCMoreContent;
-import com.cbc_more_content.bomb.BombSize;
-import com.cbc_more_content.network.BombFlashPayload;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.util.Mth;
@@ -27,8 +25,7 @@ public final class BombFlashClient {
     private static final List<Flash> FLASHES = new ArrayList<>();
     private static final List<Flash> READ_ONLY_FLASHES = Collections.unmodifiableList(FLASHES);
 
-    private BombFlashClient() {
-    }
+    private BombFlashClient() {}
 
     public static void handle(BombFlashPayload payload) {
         if (!Double.isFinite(payload.x())
@@ -62,13 +59,8 @@ public final class BombFlashClient {
         FLASHES.add(flash);
 
         if (ModList.get().isLoaded("veil")) {
-            try {
-                Class.forName("com.cbc_more_content.client.veil.VeilBombFx")
-                        .getMethod("onFlash", Flash.class)
-                        .invoke(null, flash);
-            } catch (ReflectiveOperationException e) {
-                CBCMoreContent.LOGGER.debug("Veil bomb FX unavailable: {}", e.toString());
-            }
+            ReflectiveDispatcher.invoke(
+                    "com.cbc_more_content.client.veil.VeilBombFx", "onFlash", new Class<?>[] {Flash.class}, flash);
         }
     }
 
@@ -94,12 +86,13 @@ public final class BombFlashClient {
     }
 
     private static Flash findMergeTarget(ClientLevel level, Vec3 pos, BombSize size) {
-        double mergeRadius = switch (size) {
-            case SMALL -> 5.0D;
-            case SEA -> 6.0D;
-            case MEDIUM -> 8.0D;
-            case LARGE -> 12.0D;
-        };
+        double mergeRadius =
+                switch (size) {
+                    case SMALL -> 5.0D;
+                    case SEA -> 6.0D;
+                    case MEDIUM -> 8.0D;
+                    case LARGE -> 12.0D;
+                };
         double mergeRadiusSqr = mergeRadius * mergeRadius;
         Flash best = null;
         double bestDistance = Double.MAX_VALUE;
@@ -159,12 +152,13 @@ public final class BombFlashClient {
         }
 
         public float fade(float partialTick) {
-            int screenLife = switch (size) {
-                case SMALL -> 18;
-                case SEA -> 20;
-                case MEDIUM -> 24;
-                case LARGE -> 30;
-            };
+            int screenLife =
+                    switch (size) {
+                        case SMALL -> 18;
+                        case SEA -> 20;
+                        case MEDIUM -> 24;
+                        case LARGE -> 30;
+                    };
             float t = Mth.clamp((age + partialTick) / (float) screenLife, 0.0f, 1.0f);
             // Explosion light peaks immediately, then leaves a short warm afterglow.
             float impulse = (float) Math.exp(-t * 16.0f);

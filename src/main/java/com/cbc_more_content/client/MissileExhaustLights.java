@@ -1,12 +1,10 @@
 package com.cbc_more_content.client;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.munitions.CruiseMissileProjectile;
 import com.cbc_more_content.registry.ModParticles;
-
+import java.util.HashSet;
+import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -38,8 +36,7 @@ public final class MissileExhaustLights {
 
     private static Boolean veil;
 
-    private MissileExhaustLights() {
-    }
+    private MissileExhaustLights() {}
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
@@ -59,11 +56,9 @@ public final class MissileExhaustLights {
 
         AABB area = player.getBoundingBox().inflate(RANGE);
         Set<Integer> stillEjecting = new HashSet<>();
-        for (CruiseMissileProjectile missile
-                : level.getEntitiesOfClass(CruiseMissileProjectile.class, area)) {
+        for (CruiseMissileProjectile missile : level.getEntitiesOfClass(CruiseMissileProjectile.class, area)) {
             Vec3 nozzle = nozzleOf(missile);
-            com.cbc_more_content.client.veil.VeilMissileFx.follow(
-                    missile, nozzle, missile.isPowered());
+            com.cbc_more_content.client.veil.VeilMissileFx.follow(missile, nozzle, missile.isPowered());
 
             if (missile.isEjecting()) {
                 stillEjecting.add(missile.getId());
@@ -90,9 +85,15 @@ public final class MissileExhaustLights {
             double dz = random.nextDouble() - 0.5D;
             double len = Math.max(1.0E-4D, Math.sqrt(dx * dx + dy * dy + dz * dz));
             double speed = 0.12D + random.nextDouble() * 0.18D;
-            level.addParticle(ModParticles.MISSILE_EXHAUST.get(), true,
-                    nozzle.x, nozzle.y, nozzle.z,
-                    dx / len * speed, dy / len * speed, dz / len * speed);
+            level.addParticle(
+                    ModParticles.MISSILE_EXHAUST.get(),
+                    true,
+                    nozzle.x,
+                    nozzle.y,
+                    nozzle.z,
+                    dx / len * speed,
+                    dy / len * speed,
+                    dz / len * speed);
         }
     }
 

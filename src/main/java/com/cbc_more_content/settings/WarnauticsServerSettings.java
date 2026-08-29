@@ -26,8 +26,9 @@ public class WarnauticsServerSettings extends SavedData {
 
     public static WarnauticsServerSettings get(MinecraftServer server) {
         ServerLevel overworld = server.overworld();
-        return overworld.getDataStorage().computeIfAbsent(
-                new Factory<>(WarnauticsServerSettings::new, WarnauticsServerSettings::load), NAME);
+        return overworld
+                .getDataStorage()
+                .computeIfAbsent(new Factory<>(WarnauticsServerSettings::new, WarnauticsServerSettings::load), NAME);
     }
 
     /** Convenience for the many places that only hold a level. */

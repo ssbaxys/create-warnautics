@@ -10,12 +10,12 @@ import net.minecraft.util.Mth;
  * dockyard are watching for different things at different ranges, and both are placed by
  * the same person with the same key in hand.
  */
-public record SirenSettings(
-        boolean auto, int radius, int lingerSeconds, boolean watchMissiles, boolean watchBombs) {
+public record SirenSettings(boolean auto, int radius, int lingerSeconds, boolean watchMissiles, boolean watchBombs) {
     /** Below this it would not hear anything before the blast arrived anyway. */
     public static final int RADIUS_FLOOR = 16;
     /** Past this a siren watches further than the server keeps chunks loaded. */
     public static final int RADIUS_CEILING = 256;
+
     public static final int LINGER_FLOOR = 0;
     /** Five minutes of all-clear is already a long time to stand under a siren. */
     public static final int LINGER_CEILING = 300;

@@ -1,22 +1,19 @@
 package com.cbc_more_content.mixin.compat.offroad;
 
-import java.lang.reflect.Method;
-
-import org.joml.Vector3dc;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
 import com.cbc_more_content.block.LandMineBlock;
-
 import dev.ryanhcode.offroad.content.blocks.wheel_mount.WheelMountBlockEntity;
 import dev.ryanhcode.sable.companion.math.Pose3dc;
+import java.lang.reflect.Method;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.fml.ModList;
+import org.joml.Vector3dc;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Offroad tire raycast: large land mines arm on wheel contact.
@@ -27,13 +24,8 @@ import net.neoforged.fml.ModList;
  */
 @Mixin(WheelMountBlockEntity.class)
 public class WheelMountBlockEntityMixin {
-    @Inject(
-            method = "computeMaxExtensionToTerrain",
-            at = @At("RETURN"))
-    private void cbc_more_content$onTerrainCast(
-            Vector3dc normalD,
-            Pose3dc pose,
-            CallbackInfoReturnable<?> cir) {
+    @Inject(method = "computeMaxExtensionToTerrain", at = @At("RETURN"))
+    private void cbc_more_content$onTerrainCast(Vector3dc normalD, Pose3dc pose, CallbackInfoReturnable<?> cir) {
         Object result = cir.getReturnValue();
         if (result == null) {
             return;
@@ -88,7 +80,10 @@ public class WheelMountBlockEntityMixin {
 
     private static BlockPos readMinInteractingBlock(Object terrainCastResult) {
         try {
-            Object hit = terrainCastResult.getClass().getMethod("minInteractingBlock").invoke(terrainCastResult);
+            Object hit = terrainCastResult
+                    .getClass()
+                    .getMethod("minInteractingBlock")
+                    .invoke(terrainCastResult);
             return hit instanceof BlockPos pos ? pos : null;
         } catch (ReflectiveOperationException e) {
             return null;

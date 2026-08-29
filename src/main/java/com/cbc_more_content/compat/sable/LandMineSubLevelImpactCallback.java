@@ -1,17 +1,14 @@
 package com.cbc_more_content.compat.sable;
 
-import javax.annotation.Nullable;
-
-import org.joml.Vector3d;
-
 import com.cbc_more_content.block.LandMineBlock;
-
 import dev.ryanhcode.sable.api.physics.callback.BlockSubLevelCollisionCallback;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem;
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
+import org.joml.Vector3d;
 
 /**
  * Sable hull / plot contact with a ground (or ship-placed) land mine.
@@ -23,15 +20,11 @@ public final class LandMineSubLevelImpactCallback implements BlockSubLevelCollis
     /** Any meaningful contact (~1 m/s) — mines are pressure devices, not impact fuzes. */
     private static final double TRIGGER_VELOCITY = 1.0D;
 
-    private LandMineSubLevelImpactCallback() {
-    }
+    private LandMineSubLevelImpactCallback() {}
 
     @Override
     public CollisionResult sable$onCollision(
-            BlockPos hitBlockPos,
-            @Nullable BlockPos otherHitBlockPos,
-            Vector3d impactPosition,
-            double impactVelocity) {
+            BlockPos hitBlockPos, @Nullable BlockPos otherHitBlockPos, Vector3d impactPosition, double impactVelocity) {
         if (impactVelocity * impactVelocity < TRIGGER_VELOCITY * TRIGGER_VELOCITY) {
             return CollisionResult.NONE;
         }

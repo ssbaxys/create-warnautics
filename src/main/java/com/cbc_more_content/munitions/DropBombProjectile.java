@@ -1,7 +1,5 @@
 package com.cbc_more_content.munitions;
 
-import javax.annotation.Nonnull;
-
 import com.cbc_more_content.block.DropBombBlock;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.damage.BombDamageSource;
@@ -9,7 +7,7 @@ import com.cbc_more_content.effects.BombExplosionHandler;
 import com.cbc_more_content.effects.BombSympatheticDetonation;
 import com.cbc_more_content.registry.ModBlocks;
 import com.cbc_more_content.registry.ModEntityTypes;
-
+import javax.annotation.Nonnull;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Position;
 import net.minecraft.server.level.ServerLevel;
@@ -85,12 +83,13 @@ public class DropBombProjectile extends FuzedBigCannonProjectile {
         // Aerial bombs burst just inside the struck surface instead of at an
         // arbitrary air-side coordinate. This produces a grounded, slightly
         // deeper crater while retaining immediate collision-tick detonation.
-        double baseDepth = switch (this.bombSize()) {
-            case SMALL -> 0.18D;
-            case SEA -> 0.24D;
-            case MEDIUM -> 0.42D;
-            case LARGE -> 0.62D;
-        };
+        double baseDepth =
+                switch (this.bombSize()) {
+                    case SMALL -> 0.18D;
+                    case SEA -> 0.24D;
+                    case MEDIUM -> 0.42D;
+                    case LARGE -> 0.62D;
+                };
         double speedScale = Math.max(0.35D, Math.min(1.0D, speed / 1.25D));
         return hit.add(velocity.scale((baseDepth * speedScale) / speed));
     }
@@ -140,7 +139,6 @@ public class DropBombProjectile extends FuzedBigCannonProjectile {
                     entityPower,
                     this.bombSize());
         }
-
     }
 
     @Override
@@ -193,8 +191,7 @@ public class DropBombProjectile extends FuzedBigCannonProjectile {
         if (this.getType() == ModEntityTypes.SEA_BOMB.get()) {
             // Reserved state variants split the projectile body from its animated
             // author-model propeller. Placed sea bombs still use cassette=1.
-            state = state.setValue(DropBombBlock.POWERED, true)
-                    .setValue(DropBombBlock.CASSETTE, 4);
+            state = state.setValue(DropBombBlock.POWERED, true).setValue(DropBombBlock.CASSETTE, 4);
         }
         return state;
     }

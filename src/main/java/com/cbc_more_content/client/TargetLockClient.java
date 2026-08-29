@@ -1,11 +1,5 @@
 package com.cbc_more_content.client;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-
-import javax.annotation.Nullable;
-
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.block.CruiseMissileBlock;
 import com.cbc_more_content.block.CruiseMissileBlockEntity;
@@ -15,7 +9,10 @@ import com.cbc_more_content.network.MissileFirePayload;
 import com.cbc_more_content.registry.ModSounds;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import javax.annotation.Nullable;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -37,7 +34,6 @@ import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
-
 import org.joml.Vector3f;
 
 /**
@@ -56,27 +52,28 @@ public final class TargetLockClient {
     private static final double MAX_RANGE = 220.0D;
     /** Marker size on screen, as a share of the distance to it. */
     private static final double MARKER_SCALE = 0.03D;
+
     private static final int CONFIRM_TICKS = 40;
 
     private static List<SableTrackCompat.Track> tracks = List.of();
+
     @Nullable
     private static UUID aimed;
+
     @Nullable
     private static UUID locked;
+
     private static int progress;
     private static int confirm;
     private static boolean firePrimed;
 
-    private TargetLockClient() {
-    }
+    private TargetLockClient() {}
 
     /** The missile this designator is paired with, or null when it is not in hand. */
     @Nullable
     private static BlockPos boundMissile(LocalPlayer player) {
         ItemStack stack = player.getMainHandItem();
-        return stack.getItem() instanceof TargetDesignatorItem
-                ? TargetDesignatorItem.boundMissile(stack)
-                : null;
+        return stack.getItem() instanceof TargetDesignatorItem ? TargetDesignatorItem.boundMissile(stack) : null;
     }
 
     /** The designator is not a pickaxe, and attack is the trigger. */
@@ -268,8 +265,17 @@ public final class TargetLockClient {
             // winds up, so progress is legible without looking away from the target.
             if (isAimed && progress > 0 && locked == null) {
                 double t = progress / (double) LOCK_TICKS;
-                square(lines, pose, track.centre(), right, up, size * (3.0D - 2.0D * t),
-                        1.0f, 0.52f + 0.3f * (float) t, 0.18f, 0.85f);
+                square(
+                        lines,
+                        pose,
+                        track.centre(),
+                        right,
+                        up,
+                        size * (3.0D - 2.0D * t),
+                        1.0f,
+                        0.52f + 0.3f * (float) t,
+                        0.18f,
+                        0.85f);
             }
             if (isLocked) {
                 square(lines, pose, track.centre(), right, up, size * 1.6D, r, g, b, a * 0.6f);
@@ -282,8 +288,16 @@ public final class TargetLockClient {
 
     /** A camera-facing square outline, so the marker reads the same from any angle. */
     private static void square(
-            VertexConsumer lines, PoseStack pose, Vec3 centre, Vec3 right, Vec3 up,
-            double size, float r, float g, float b, float a) {
+            VertexConsumer lines,
+            PoseStack pose,
+            Vec3 centre,
+            Vec3 right,
+            Vec3 up,
+            double size,
+            float r,
+            float g,
+            float b,
+            float a) {
         List<Vec3> corners = new ArrayList<>(4);
         corners.add(centre.add(right.scale(-size)).add(up.scale(-size)));
         corners.add(centre.add(right.scale(size)).add(up.scale(-size)));
@@ -295,8 +309,7 @@ public final class TargetLockClient {
     }
 
     private static void edge(
-            VertexConsumer lines, PoseStack pose, Vec3 from, Vec3 to,
-            float r, float g, float b, float a) {
+            VertexConsumer lines, PoseStack pose, Vec3 from, Vec3 to, float r, float g, float b, float a) {
         float dx = (float) (to.x - from.x);
         float dy = (float) (to.y - from.y);
         float dz = (float) (to.z - from.z);
@@ -331,33 +344,37 @@ public final class TargetLockClient {
         // and the operator has no other way of finding that out from over here.
         if (mc.level.getBlockEntity(missile) instanceof CruiseMissileBlockEntity guidance
                 && guidance.guidance() != CruiseMissileBlockEntity.Guidance.REMOTE) {
-            graphics.drawCenteredString(mc.font,
+            graphics.drawCenteredString(
+                    mc.font,
                     Component.translatable("gui.cbc_more_content.designator.not_remote")
                             .withStyle(ChatFormatting.RED),
-                    x, y, 0xFFFFFFFF);
+                    x,
+                    y,
+                    0xFFFFFFFF);
             return;
         }
 
         if (locked != null) {
-            graphics.drawCenteredString(mc.font,
-                    Component.translatable("gui.cbc_more_content.designator.locked"),
-                    x, y, 0xFFFF5A46);
+            graphics.drawCenteredString(
+                    mc.font, Component.translatable("gui.cbc_more_content.designator.locked"), x, y, 0xFFFF5A46);
             return;
         }
         if (progress > 0) {
             int percent = Math.min(99, progress * 100 / LOCK_TICKS);
-            graphics.drawCenteredString(mc.font,
+            graphics.drawCenteredString(
+                    mc.font,
                     Component.translatable("gui.cbc_more_content.designator.locking", percent),
-                    x, y, 0xFFFFB036);
+                    x,
+                    y,
+                    0xFFFFB036);
             return;
         }
         if (confirm > 0) {
             return;
         }
         if (aimed != null) {
-            graphics.drawCenteredString(mc.font,
-                    Component.translatable("gui.cbc_more_content.designator.hold"),
-                    x, y, 0xFFE8E2CF);
+            graphics.drawCenteredString(
+                    mc.font, Component.translatable("gui.cbc_more_content.designator.hold"), x, y, 0xFFE8E2CF);
         }
     }
 }

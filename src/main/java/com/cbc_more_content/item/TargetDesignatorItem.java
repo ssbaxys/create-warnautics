@@ -1,11 +1,8 @@
 package com.cbc_more_content.item;
 
-import java.util.List;
-
-import javax.annotation.Nullable;
-
 import com.cbc_more_content.block.CruiseMissileBlock;
-
+import java.util.List;
+import javax.annotation.Nullable;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -48,8 +45,7 @@ public class TargetDesignatorItem extends Item {
         BlockPos body = CruiseMissileBlock.bodyOf(state, pos);
         if (!level.isClientSide) {
             bind(context.getItemInHand(), body);
-            level.playSound(null, body, SoundEvents.UI_BUTTON_CLICK.value(),
-                    SoundSource.PLAYERS, 0.7f, 1.6f);
+            level.playSound(null, body, SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.PLAYERS, 0.7f, 1.6f);
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
     }
@@ -81,17 +77,16 @@ public class TargetDesignatorItem extends Item {
 
     @Override
     public void appendHoverText(
-            ItemStack stack, Item.TooltipContext context,
-            List<Component> tooltip, TooltipFlag flag) {
+            ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         WorkInProgress.append(tooltip);
         BlockPos bound = boundMissile(stack);
-        tooltip.add(Component.translatable(bound == null
-                        ? "tooltip.cbc_more_content.target_designator"
-                        : "tooltip.cbc_more_content.target_designator.bound")
+        tooltip.add(Component.translatable(
+                        bound == null
+                                ? "tooltip.cbc_more_content.target_designator"
+                                : "tooltip.cbc_more_content.target_designator.bound")
                 .withStyle(ChatFormatting.GRAY));
         if (bound != null) {
-            tooltip.add(Component.literal(
-                            "%d, %d, %d".formatted(bound.getX(), bound.getY(), bound.getZ()))
+            tooltip.add(Component.literal("%d, %d, %d".formatted(bound.getX(), bound.getY(), bound.getZ()))
                     .withStyle(ChatFormatting.DARK_GRAY));
         }
     }

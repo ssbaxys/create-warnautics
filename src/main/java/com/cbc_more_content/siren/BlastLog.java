@@ -1,12 +1,10 @@
 package com.cbc_more_content.siren;
 
+import com.cbc_more_content.CBCMoreContent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
-
-import com.cbc_more_content.CBCMoreContent;
-
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -26,7 +24,9 @@ import net.neoforged.neoforge.event.level.ExplosionEvent;
  * Cannons shells and this mod's own warheads alike; the mod's handlers also call in
  * directly, so a blast that never builds an {@code Explosion} still counts.
  */
-@EventBusSubscriber(modid = CBCMoreContent.MOD_ID, value = {Dist.CLIENT, Dist.DEDICATED_SERVER})
+@EventBusSubscriber(
+        modid = CBCMoreContent.MOD_ID,
+        value = {Dist.CLIENT, Dist.DEDICATED_SERVER})
 public final class BlastLog {
     /** How long a blast stays worth reacting to. Comfortably over a siren's look-round. */
     private static final int MEMORY_TICKS = 40;
@@ -35,11 +35,9 @@ public final class BlastLog {
 
     private static final Map<Level, List<Blast>> BY_LEVEL = new WeakHashMap<>();
 
-    private BlastLog() {
-    }
+    private BlastLog() {}
 
-    public record Blast(Vec3 at, long tick) {
-    }
+    public record Blast(Vec3 at, long tick) {}
 
     /** Called by the mod's own handlers for blasts that never build an explosion. */
     public static void record(Level level, Vec3 at) {

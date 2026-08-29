@@ -1,10 +1,8 @@
 package com.cbc_more_content.effects;
 
-import javax.annotation.Nullable;
-
 import com.cbc_more_content.event.WarnauticsBlockChipEvent;
 import com.cbc_more_content.registry.ModParticles;
-
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -32,15 +30,19 @@ public final class MineExplosionHandler {
     private static final int FRAGMENT_COUNT = 36;
     /** Fragment speed, blocks/tick. Matches the energy of the old upward cone. */
     private static final double FRAGMENT_SPEED_MIN = 1.15D;
+
     private static final double FRAGMENT_SPEED_MAX = 1.75D;
     /** Elevation band, radians. Just under level to a shallow rise — a flat rake. */
     private static final double PITCH_MIN = -0.10D;
+
     private static final double PITCH_MAX = 0.26D;
     /** Fragments leave from the charge body, a hand's width off the ground. */
     private static final double MUZZLE_HEIGHT = 0.22D;
+
     private static final double PARTICLE_RANGE_SQR = 64.0D * 64.0D;
     /** How far the blast marks the surface, and how hard it does so at the seat. */
     private static final double SCUFF_RADIUS = 4.0D;
+
     private static final float SCUFF_STRENGTH = 0.9f;
 
     /**
@@ -62,15 +64,10 @@ public final class MineExplosionHandler {
     /** Marks a burst as ours so {@code ShrapnelBurstMixin} only gates mine fragments. */
     public static final String MINE_BURST_TAG = "warnautics_mine_burst";
 
-    private MineExplosionHandler() {
-    }
+    private MineExplosionHandler() {}
 
     public static void detonateSmallShrapnel(
-            ServerLevel level,
-            @Nullable Entity source,
-            DamageSource damageSource,
-            Vec3 pos,
-            float entityPower) {
+            ServerLevel level, @Nullable Entity source, DamageSource damageSource, Vec3 pos, float entityPower) {
         ShrapnelExplosion pressure = new ShrapnelExplosion(
                 level,
                 source,
@@ -91,10 +88,9 @@ public final class MineExplosionHandler {
         // An antipersonnel charge digs nothing, but it does strip the ground it sat on.
         BlastScorch.scuff(level, pos, SCUFF_RADIUS, SCUFF_STRENGTH);
 
-        level.playSound(null, pos.x, pos.y + 0.15D, pos.z,
-                SoundEvents.CHAIN_BREAK, SoundSource.BLOCKS, 2.2f, 1.42f);
-        level.playSound(null, pos.x, pos.y + 0.15D, pos.z,
-                SoundEvents.IRON_GOLEM_DAMAGE, SoundSource.BLOCKS, 1.15f, 1.72f);
+        level.playSound(null, pos.x, pos.y + 0.15D, pos.z, SoundEvents.CHAIN_BREAK, SoundSource.BLOCKS, 2.2f, 1.42f);
+        level.playSound(
+                null, pos.x, pos.y + 0.15D, pos.z, SoundEvents.IRON_GOLEM_DAMAGE, SoundSource.BLOCKS, 1.15f, 1.72f);
     }
 
     /**
@@ -103,16 +99,17 @@ public final class MineExplosionHandler {
      * Where you are standing decides most of it: distance sets the shape, and whatever is
      * between you and the charge cuts it again, so a wall or a corner is worth taking.
      */
-    private static void applyPressure(
-            ServerLevel level, DamageSource damageSource, Vec3 center, float entityPower) {
-        if (level == null || damageSource == null || center == null
-                || !Float.isFinite(entityPower) || entityPower <= 0.0f) {
+    private static void applyPressure(ServerLevel level, DamageSource damageSource, Vec3 center, float entityPower) {
+        if (level == null
+                || damageSource == null
+                || center == null
+                || !Float.isFinite(entityPower)
+                || entityPower <= 0.0f) {
             return;
         }
         double radius = entityPower;
         AABB area = new AABB(center, center).inflate(radius);
-        for (LivingEntity entity : level.getEntitiesOfClass(
-                LivingEntity.class, area, LivingEntity::isAlive)) {
+        for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, area, LivingEntity::isAlive)) {
             if (entity.isSpectator()) {
                 continue;
             }
@@ -125,12 +122,10 @@ public final class MineExplosionHandler {
             BlastCover.Result cover = BlastCover.evaluate(level, center, entity);
             double falloff = 1.0D - distance / radius;
             if (entity instanceof ServerPlayer player && player.isAlive()) {
-                ConcussionHandler.offer(player, entityPower, falloff,
-                        cover.transmission(), cover.hasLineOfSight());
+                ConcussionHandler.offer(player, entityPower, falloff, cover.transmission(), cover.hasLineOfSight());
             }
 
-            float damage = (float) (PEAK_DAMAGE * Math.pow(falloff, FALLOFF)
-                    * cover.transmission());
+            float damage = (float) (PEAK_DAMAGE * Math.pow(falloff, FALLOFF) * cover.transmission());
             if (damage >= MIN_DAMAGE) {
                 entity.hurt(damageSource, damage);
             }
@@ -177,7 +172,9 @@ public final class MineExplosionHandler {
                     (random.nextDouble() - random.nextDouble()) * 0.0625D,
                     (random.nextDouble() - random.nextDouble()) * 0.0625D,
                     (random.nextDouble() - random.nextDouble()) * 0.0625D,
-                    vx, vy, vz);
+                    vx,
+                    vy,
+                    vz);
         }
 
         burst.getPersistentData().putBoolean(MINE_BURST_TAG, true);
@@ -196,9 +193,18 @@ public final class MineExplosionHandler {
             }
             for (int i = 0; i < velocities.length; i += 3) {
                 // count 0 means the offset arguments are read as a velocity instead.
-                level.sendParticles(player, ModParticles.MINE_FRAGMENT.get(), true,
-                        muzzle.x, muzzle.y, muzzle.z, 0,
-                        velocities[i], velocities[i + 1], velocities[i + 2], 1.0D);
+                level.sendParticles(
+                        player,
+                        ModParticles.MINE_FRAGMENT.get(),
+                        true,
+                        muzzle.x,
+                        muzzle.y,
+                        muzzle.z,
+                        0,
+                        velocities[i],
+                        velocities[i + 1],
+                        velocities[i + 2],
+                        1.0D);
             }
         }
     }

@@ -4,7 +4,6 @@ import com.cbc_more_content.damage.MineDamageSource;
 import com.cbc_more_content.effects.MineExplosionHandler;
 import com.cbc_more_content.mine.MineType;
 import com.cbc_more_content.registry.ModEntityTypes;
-
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
@@ -28,6 +27,7 @@ import net.minecraft.world.phys.Vec3;
 public class BoundingMineEntity extends Entity {
     /** Enough to clear cover and reach a standing torso. */
     private static final double POP_SPEED = 0.42D;
+
     private static final double GRAVITY = 0.045D;
     /** Ticks it hangs after the rise has stalled, before it lets go. */
     private static final int HANG_TICKS = 5;
@@ -48,15 +48,12 @@ public class BoundingMineEntity extends Entity {
         mine.setPos(from.x, from.y, from.z);
         // A touch of scatter, so two charges going off together do not rise as one object.
         mine.setDeltaMovement(
-                (level.random.nextDouble() - 0.5D) * 0.04D,
-                POP_SPEED,
-                (level.random.nextDouble() - 0.5D) * 0.04D);
+                (level.random.nextDouble() - 0.5D) * 0.04D, POP_SPEED, (level.random.nextDouble() - 0.5D) * 0.04D);
         return mine;
     }
 
     @Override
-    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
-    }
+    protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {}
 
     @Override
     public void tick() {
@@ -94,10 +91,16 @@ public class BoundingMineEntity extends Entity {
         if (this.tickCount % 2 != 0) {
             return;
         }
-        this.level().addParticle(ParticleTypes.SMOKE, true,
-                this.getX(), this.getY(), this.getZ(),
-                (this.random.nextDouble() - 0.5D) * 0.02D, -0.01D,
-                (this.random.nextDouble() - 0.5D) * 0.02D);
+        this.level()
+                .addParticle(
+                        ParticleTypes.SMOKE,
+                        true,
+                        this.getX(),
+                        this.getY(),
+                        this.getZ(),
+                        (this.random.nextDouble() - 0.5D) * 0.02D,
+                        -0.01D,
+                        (this.random.nextDouble() - 0.5D) * 0.02D);
     }
 
     private void detonate() {
@@ -108,8 +111,11 @@ public class BoundingMineEntity extends Entity {
         // Bursting where it hangs, not where it was buried, is the entire reason this
         // charge exists: the fragments arrive at chest height and reach over cover.
         MineExplosionHandler.detonateSmallShrapnel(
-                server, null, MineDamageSource.create(server, MineType.BOUNDING),
-                this.position(), MineType.BOUNDING.entityBlastPower);
+                server,
+                null,
+                MineDamageSource.create(server, MineType.BOUNDING),
+                this.position(),
+                MineType.BOUNDING.entityBlastPower);
         this.discard();
     }
 
@@ -139,10 +145,26 @@ public class BoundingMineEntity extends Entity {
 
     /** The pop that throws it, played wherever it happens to leave the ground from. */
     public void playPop() {
-        this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
-                SoundEvents.FIREWORK_ROCKET_LAUNCH, SoundSource.BLOCKS, 1.1f, 0.62f);
-        this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
-                SoundEvents.CHICKEN_EGG, SoundSource.BLOCKS, 0.9f, 0.75f);
+        this.level()
+                .playSound(
+                        null,
+                        this.getX(),
+                        this.getY(),
+                        this.getZ(),
+                        SoundEvents.FIREWORK_ROCKET_LAUNCH,
+                        SoundSource.BLOCKS,
+                        1.1f,
+                        0.62f);
+        this.level()
+                .playSound(
+                        null,
+                        this.getX(),
+                        this.getY(),
+                        this.getZ(),
+                        SoundEvents.CHICKEN_EGG,
+                        SoundSource.BLOCKS,
+                        0.9f,
+                        0.75f);
     }
 
     @Override

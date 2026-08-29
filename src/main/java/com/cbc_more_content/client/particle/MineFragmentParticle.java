@@ -21,10 +21,7 @@ public class MineFragmentParticle extends TextureSheetParticle {
     private static final float DRAG = 0.91f;
 
     protected MineFragmentParticle(
-            ClientLevel level,
-            double x, double y, double z,
-            double vx, double vy, double vz,
-            SpriteSet sprites) {
+            ClientLevel level, double x, double y, double z, double vx, double vy, double vz, SpriteSet sprites) {
         super(level, x, y, z);
         this.xd = vx;
         this.yd = vy;
@@ -43,10 +40,7 @@ public class MineFragmentParticle extends TextureSheetParticle {
         super.tick();
         // Cool from white through amber to a dull ember over the fragment's life.
         float t = Mth.clamp(this.age / (float) this.lifetime, 0.0f, 1.0f);
-        this.setColor(
-                Mth.lerp(t, 1.0f, 0.42f),
-                Mth.lerp(t, 0.94f, 0.13f),
-                Mth.lerp(t, 0.72f, 0.06f));
+        this.setColor(Mth.lerp(t, 1.0f, 0.42f), Mth.lerp(t, 0.94f, 0.13f), Mth.lerp(t, 0.72f, 0.06f));
         this.setAlpha(1.0f - t * t);
     }
 
@@ -61,8 +55,12 @@ public class MineFragmentParticle extends TextureSheetParticle {
         public Particle createParticle(
                 SimpleParticleType type,
                 ClientLevel level,
-                double x, double y, double z,
-                double vx, double vy, double vz) {
+                double x,
+                double y,
+                double z,
+                double vx,
+                double vy,
+                double vz) {
             return new MineFragmentParticle(level, x, y, z, vx, vy, vz, this.sprites);
         }
     }

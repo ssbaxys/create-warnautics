@@ -1,7 +1,6 @@
 package com.cbc_more_content.network;
 
 import com.cbc_more_content.CBCMoreContent;
-
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -16,13 +15,11 @@ import net.minecraft.resources.ResourceLocation;
  */
 public record ControlPanelPayload(boolean cannonFx) implements CustomPacketPayload {
 
-    public static final Type<ControlPanelPayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "control_panel"));
+    public static final Type<ControlPanelPayload> TYPE =
+            new Type<>(ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "control_panel"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, ControlPanelPayload> STREAM_CODEC =
-            StreamCodec.of(
-                    (buf, payload) -> buf.writeBoolean(payload.cannonFx),
-                    buf -> new ControlPanelPayload(buf.readBoolean()));
+    public static final StreamCodec<RegistryFriendlyByteBuf, ControlPanelPayload> STREAM_CODEC = StreamCodec.of(
+            (buf, payload) -> buf.writeBoolean(payload.cannonFx), buf -> new ControlPanelPayload(buf.readBoolean()));
 
     @Override
     public Type<? extends CustomPacketPayload> type() {

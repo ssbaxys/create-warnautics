@@ -1,12 +1,9 @@
 package com.cbc_more_content.compat;
 
+import com.cbc_more_content.CBCMoreContent;
 import java.lang.reflect.Method;
 import java.util.Collection;
-
 import javax.annotation.Nullable;
-
-import com.cbc_more_content.CBCMoreContent;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -27,29 +24,33 @@ public final class RadarCompat {
     private static final String SOURCE_CLASS = "com.happysg.radar.api.tracking.RadarSource";
 
     private static boolean resolved;
+
     @Nullable
     private static Class<?> sourceClass;
+
     @Nullable
     private static Method getContacts;
+
     @Nullable
     private static Method isRunning;
+
     @Nullable
     private static Method contactId;
+
     @Nullable
     private static Method contactPosition;
+
     @Nullable
     private static Method contactVelocity;
 
-    private RadarCompat() {
-    }
+    private RadarCompat() {}
 
     public static boolean loaded() {
         return ModList.get().isLoaded(MOD_ID);
     }
 
     /** One track as the missile sees it. */
-    public record Contact(String id, Vec3 position, Vec3 velocity) {
-    }
+    public record Contact(String id, Vec3 position, Vec3 velocity) {}
 
     /** True if this block entity is something Radar considers a source of tracks. */
     public static boolean isController(@Nullable BlockEntity blockEntity) {
@@ -73,8 +74,7 @@ public final class RadarCompat {
         if (blockEntity == null || !loaded()) {
             return false;
         }
-        var key = net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE
-                .getKey(blockEntity.getType());
+        var key = net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(blockEntity.getType());
         return key != null && MOD_ID.equals(key.getNamespace());
     }
 
@@ -89,8 +89,7 @@ public final class RadarCompat {
      */
     @Nullable
     public static Contact bestContact(
-            Level level, BlockPos controller, Vec3 from,
-            com.cbc_more_content.radar.InterceptSettings settings) {
+            Level level, BlockPos controller, Vec3 from, com.cbc_more_content.radar.InterceptSettings settings) {
         Contact best = null;
         double bestScore = -Double.MAX_VALUE;
         double maxRange = settings.maxRange();
@@ -103,13 +102,11 @@ public final class RadarCompat {
             if (contact.velocity().length() < settings.minSpeed()) {
                 continue;
             }
-            if (settings.hullsOnly()
-                    && !SableDropCompat.isInsideSubLevel(level, contact.position())) {
+            if (settings.hullsOnly() && !SableDropCompat.isInsideSubLevel(level, contact.position())) {
                 continue;
             }
             // Blocks per tick, weighted heavily, less a mild penalty for being far off.
-            double score = contact.velocity().length() * 40.0D
-                    - Math.sqrt(distanceSqr) / maxRange;
+            double score = contact.velocity().length() * 40.0D - Math.sqrt(distanceSqr) / maxRange;
             if (score > bestScore) {
                 bestScore = score;
                 best = contact;
@@ -173,9 +170,9 @@ public final class RadarCompat {
                 if (!level.hasChunk(cx, cz)) {
                     continue;
                 }
-                for (BlockEntity candidate : level.getChunk(cx, cz).getBlockEntities().values()) {
-                    if (isController(candidate)
-                            && candidate.getBlockPos().distSqr(controller) <= reachSqr) {
+                for (BlockEntity candidate :
+                        level.getChunk(cx, cz).getBlockEntities().values()) {
+                    if (isController(candidate) && candidate.getBlockPos().distSqr(controller) <= reachSqr) {
                         found.add(candidate);
                     }
                 }
@@ -201,8 +198,7 @@ public final class RadarCompat {
                 Object position = contactPosition.invoke(track);
                 Object velocity = contactVelocity.invoke(track);
                 if (id instanceof String name && position instanceof Vec3 at) {
-                    out.add(new Contact(name, at,
-                            velocity instanceof Vec3 moving ? moving : Vec3.ZERO));
+                    out.add(new Contact(name, at, velocity instanceof Vec3 moving ? moving : Vec3.ZERO));
                 }
             }
         } catch (Throwable t) {
@@ -231,7 +227,8 @@ public final class RadarCompat {
         } catch (Throwable t) {
             CBCMoreContent.LOGGER.info(
                     "Create Radar is present but its tracking API did not resolve; "
-                            + "intercept guidance stays inert. {}", t.toString());
+                            + "intercept guidance stays inert. {}",
+                    t.toString());
             sourceClass = null;
             return false;
         }

@@ -7,8 +7,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 /** Client-only entry point for {@link ControlPanelScreen}. */
 @OnlyIn(Dist.CLIENT)
 public final class ControlPanelClient {
-    private ControlPanelClient() {
-    }
+    private ControlPanelClient() {}
 
     public static void open(boolean cannonFx) {
         Minecraft.getInstance().setScreen(new ControlPanelScreen(cannonFx));

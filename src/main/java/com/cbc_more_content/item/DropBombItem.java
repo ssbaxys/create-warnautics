@@ -1,7 +1,6 @@
 package com.cbc_more_content.item;
 
 import com.cbc_more_content.block.DropBombBlock;
-
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -86,18 +85,13 @@ public class DropBombItem extends BlockItem {
             return DropBombBlock.DEFAULT_RELEASE_DELAY;
         }
         Integer value = props.get(DropBombBlock.RELEASE_DELAY);
-        return value == null
-                ? DropBombBlock.DEFAULT_RELEASE_DELAY
-                : DropBombBlock.releaseDelayTicks(value);
+        return value == null ? DropBombBlock.DEFAULT_RELEASE_DELAY : DropBombBlock.releaseDelayTicks(value);
     }
 
     public static void setReleaseDelay(ItemStack stack, int releaseDelay) {
-        BlockItemStateProperties props = stack.getOrDefault(
+        BlockItemStateProperties props = stack.getOrDefault(DataComponents.BLOCK_STATE, BlockItemStateProperties.EMPTY);
+        stack.set(
                 DataComponents.BLOCK_STATE,
-                BlockItemStateProperties.EMPTY);
-        stack.set(DataComponents.BLOCK_STATE, props.with(
-                DropBombBlock.RELEASE_DELAY,
-                DropBombBlock.normalizeReleaseDelayTicks(releaseDelay)));
+                props.with(DropBombBlock.RELEASE_DELAY, DropBombBlock.normalizeReleaseDelayTicks(releaseDelay)));
     }
-
 }

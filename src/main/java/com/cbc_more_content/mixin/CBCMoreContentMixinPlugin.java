@@ -2,12 +2,10 @@ package com.cbc_more_content.mixin;
 
 import java.util.List;
 import java.util.Set;
-
+import net.neoforged.fml.loading.LoadingModList;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
-
-import net.neoforged.fml.loading.LoadingModList;
 
 /** Gates optional compat mixins (Sable / Offroad) so the mod loads without them. */
 public class CBCMoreContentMixinPlugin implements IMixinConfigPlugin {
@@ -16,8 +14,7 @@ public class CBCMoreContentMixinPlugin implements IMixinConfigPlugin {
     private static final boolean SODIUM_LOADED = LoadingModList.get().getModFileById("sodium") != null;
 
     @Override
-    public void onLoad(String mixinPackage) {
-    }
+    public void onLoad(String mixinPackage) {}
 
     @Override
     public String getRefMapperConfig() {
@@ -39,8 +36,7 @@ public class CBCMoreContentMixinPlugin implements IMixinConfigPlugin {
     }
 
     @Override
-    public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) {
-    }
+    public void acceptTargets(Set<String> myTargets, Set<String> otherTargets) {}
 
     @Override
     public List<String> getMixins() {
@@ -48,10 +44,8 @@ public class CBCMoreContentMixinPlugin implements IMixinConfigPlugin {
     }
 
     @Override
-    public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
-    }
+    public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {}
 
     @Override
-    public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
-    }
+    public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {}
 }

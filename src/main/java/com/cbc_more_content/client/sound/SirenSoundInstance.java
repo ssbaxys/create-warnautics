@@ -2,7 +2,6 @@ package com.cbc_more_content.client.sound;
 
 import com.cbc_more_content.block.SirenBlock;
 import com.cbc_more_content.registry.ModSounds;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
@@ -27,12 +26,15 @@ import net.minecraft.world.level.block.state.BlockState;
 public final class SirenSoundInstance extends AbstractTickableSoundInstance {
     /** Loudest either layer gets at the listener. Attenuation is done here, not by the engine. */
     private static final float NEAR_MAX = 0.95f;
+
     private static final float FAR_MAX = 0.72f;
     /** The near layer is whole out to here, and gone by {@link #NEAR_EDGE}. */
     private static final float NEAR_FULL = 40.0f;
+
     private static final float NEAR_EDGE = 120.0f;
     /** The far layer is present under the wail from the start and takes over out here. */
     private static final float FAR_UNDER = 0.22f;
+
     private static final float FAR_FULL = 150.0f;
     private static final float FAR_FADE = 200.0f;
     private static final float FAR_EDGE = 330.0f;
@@ -62,10 +64,12 @@ public final class SirenSoundInstance extends AbstractTickableSoundInstance {
      * stepped, because the post only reports when the speed has actually moved.
      */
     private float voice;
+
     private float targetVoice;
 
     public SirenSoundInstance(BlockPos pos, boolean far, int remainingTicks, float voice) {
-        super(far ? ModSounds.SIREN_DISTANT.get() : ModSounds.SIREN.get(),
+        super(
+                far ? ModSounds.SIREN_DISTANT.get() : ModSounds.SIREN.get(),
                 far ? SoundSource.WEATHER : SoundSource.BLOCKS,
                 RandomSource.create(pos.asLong()));
         this.pos = pos.immutable();
@@ -130,8 +134,7 @@ public final class SirenSoundInstance extends AbstractTickableSoundInstance {
         }
         this.fadeTicks = 0;
         this.voice = Mth.lerp(GLIDE, this.voice, this.targetVoice);
-        this.volume = Mth.lerp(GLIDE, this.volume,
-                this.gain((float) listenerDistance()) * this.voice);
+        this.volume = Mth.lerp(GLIDE, this.volume, this.gain((float) listenerDistance()) * this.voice);
         // A rotor wound right down takes the note with it rather than leaving a hum.
         this.pitch = (this.far ? 0.92f : 1.0f) * Mth.lerp(this.voice, 0.82f, 1.0f);
     }
@@ -142,8 +145,7 @@ public final class SirenSoundInstance extends AbstractTickableSoundInstance {
         if (mc.player == null) {
             return 0.0D;
         }
-        return mc.player.getEyePosition()
-                .distanceTo(new net.minecraft.world.phys.Vec3(this.x, this.y, this.z));
+        return mc.player.getEyePosition().distanceTo(new net.minecraft.world.phys.Vec3(this.x, this.y, this.z));
     }
 
     /** Where this layer sits in the mix at that distance. */

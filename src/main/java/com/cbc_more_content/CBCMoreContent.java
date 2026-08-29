@@ -1,7 +1,5 @@
 package com.cbc_more_content;
 
-import org.slf4j.Logger;
-
 import com.cbc_more_content.config.WarnauticsConfig;
 import com.cbc_more_content.network.ModNetworking;
 import com.cbc_more_content.registry.ModBlockEntities;
@@ -12,11 +10,12 @@ import com.cbc_more_content.registry.ModItems;
 import com.cbc_more_content.registry.ModLootModifiers;
 import com.cbc_more_content.registry.ModParticles;
 import com.cbc_more_content.registry.ModSounds;
+import com.cbc_more_content.util.ReflectiveDispatcher;
 import com.mojang.logging.LogUtils;
-
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import org.slf4j.Logger;
 
 @Mod(CBCMoreContent.MOD_ID)
 public class CBCMoreContent {
@@ -25,7 +24,8 @@ public class CBCMoreContent {
 
     public CBCMoreContent(IEventBus modEventBus, net.neoforged.fml.ModContainer modContainer) {
         modContainer.registerConfig(net.neoforged.fml.config.ModConfig.Type.SERVER, WarnauticsConfig.SPEC);
-        modContainer.registerConfig(net.neoforged.fml.config.ModConfig.Type.CLIENT,
+        modContainer.registerConfig(
+                net.neoforged.fml.config.ModConfig.Type.CLIENT,
                 com.cbc_more_content.config.WarnauticsClientConfig.SPEC);
 
         ModBlocks.BLOCKS.register(modEventBus);
@@ -41,13 +41,8 @@ public class CBCMoreContent {
         modEventBus.addListener(ModNetworking::register);
 
         if (net.neoforged.fml.ModList.get().isLoaded("sable")) {
-            try {
-                Class.forName("com.cbc_more_content.compat.sable.SableCollisionDetonationQueue")
-                        .getMethod("register")
-                        .invoke(null);
-            } catch (ReflectiveOperationException e) {
-                LOGGER.warn("Sable is present but same-tick collision detonation failed to register", e);
-            }
+            ReflectiveDispatcher.invoke(
+                    "com.cbc_more_content.compat.sable.SableCollisionDetonationQueue", "register", new Class<?>[0]);
         }
     }
 

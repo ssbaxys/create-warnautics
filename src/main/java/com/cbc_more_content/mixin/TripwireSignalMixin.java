@@ -1,16 +1,14 @@
 package com.cbc_more_content.mixin;
 
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
 import com.cbc_more_content.event.TripwireSignal;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Makes a post a tripwire was tied to report power while its pulse lasts.
@@ -24,8 +22,7 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 public abstract class TripwireSignalMixin {
     @Inject(method = "getSignal", at = @At("HEAD"), cancellable = true)
     private void cbc_more_content$tripwireSignal(
-            BlockGetter level, BlockPos pos, Direction direction,
-            CallbackInfoReturnable<Integer> callback) {
+            BlockGetter level, BlockPos pos, Direction direction, CallbackInfoReturnable<Integer> callback) {
         int power = TripwireSignal.strength(level, pos);
         if (power > 0) {
             callback.setReturnValue(power);
@@ -34,8 +31,7 @@ public abstract class TripwireSignalMixin {
 
     @Inject(method = "getDirectSignal", at = @At("HEAD"), cancellable = true)
     private void cbc_more_content$tripwireDirectSignal(
-            BlockGetter level, BlockPos pos, Direction direction,
-            CallbackInfoReturnable<Integer> callback) {
+            BlockGetter level, BlockPos pos, Direction direction, CallbackInfoReturnable<Integer> callback) {
         int power = TripwireSignal.strength(level, pos);
         if (power > 0) {
             callback.setReturnValue(power);

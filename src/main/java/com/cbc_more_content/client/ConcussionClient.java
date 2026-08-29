@@ -2,18 +2,16 @@ package com.cbc_more_content.client;
 
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.network.ConcussionPayload;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 /**
  * Flashbang-style concussion overlay, drawn above the HUD: a hard white bloom that
@@ -39,13 +37,14 @@ public final class ConcussionClient {
     private static float intensity;
     /** Drives the ringing, which reaches the player around and through cover. */
     private static float audio;
+
     private static int duration;
     private static int age = -1;
+
     @javax.annotation.Nullable
     private static net.minecraft.client.resources.sounds.SoundInstance ringing;
 
-    private ConcussionClient() {
-    }
+    private ConcussionClient() {}
 
     /**
      * Takes a new blast on top of whatever is already running. Every payload counts:
@@ -53,17 +52,14 @@ public final class ConcussionClient {
      * the effect, never cut it short.
      */
     public static void handle(ConcussionPayload payload) {
-        if (!Float.isFinite(payload.visual()) || !Float.isFinite(payload.audio())
-                || payload.durationTicks() <= 0) {
+        if (!Float.isFinite(payload.visual()) || !Float.isFinite(payload.audio()) || payload.durationTicks() <= 0) {
             return;
         }
         float incomingVisual = Mth.clamp(payload.visual(), 0.0f, 1.0f);
         float incomingAudio = Mth.clamp(payload.audio(), 0.0f, 1.0f);
 
         // What is still left of the running effect, on the same curve the renderer uses.
-        float remainingShare = age >= 0 && duration > 0
-                ? 1.0f - Mth.clamp(age / (float) duration, 0.0f, 1.0f)
-                : 0.0f;
+        float remainingShare = age >= 0 && duration > 0 ? 1.0f - Mth.clamp(age / (float) duration, 0.0f, 1.0f) : 0.0f;
         int remainingTicks = age >= 0 && age < duration ? duration - age : 0;
 
         float previousAudio = audio;
@@ -230,9 +226,7 @@ public final class ConcussionClient {
         }
         // Rises over the first frames rather than appearing fully formed.
         float rise = ticks / span;
-        float f = rise < 0.12f
-                ? rise / 0.12f
-                : 1.0f - smoothstep((rise - 0.12f) / 0.88f);
+        float f = rise < 0.12f ? rise / 0.12f : 1.0f - smoothstep((rise - 0.12f) / 0.88f);
         f *= intensity * weight;
         if (f <= 0.002f) {
             return;

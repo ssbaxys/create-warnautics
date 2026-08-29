@@ -1,7 +1,6 @@
 package com.cbc_more_content.effects;
 
 import com.cbc_more_content.network.ConcussionPayload;
-
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -18,6 +17,7 @@ public final class ConcussionHandler {
     private static final double MIN_FALLOFF = 0.18D;
     /** Length of bomb_concussion.ogg — a full-strength hit rings for the whole track. */
     private static final int MAX_DURATION_TICKS = 300;
+
     private static final int MIN_DURATION_TICKS = 60;
     /** Cover this thick removes the visual shock, leaving only the ringing. */
     private static final double VISUAL_CUTOFF = 0.12D;
@@ -29,8 +29,7 @@ public final class ConcussionHandler {
      */
     private static final double NEAR_FIELD = 0.62D;
 
-    private ConcussionHandler() {
-    }
+    private ConcussionHandler() {}
 
     /**
      * @param falloff      1 at the blast centre, 0 at the edge of the damage radius
@@ -38,18 +37,13 @@ public final class ConcussionHandler {
      * @param lineOfSight  whether any sample ray reached the player unobstructed
      */
     public static void offer(
-            ServerPlayer player,
-            float entityPower,
-            double falloff,
-            double transmission,
-            boolean lineOfSight) {
+            ServerPlayer player, float entityPower, double falloff, double transmission, boolean lineOfSight) {
         if (falloff < MIN_FALLOFF) {
             return;
         }
         // Ramp the usable band up to a full 0..1; the square root front-loads it so
         // anything short of a distant miss lands hard.
-        float ranged = (float) Math.sqrt(Mth.clamp(
-                (falloff - MIN_FALLOFF) / (1.0D - MIN_FALLOFF), 0.0D, 1.0D));
+        float ranged = (float) Math.sqrt(Mth.clamp((falloff - MIN_FALLOFF) / (1.0D - MIN_FALLOFF), 0.0D, 1.0D));
         float powerBias = Mth.clamp(entityPower / 16.0f, 0.45f, 1.0f);
 
         double nearField = Mth.clamp((falloff - NEAR_FIELD) / (1.0D - NEAR_FIELD), 0.0D, 1.0D);
@@ -63,16 +57,13 @@ public final class ConcussionHandler {
 
         float visual = 0.0f;
         if (reached && effective > VISUAL_CUTOFF) {
-            visual = Mth.clamp(
-                    ranged * (float) Math.sqrt(effective) * (0.72f + 0.28f * powerBias),
-                    0.0f, 1.0f);
+            visual = Mth.clamp(ranged * (float) Math.sqrt(effective) * (0.72f + 0.28f * powerBias), 0.0f, 1.0f);
         }
         if (audio <= 0.02f && visual <= 0.02f) {
             return;
         }
 
-        int duration = Math.round(Mth.lerp(
-                Math.max(audio, visual), MIN_DURATION_TICKS, MAX_DURATION_TICKS));
+        int duration = Math.round(Mth.lerp(Math.max(audio, visual), MIN_DURATION_TICKS, MAX_DURATION_TICKS));
 
         // Played client-side as a UI sound: the ringing belongs inside the affected
         // player's head, and a world sound would let bystanders hear it.

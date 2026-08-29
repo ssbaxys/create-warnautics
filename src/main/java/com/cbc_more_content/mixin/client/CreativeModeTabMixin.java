@@ -1,14 +1,11 @@
 package com.cbc_more_content.mixin.client;
 
+import com.cbc_more_content.registry.ModCreativeTabs;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
-import com.cbc_more_content.registry.ModCreativeTabs;
-
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
-
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -28,8 +25,7 @@ public abstract class CreativeModeTabMixin {
 
     @Inject(method = "buildContents", at = @At("RETURN"))
     private void cbcMoreContent$reserveBombedCardRow(
-            CreativeModeTab.ItemDisplayParameters parameters,
-            CallbackInfo callback) {
+            CreativeModeTab.ItemDisplayParameters parameters, CallbackInfo callback) {
         if ((Object) this != ModCreativeTabs.WARNAUTICS_TAB.get()) {
             return;
         }

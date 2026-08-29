@@ -3,23 +3,17 @@ package com.cbc_more_content.block;
 import com.cbc_more_content.munitions.CruiseMissileProjectile;
 import com.cbc_more_content.munitions.DropBombProjectile;
 import com.cbc_more_content.munitions.SeaBombProjectile;
-import com.cbc_more_content.registry.ModBlockEntities;
 import com.cbc_more_content.siren.BlastLog;
 import com.cbc_more_content.siren.SirenSettings;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -75,12 +69,12 @@ public class SirenBlockEntity extends KineticBlockEntity {
     /** Below this the rotor is barely turning and there is no note to speak of. */
     private static final float STALL_RPM = 1.0f;
     /**
-      * What the housing costs the network.
-      * <p>
-      * Heavy on purpose. A siren rotor is a compressor being spun against the air it is
-      * shifting, and a post that could be run off a hand crank would make the whole
-      * business of driving it a formality.
-      */
+     * What the housing costs the network.
+     * <p>
+     * Heavy on purpose. A siren rotor is a compressor being spun against the air it is
+     * shifting, and a post that could be run off a hand crank would make the whole
+     * business of driving it a formality.
+     */
     private static final float STRESS_IMPACT = 1.0f;
 
     private SirenSettings settings = SirenSettings.DEFAULT;
@@ -194,7 +188,8 @@ public class SirenBlockEntity extends KineticBlockEntity {
         // because being told by a lever and being told by a sighting were the same state.
         this.held = server.hasNeighborSignal(pos);
 
-        if (this.settings.watchesAnything() && server.getGameTime() % SCAN_INTERVAL == 0
+        if (this.settings.watchesAnything()
+                && server.getGameTime() % SCAN_INTERVAL == 0
                 && this.threatNearby(server, pos)) {
             this.raise();
         }
@@ -244,8 +239,7 @@ public class SirenBlockEntity extends KineticBlockEntity {
         int remaining = Math.max(this.lingerTicks, this.held ? HELD_GRACE : 0);
         float voice = this.voice();
         this.announcedVoice = voice;
-        var payload = new com.cbc_more_content.network.SirenWailPayload(
-                this.worldPosition, remaining, voice);
+        var payload = new com.cbc_more_content.network.SirenWailPayload(this.worldPosition, remaining, voice);
         double reachSqr = AUDIBLE * AUDIBLE;
         double x = this.worldPosition.getX() + 0.5D;
         double y = this.worldPosition.getY() + 0.5D;
@@ -267,8 +261,7 @@ public class SirenBlockEntity extends KineticBlockEntity {
         // Asked by class rather than sweeping everything alive in a quarter-kilometre
         // box and sorting it out afterwards.
         if (this.settings.watchMissiles()) {
-            for (CruiseMissileProjectile missile
-                    : level.getEntitiesOfClass(CruiseMissileProjectile.class, watched)) {
+            for (CruiseMissileProjectile missile : level.getEntitiesOfClass(CruiseMissileProjectile.class, watched)) {
                 // The scan box is square and the watched area is not.
                 if (missile.distanceToSqr(here) <= radiusSqr && inbound(missile, here)) {
                     return true;
@@ -338,13 +331,12 @@ public class SirenBlockEntity extends KineticBlockEntity {
         if (!state.hasProperty(SirenBlock.POWERED) || !state.hasProperty(SirenBlock.SOUNDING)) {
             return;
         }
-        if (state.getValue(SirenBlock.POWERED) == powered
-                && state.getValue(SirenBlock.SOUNDING) == sounding) {
+        if (state.getValue(SirenBlock.POWERED) == powered && state.getValue(SirenBlock.SOUNDING) == sounding) {
             return;
         }
-        this.level.setBlock(this.worldPosition,
-                state.setValue(SirenBlock.POWERED, powered)
-                        .setValue(SirenBlock.SOUNDING, sounding),
+        this.level.setBlock(
+                this.worldPosition,
+                state.setValue(SirenBlock.POWERED, powered).setValue(SirenBlock.SOUNDING, sounding),
                 Block.UPDATE_CLIENTS);
     }
 

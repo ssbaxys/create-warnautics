@@ -1,15 +1,12 @@
 package com.cbc_more_content.block;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.annotation.Nullable;
-
 import com.cbc_more_content.munitions.C4Projectile;
 import com.cbc_more_content.registry.ModBlockEntities;
 import com.cbc_more_content.registry.ModItems;
 import com.mojang.serialization.MapCodec;
-
+import java.util.HashMap;
+import java.util.Map;
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -24,7 +21,6 @@ import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
@@ -68,9 +64,9 @@ public class C4Block extends BaseEntityBlock {
      * zero-thickness plane and gets no collision.
      */
     private static final double[][] PARTS_FLAT = {
-            {3.0D, 0.0D, 2.0D, 13.0D, 3.0D, 14.0D},
-            {3.8D, 1.8D, 3.8D, 12.2D, 6.2D, 11.2D},
-            {1.0D, 0.0D, 10.0D, 4.0D, 11.0D, 13.0D},
+        {3.0D, 0.0D, 2.0D, 13.0D, 3.0D, 14.0D},
+        {3.8D, 1.8D, 3.8D, 12.2D, 6.2D, 11.2D},
+        {1.0D, 0.0D, 10.0D, 4.0D, 11.0D, 13.0D},
     };
     /**
      * The same charge on a wall. Casing and cage sit where they do on the floor, but the
@@ -78,15 +74,17 @@ public class C4Block extends BaseEntityBlock {
      * the block, so that part is its own box and is clipped back to the cell.
      */
     private static final double[][] PARTS_WALL = {
-            {3.0D, 0.0D, 2.0D, 13.0D, 3.0D, 14.0D},
-            {3.8D, 1.8D, 3.8D, 12.2D, 6.2D, 11.2D},
-            {12.0D, 1.0D, 9.0D, 15.0D, 4.0D, 16.0D},
+        {3.0D, 0.0D, 2.0D, 13.0D, 3.0D, 14.0D},
+        {3.8D, 1.8D, 3.8D, 12.2D, 6.2D, 11.2D},
+        {12.0D, 1.0D, 9.0D, 15.0D, 4.0D, 16.0D},
     };
+
     private static final Map<Long, VoxelShape> SHAPES = buildShapes();
 
     public C4Block(Properties properties) {
         super(properties);
-        this.registerDefaultState(this.stateDefinition.any()
+        this.registerDefaultState(this.stateDefinition
+                .any()
                 .setValue(FACING, Direction.UP)
                 .setValue(STATE, Fuse.IDLE)
                 .setValue(RECEIVER, false)
@@ -135,7 +133,8 @@ public class C4Block extends BaseEntityBlock {
     }
 
     @Override
-    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    protected VoxelShape getCollisionShape(
+            BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return this.getShape(state, level, pos, context);
     }
 
@@ -151,7 +150,8 @@ public class C4Block extends BaseEntityBlock {
      */
     @Override
     protected void attack(BlockState state, Level level, BlockPos pos, Player player) {
-        if (level.isClientSide || state.getValue(STATE) == Fuse.IDLE
+        if (level.isClientSide
+                || state.getValue(STATE) == Fuse.IDLE
                 || !(level.getBlockEntity(pos) instanceof C4BlockEntity c4)) {
             return;
         }
@@ -163,8 +163,7 @@ public class C4Block extends BaseEntityBlock {
     /** A live charge broken outright — in creative, say — goes off rather than dropping. */
     @Override
     public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
-        if (!level.isClientSide && state.getValue(STATE) != Fuse.IDLE
-                && level instanceof ServerLevel server) {
+        if (!level.isClientSide && state.getValue(STATE) != Fuse.IDLE && level instanceof ServerLevel server) {
             level.removeBlock(pos, false);
             C4BlockEntity.explode(server, Vec3.atCenterOf(pos));
         }
@@ -178,8 +177,12 @@ public class C4Block extends BaseEntityBlock {
      */
     @Override
     public void playerDestroy(
-            Level level, Player player, BlockPos pos, BlockState state,
-            @Nullable BlockEntity blockEntity, ItemStack tool) {
+            Level level,
+            Player player,
+            BlockPos pos,
+            BlockState state,
+            @Nullable BlockEntity blockEntity,
+            ItemStack tool) {
         if (state.getValue(STATE) != Fuse.IDLE) {
             return;
         }
@@ -209,8 +212,12 @@ public class C4Block extends BaseEntityBlock {
      */
     @Override
     protected BlockState updateShape(
-            BlockState state, Direction direction, BlockState neighborState,
-            LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
+            BlockState state,
+            Direction direction,
+            BlockState neighborState,
+            LevelAccessor level,
+            BlockPos pos,
+            BlockPos neighborPos) {
         if (direction == state.getValue(FACING).getOpposite() && !state.canSurvive(level, pos)) {
             level.scheduleTick(pos, this, 1);
         }
@@ -243,10 +250,12 @@ public class C4Block extends BaseEntityBlock {
                 for (double[] part : parts) {
                     double[] a = place(facing, rotation, part[0], part[1], part[2]);
                     double[] b = place(facing, rotation, part[3], part[4], part[5]);
-                    shape = Shapes.or(shape, Block.box(
-                            clip(Math.min(a[0], b[0])), clip(Math.min(a[1], b[1])),
-                            clip(Math.min(a[2], b[2])), clip(Math.max(a[0], b[0])),
-                            clip(Math.max(a[1], b[1])), clip(Math.max(a[2], b[2]))));
+                    shape = Shapes.or(
+                            shape,
+                            Block.box(
+                                    clip(Math.min(a[0], b[0])), clip(Math.min(a[1], b[1])),
+                                    clip(Math.min(a[2], b[2])), clip(Math.max(a[0], b[0])),
+                                    clip(Math.max(a[1], b[1])), clip(Math.max(a[2], b[2]))));
                 }
                 shapes.put(shapeKey(facing, rotation), shape);
             }

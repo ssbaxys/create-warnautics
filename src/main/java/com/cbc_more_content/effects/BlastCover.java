@@ -2,7 +2,6 @@ package com.cbc_more_content.effects;
 
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSets;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -34,8 +33,7 @@ public final class BlastCover {
     /** Fully exposed, used when the raycast budget is spent. */
     public static final Result OPEN = new Result(1.0D, 1.0D);
 
-    private BlastCover() {
-    }
+    private BlastCover() {}
 
     /**
      * @param transmission share of blast energy that arrives, 0 shielded to 1 in the open
@@ -63,8 +61,7 @@ public final class BlastCover {
      * rays); a burst running at reduced detail takes two (8 rays), which is coarser
      * without letting one point decide whether a target is in the open.
      */
-    public static Result evaluate(
-            Level level, Vec3 center, Entity entity, LongSet destroyed, int samplesPerAxis) {
+    public static Result evaluate(Level level, Vec3 center, Entity entity, LongSet destroyed, int samplesPerAxis) {
         AABB box = entity.getBoundingBox();
         int perAxis = Mth.clamp(samplesPerAxis, 1, FULL_SAMPLES);
 
@@ -90,9 +87,7 @@ public final class BlastCover {
         }
 
         int samples = perAxis * perAxis * perAxis;
-        return new Result(
-                Mth.clamp(transmissionSum / samples, 0.0D, 1.0D),
-                open / (double) samples);
+        return new Result(Mth.clamp(transmissionSum / samples, 0.0D, 1.0D), open / (double) samples);
     }
 
     /** Spreads the samples across the body, keeping clear of its very edges. */
@@ -107,7 +102,9 @@ public final class BlastCover {
     private static double absorbAlong(
             Level level,
             Vec3 from,
-            double toX, double toY, double toZ,
+            double toX,
+            double toY,
+            double toZ,
             LongSet destroyed,
             BlockPos.MutableBlockPos cursor) {
         double dx = toX - from.x;

@@ -1,9 +1,7 @@
 package com.cbc_more_content.item;
 
-import java.util.List;
-
 import com.cbc_more_content.munitions.C4Projectile;
-
+import java.util.List;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -26,8 +24,14 @@ public class C4Item extends Item {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
 
-        level.playSound(null, player.getX(), player.getY(), player.getZ(),
-                SoundEvents.SNOWBALL_THROW, SoundSource.PLAYERS, 0.6f,
+        level.playSound(
+                null,
+                player.getX(),
+                player.getY(),
+                player.getZ(),
+                SoundEvents.SNOWBALL_THROW,
+                SoundSource.PLAYERS,
+                0.6f,
                 0.4f / (level.getRandom().nextFloat() * 0.4f + 0.8f));
 
         if (!level.isClientSide) {
@@ -47,8 +51,8 @@ public class C4Item extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, Item.TooltipContext context,
-            List<Component> tooltip, TooltipFlag flag) {
+    public void appendHoverText(
+            ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.translatable("tooltip.cbc_more_content.c4"));
     }
 }

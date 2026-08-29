@@ -1,7 +1,6 @@
 package com.cbc_more_content.item;
 
 import java.util.List;
-
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
@@ -11,8 +10,7 @@ import net.minecraft.network.chat.Component;
  * between the items that carry it.
  */
 public final class WorkInProgress {
-    private WorkInProgress() {
-    }
+    private WorkInProgress() {}
 
     public static void append(List<Component> tooltip) {
         tooltip.add(Component.translatable("tooltip.cbc_more_content.wip")

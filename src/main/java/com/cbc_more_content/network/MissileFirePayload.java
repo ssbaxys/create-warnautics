@@ -1,9 +1,7 @@
 package com.cbc_more_content.network;
 
-import java.util.UUID;
-
 import com.cbc_more_content.CBCMoreContent;
-
+import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -18,16 +16,15 @@ import net.minecraft.resources.ResourceLocation;
  */
 public record MissileFirePayload(BlockPos missile, UUID subLevel) implements CustomPacketPayload {
 
-    public static final Type<MissileFirePayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "missile_fire"));
+    public static final Type<MissileFirePayload> TYPE =
+            new Type<>(ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "missile_fire"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, MissileFirePayload> STREAM_CODEC =
-            StreamCodec.of(
-                    (buf, payload) -> {
-                        buf.writeBlockPos(payload.missile);
-                        buf.writeUUID(payload.subLevel);
-                    },
-                    buf -> new MissileFirePayload(buf.readBlockPos(), buf.readUUID()));
+    public static final StreamCodec<RegistryFriendlyByteBuf, MissileFirePayload> STREAM_CODEC = StreamCodec.of(
+            (buf, payload) -> {
+                buf.writeBlockPos(payload.missile);
+                buf.writeUUID(payload.subLevel);
+            },
+            buf -> new MissileFirePayload(buf.readBlockPos(), buf.readUUID()));
 
     @Override
     public Type<? extends CustomPacketPayload> type() {

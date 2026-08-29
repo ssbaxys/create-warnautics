@@ -1,17 +1,5 @@
 package com.cbc_more_content.compat;
 
-
-
-import net.minecraft.core.BlockPos;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
-
-import org.joml.Vector3d;
-
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.api.sublevel.ServerSubLevelContainer;
 import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
@@ -20,6 +8,14 @@ import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.ryanhcode.sable.neoforge.mixinhelper.compatibility.create.raycasts.SableRaycastHelper;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.SubLevel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3d;
 import rbasamoyai.createbigcannons.CBCCompatTransformers;
 
 /**
@@ -35,8 +31,7 @@ import rbasamoyai.createbigcannons.CBCCompatTransformers;
  * explosion already breaks hull blocks; carving them by hand only bypassed that.
  */
 public final class SableDropCompat {
-    private SableDropCompat() {
-    }
+    private SableDropCompat() {}
 
     // —— queries ——
 
@@ -64,7 +59,8 @@ public final class SableDropCompat {
         }
         double reachSqr = reach * reach;
         for (SubLevel subLevel : container.getAllSubLevels()) {
-            if (subLevel != null && !subLevel.isRemoved()
+            if (subLevel != null
+                    && !subLevel.isRemoved()
                     && withinReach(subLevel.boundingBox(), center.x, center.y, center.z, reachSqr)) {
                 return true;
             }
@@ -85,9 +81,7 @@ public final class SableDropCompat {
      */
     public static int subLevelIdAt(ServerLevel level, BlockPos pos) {
         try {
-            return Sable.HELPER.getContaining(level, pos) instanceof ServerSubLevel sub
-                    ? sub.getRuntimeId()
-                    : -1;
+            return Sable.HELPER.getContaining(level, pos) instanceof ServerSubLevel sub ? sub.getRuntimeId() : -1;
         } catch (Throwable ignored) {
             return -1;
         }
@@ -111,7 +105,10 @@ public final class SableDropCompat {
     public static Vec3 clipSubLevels(ServerLevel level, Vec3 from, Vec3 to) {
         Vec3[] hit = new Vec3[1];
         try {
-            SableRaycastHelper.rayCastUntilWithSublevels(level, from, to,
+            SableRaycastHelper.rayCastUntilWithSublevels(
+                    level,
+                    from,
+                    to,
                     // World blocks are the ordinary clip's business, not this one's.
                     worldPos -> false,
                     (sub, plotPos) -> {
@@ -119,12 +116,12 @@ public final class SableDropCompat {
                             return false;
                         }
                         BlockState state = readState(level, plotPos);
-                        if (state == null || state.isAir()
+                        if (state == null
+                                || state.isAir()
                                 || state.getCollisionShape(level, plotPos).isEmpty()) {
                             return false;
                         }
-                        Vec3 mapped = sub.logicalPose()
-                                .transformPosition(Vec3.atCenterOf(plotPos));
+                        Vec3 mapped = sub.logicalPose().transformPosition(Vec3.atCenterOf(plotPos));
                         // If the pose puts it somewhere it plainly cannot be, take where
                         // the missile itself got to rather than firing a warhead off into
                         // the storage grid.
@@ -145,8 +142,8 @@ public final class SableDropCompat {
         double lengthSqr = span.lengthSqr();
         Vec3 nearest = lengthSqr < 1.0E-6D
                 ? from
-                : from.add(span.scale(Math.max(0.0D, Math.min(1.0D,
-                        point.subtract(from).dot(span) / lengthSqr))));
+                : from.add(span.scale(
+                        Math.max(0.0D, Math.min(1.0D, point.subtract(from).dot(span) / lengthSqr))));
         return point.distanceToSqr(nearest) <= MAPPING_SLACK * MAPPING_SLACK;
     }
 
@@ -164,7 +161,8 @@ public final class SableDropCompat {
             if (box == null) {
                 return null;
             }
-            return new Vec3((box.minX() + box.maxX()) * 0.5D,
+            return new Vec3(
+                    (box.minX() + box.maxX()) * 0.5D,
                     (box.minY() + box.maxY()) * 0.5D,
                     (box.minZ() + box.maxZ()) * 0.5D);
         }
@@ -174,8 +172,7 @@ public final class SableDropCompat {
     // —— coordinate mapping ——
 
     /** Maps a plot-local launch into parent-world space, adding the carrier's velocity. */
-    public static LaunchFrame resolveLaunch(
-            ServerLevel level, Vec3 localPos, Vec3 localVel, Vec3 localOrientation) {
+    public static LaunchFrame resolveLaunch(ServerLevel level, Vec3 localPos, Vec3 localVel, Vec3 localOrientation) {
         try {
             if (Sable.HELPER.getContaining(level, localPos) instanceof ServerSubLevel sub) {
                 ServerLevel parent = sub.getLevel() == null ? level : sub.getLevel();
@@ -185,11 +182,12 @@ public final class SableDropCompat {
                 return new LaunchFrame(
                         parent,
                         sub.logicalPose().transformPosition(localPos),
-                        sub.logicalPose().transformNormal(localVel)
-                                .add(carrier.x, carrier.y, carrier.z),
+                        sub.logicalPose().transformNormal(localVel).add(carrier.x, carrier.y, carrier.z),
                         localOrientation == null
                                 ? null
-                                : sub.logicalPose().transformNormal(localOrientation).normalize());
+                                : sub.logicalPose()
+                                        .transformNormal(localOrientation)
+                                        .normalize());
             }
         } catch (Throwable ignored) {
         }
@@ -270,12 +268,9 @@ public final class SableDropCompat {
         boolean test(BlockPos pos, BlockState state);
     }
 
-    private record Target(BlockPos pos, double score) {
-    }
+    private record Target(BlockPos pos, double score) {}
 
-    public record BlastTarget(ServerLevel level, Vec3 pos) {
-    }
+    public record BlastTarget(ServerLevel level, Vec3 pos) {}
 
-    public record LaunchFrame(ServerLevel level, Vec3 pos, Vec3 vel, Vec3 orientation) {
-    }
+    public record LaunchFrame(ServerLevel level, Vec3 pos, Vec3 vel, Vec3 orientation) {}
 }

@@ -1,7 +1,6 @@
 package com.cbc_more_content.item;
 
 import java.util.List;
-
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -17,8 +16,7 @@ public class CruiseMissileItem extends BlockItem {
 
     @Override
     public void appendHoverText(
-            ItemStack stack, Item.TooltipContext context,
-            List<Component> tooltip, TooltipFlag flag) {
+            ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         WorkInProgress.append(tooltip);
         super.appendHoverText(stack, context, tooltip, flag);
     }

@@ -21,10 +21,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 @OnlyIn(Dist.CLIENT)
 public class MissileGasParticle extends TextureSheetParticle {
     protected MissileGasParticle(
-            ClientLevel level,
-            double x, double y, double z,
-            double vx, double vy, double vz,
-            SpriteSet sprites) {
+            ClientLevel level, double x, double y, double z, double vx, double vy, double vz, SpriteSet sprites) {
         super(level, x, y, z);
         this.xd = vx;
         this.yd = vy;
@@ -57,8 +54,12 @@ public class MissileGasParticle extends TextureSheetParticle {
         public Particle createParticle(
                 SimpleParticleType type,
                 ClientLevel level,
-                double x, double y, double z,
-                double vx, double vy, double vz) {
+                double x,
+                double y,
+                double z,
+                double vx,
+                double vy,
+                double vz) {
             return new MissileGasParticle(level, x, y, z, vx, vy, vz, this.sprites);
         }
     }

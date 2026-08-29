@@ -3,7 +3,6 @@ package com.cbc_more_content.client.gui;
 import com.cbc_more_content.block.C4BlockEntity;
 import com.cbc_more_content.network.C4CodePayload;
 import com.cbc_more_content.registry.ModSounds;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -13,7 +12,6 @@ import net.minecraft.util.Mth;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
-
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -43,13 +41,16 @@ public class C4CodeScreen extends Screen {
     private final int[] digits = new int[C4BlockEntity.CODE_LENGTH];
     /** Render clock, in ticks plus partials, driving every animation here. */
     private float time;
+
     private int entered;
     /** Frame the newest digit landed on, for its pop-in. */
     private float lastEntryTime = -100.0f;
+
     private int pressedKey = -1;
     private float pressedTime = -100.0f;
     /** 0 none, 1 accepted, -1 rejected. */
     private int verdict;
+
     private float verdictTime;
     private boolean sent;
     /** Set when the charge vanished, so closing does not chain into the timer. */
@@ -59,9 +60,8 @@ public class C4CodeScreen extends Screen {
     private int guiTop;
 
     public C4CodeScreen(BlockPos pos, boolean disarming) {
-        super(Component.translatable(disarming
-                ? "gui.cbc_more_content.c4.code.disarm"
-                : "gui.cbc_more_content.c4.code.arm"));
+        super(Component.translatable(
+                disarming ? "gui.cbc_more_content.c4.code.disarm" : "gui.cbc_more_content.c4.code.arm"));
         this.pos = pos;
         this.disarming = disarming;
     }
@@ -97,8 +97,7 @@ public class C4CodeScreen extends Screen {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
         WarnauticsGuiTextures.C4_PANEL.render(graphics, this.guiLeft, this.guiTop);
 
-        graphics.drawCenteredString(this.font, this.title,
-                this.guiLeft + PANEL_W / 2, this.guiTop + 6, 0xE8E2CF);
+        graphics.drawCenteredString(this.font, this.title, this.guiLeft + PANEL_W / 2, this.guiTop + 6, 0xE8E2CF);
 
         this.renderSlots(graphics, partialTick);
         this.renderKeys(graphics, mouseX, mouseY, partialTick);
@@ -142,9 +141,8 @@ public class C4CodeScreen extends Screen {
         for (int i = 0; i < C4BlockEntity.CODE_LENGTH; i++) {
             int x = x0 + i * (SLOT_W + SLOT_GAP) + shake;
             boolean filled = i < this.entered;
-            int border = this.verdict == 1 ? 0xFF6FD46F
-                    : this.verdict == -1 ? 0xFFD46F6F
-                    : filled ? 0xFFB08A3E : 0xFF5C6450;
+            int border =
+                    this.verdict == 1 ? 0xFF6FD46F : this.verdict == -1 ? 0xFFD46F6F : filled ? 0xFFB08A3E : 0xFF5C6450;
 
             graphics.fill(x, y, x + SLOT_W, y + SLOT_H, 0xFF12140F);
             graphics.fill(x + 1, y + 1, x + SLOT_W - 1, y + SLOT_H - 1, 0xFF1C1E1B);
@@ -154,8 +152,12 @@ public class C4CodeScreen extends Screen {
                 // Idle caret pulsing in the next empty slot.
                 if (i == this.entered && this.verdict == 0) {
                     int a = (int) ((0.35f + 0.35f * Mth.sin(now * 0.25f)) * 255.0f);
-                    graphics.fill(x + SLOT_W / 2 - 4, y + SLOT_H - 8,
-                            x + SLOT_W / 2 + 4, y + SLOT_H - 7, (a << 24) | 0xB08A3E);
+                    graphics.fill(
+                            x + SLOT_W / 2 - 4,
+                            y + SLOT_H - 8,
+                            x + SLOT_W / 2 + 4,
+                            y + SLOT_H - 7,
+                            (a << 24) | 0xB08A3E);
                 }
                 continue;
             }
@@ -164,8 +166,8 @@ public class C4CodeScreen extends Screen {
             float age = i == this.entered - 1 ? now - this.lastEntryTime : 99.0f;
             int lift = age < 4.0f ? Math.round((4.0f - age) * 1.6f) : 0;
             int colour = this.verdict == 1 ? 0xA0FFA0 : this.verdict == -1 ? 0xFFA0A0 : 0xFFB036;
-            graphics.drawCenteredString(this.font, String.valueOf(this.digits[i]),
-                    x + SLOT_W / 2, y + SLOT_H / 2 - 4 - lift, colour);
+            graphics.drawCenteredString(
+                    this.font, String.valueOf(this.digits[i]), x + SLOT_W / 2, y + SLOT_H / 2 - 4 - lift, colour);
         }
     }
 
@@ -179,8 +181,8 @@ public class C4CodeScreen extends Screen {
             int face = press > 0.0f ? 0xFFB08A3E : hot ? 0xFF4A5042 : 0xFF3A3F34;
             graphics.fill(box[0], box[1], box[0] + KEY_W, box[1] + KEY_H, 0xFF12140F);
             graphics.fill(box[0] + 1, box[1] + 1, box[0] + KEY_W - 1, box[1] + KEY_H - 1, face);
-            graphics.drawCenteredString(this.font, String.valueOf(key),
-                    box[0] + KEY_W / 2, box[1] + 4, press > 0.0f ? 0x12140F : 0xE8E2CF);
+            graphics.drawCenteredString(
+                    this.font, String.valueOf(key), box[0] + KEY_W / 2, box[1] + 4, press > 0.0f ? 0x12140F : 0xE8E2CF);
         }
     }
 
@@ -195,8 +197,7 @@ public class C4CodeScreen extends Screen {
     }
 
     private boolean inside(double mouseX, double mouseY, int[] box) {
-        return mouseX >= box[0] && mouseX < box[0] + KEY_W
-                && mouseY >= box[1] && mouseY < box[1] + KEY_H;
+        return mouseX >= box[0] && mouseX < box[0] + KEY_W && mouseY >= box[1] && mouseY < box[1] + KEY_H;
     }
 
     @Override

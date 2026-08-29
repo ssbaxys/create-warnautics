@@ -1,11 +1,8 @@
 package com.cbc_more_content.effects;
 
-import org.joml.Vector3f;
-
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.network.BombFlashPayload;
 import com.cbc_more_content.registry.ModSounds;
-
 import net.minecraft.core.Holder;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
@@ -19,42 +16,35 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.joml.Vector3f;
+import rbasamoyai.createbigcannons.effects.particles.explosions.ShellBlastWaveEffectParticleData;
 import rbasamoyai.createbigcannons.effects.particles.explosions.ShellExplosionCloudParticleData;
 import rbasamoyai.createbigcannons.effects.particles.smoke.ShellExplosionSmokeParticleData;
-import rbasamoyai.createbigcannons.effects.particles.explosions.ShellBlastWaveEffectParticleData;
 
 /**
  * CBC-style blast FX. Boom audio is always played via {@link ServerLevel#playSound}
  * (CBC blast-wave particles alone can miss the client). Particles keep cloud / shake.
  */
 public final class BombBlastFx {
-    private BombBlastFx() {
-    }
+    private BombBlastFx() {}
 
     public static void play(ServerLevel level, Vec3 pos, BombSize size, float blockPower) {
         // Prefer BombExplosionHandler path which supplies a shared burst snapshot.
-        play(level, pos, size, blockPower, new BombBurstBudget.Snapshot(1, BombBurstBudget.Lod.FULL, new BombBurstBudget.DimState()));
+        play(
+                level,
+                pos,
+                size,
+                blockPower,
+                new BombBurstBudget.Snapshot(1, BombBurstBudget.Lod.FULL, new BombBurstBudget.DimState()));
     }
 
     public static void play(
-            ServerLevel level,
-            Vec3 pos,
-            BombSize size,
-            float blockPower,
-            BombBurstBudget.Snapshot budget) {
+            ServerLevel level, Vec3 pos, BombSize size, float blockPower, BombBurstBudget.Snapshot budget) {
         FxProfile profile = FxProfile.of(size, blockPower, level.random);
         BombBurstBudget.Lod lod = budget.lod();
 
         // Reliable boom — do not depend on CBC blast-wave particle reaching the client.
-        level.playSound(
-                null,
-                pos.x,
-                pos.y,
-                pos.z,
-                profile.sound,
-                SoundSource.BLOCKS,
-                profile.volume,
-                profile.pitch);
+        level.playSound(null, pos.x, pos.y, pos.z, profile.sound, SoundSource.BLOCKS, profile.volume, profile.pitch);
 
         if (size == BombSize.LARGE && lod != BombBurstBudget.Lod.ESSENTIAL) {
             level.playSound(
@@ -107,7 +97,8 @@ public final class BombBlastFx {
             }
 
             if (dist <= profile.shakeFalloff) {
-                float proximity = (float) Mth.clamp(1.0D - distSqr / (profile.shakeFalloff * profile.shakeFalloff), 0.0D, 1.0D);
+                float proximity =
+                        (float) Mth.clamp(1.0D - distSqr / (profile.shakeFalloff * profile.shakeFalloff), 0.0D, 1.0D);
                 float shake = Math.min(profile.shakeLimit, profile.shakePower * proximity * proximity);
                 budget.offerShake(player, shake, pos);
             }
@@ -124,39 +115,32 @@ public final class BombBlastFx {
      * Anti-tank mines need a hard pressure cue, not a bomb-sized mushroom cloud.
      * This path deliberately uses one shake wave and a tiny bounded smoke charge.
      */
-    public static void playCompactMine(
-            ServerLevel level,
-            Vec3 pos,
-            float blockPower,
-            BombBurstBudget.Snapshot budget) {
+    public static void playCompactMine(ServerLevel level, Vec3 pos, float blockPower, BombBurstBudget.Snapshot budget) {
         float pitch = 0.88f + level.random.nextFloat() * 0.08f;
         float volume = Math.max(9.0f, blockPower * 2.1f);
-        level.playSound(null, pos.x, pos.y, pos.z,
-                ModSounds.BOMB_EXPLOSION_LARGE.get(), SoundSource.BLOCKS, volume, pitch);
+        level.playSound(
+                null, pos.x, pos.y, pos.z, ModSounds.BOMB_EXPLOSION_LARGE.get(), SoundSource.BLOCKS, volume, pitch);
 
-        DustParticleOptions hot =
-                new DustParticleOptions(new Vector3f(1.0f, 0.78f, 0.16f), 0.9f);
-        DustParticleOptions white =
-                new DustParticleOptions(new Vector3f(1.0f, 0.96f, 0.82f), 0.7f);
-        int sparks = switch (budget.lod()) {
-            case FULL -> 6;
-            case REDUCED -> 4;
-            case MINIMAL -> 2;
-            case ESSENTIAL -> 1;
-        };
-        emitFar(level, hot, pos.x, pos.y + 0.25D, pos.z,
-                sparks, 0.55D, 0.18D, 0.55D, 0.008D);
-        emitFar(level, white, pos.x, pos.y + 0.32D, pos.z,
-                Math.max(1, sparks / 3), 0.18D, 0.12D, 0.18D, 0.004D);
+        DustParticleOptions hot = new DustParticleOptions(new Vector3f(1.0f, 0.78f, 0.16f), 0.9f);
+        DustParticleOptions white = new DustParticleOptions(new Vector3f(1.0f, 0.96f, 0.82f), 0.7f);
+        int sparks =
+                switch (budget.lod()) {
+                    case FULL -> 6;
+                    case REDUCED -> 4;
+                    case MINIMAL -> 2;
+                    case ESSENTIAL -> 1;
+                };
+        emitFar(level, hot, pos.x, pos.y + 0.25D, pos.z, sparks, 0.55D, 0.18D, 0.55D, 0.008D);
+        emitFar(level, white, pos.x, pos.y + 0.32D, pos.z, Math.max(1, sparks / 3), 0.18D, 0.12D, 0.18D, 0.004D);
 
         float intensity = 0.82f * budget.lod().flashScale();
-        BombFlashPayload payload = new BombFlashPayload(
-                pos.x, pos.y, pos.z, intensity, (byte) BombSize.SMALL.ordinal());
+        BombFlashPayload payload =
+                new BombFlashPayload(pos.x, pos.y, pos.z, intensity, (byte) BombSize.SMALL.ordinal());
         double reachSqr = 155.0D * 155.0D;
         Holder<SoundEvent> boomHolder =
                 BuiltInRegistries.SOUND_EVENT.wrapAsHolder(ModSounds.BOMB_EXPLOSION_LARGE.get());
-        ShellBlastWaveEffectParticleData wave = new ShellBlastWaveEffectParticleData(
-                24.0D, boomHolder, SoundSource.BLOCKS, 0.0f, pitch, 2.0f, 12.0f);
+        ShellBlastWaveEffectParticleData wave =
+                new ShellBlastWaveEffectParticleData(24.0D, boomHolder, SoundSource.BLOCKS, 0.0f, pitch, 2.0f, 12.0f);
 
         for (ServerPlayer player : level.players()) {
             double distSqr = player.distanceToSqr(pos);
@@ -164,8 +148,7 @@ public final class BombBlastFx {
                 PacketDistributor.sendToPlayer(player, payload);
             }
             if (distSqr <= 95.0D * 95.0D && distSqr >= 4.0D) {
-                level.sendParticles(player, wave, true,
-                        pos.x, pos.y, pos.z, 0, 0.0D, 0.0D, 0.0D, 1.0D);
+                level.sendParticles(player, wave, true, pos.x, pos.y, pos.z, 0, 0.0D, 0.0D, 0.0D, 1.0D);
             }
             if (distSqr <= 32.0D * 32.0D) {
                 float proximity = (float) Mth.clamp(1.0D - distSqr / (32.0D * 32.0D), 0.0D, 1.0D);
@@ -174,10 +157,20 @@ public final class BombBlastFx {
         }
 
         if (allowDelayedSmoke(budget)) {
-            schedule(level, 4, () -> emitFar(level, 
-                    new ShellExplosionCloudParticleData(1.45f, false),
-                    pos.x, pos.y + 0.4D, pos.z,
-                    1, 0.0D, 0.0D, 0.0D, 0.0D));
+            schedule(
+                    level,
+                    4,
+                    () -> emitFar(
+                            level,
+                            new ShellExplosionCloudParticleData(1.45f, false),
+                            pos.x,
+                            pos.y + 0.4D,
+                            pos.z,
+                            1,
+                            0.0D,
+                            0.0D,
+                            0.0D,
+                            0.0D));
         }
     }
 
@@ -195,13 +188,10 @@ public final class BombBlastFx {
         DustParticleOptions white = new DustParticleOptions(new Vector3f(1.0f, 0.95f, 0.80f), 0.95f);
         emitFar(level, hot, pos.x, pos.y + 0.35D, pos.z, 26, 0.85D, 0.45D, 0.85D, 0.02D);
         emitFar(level, white, pos.x, pos.y + 0.55D, pos.z, 14, 0.55D, 0.4D, 0.55D, 0.015D);
-        emitFar(level, ParticleTypes.LARGE_SMOKE,
-                pos.x, pos.y + 0.4D, pos.z, 34, 1.0D, 0.5D, 1.0D, 0.03D);
-        emitFar(level, ParticleTypes.CAMPFIRE_COSY_SMOKE,
-                pos.x, pos.y + 0.3D, pos.z, 10, 0.7D, 0.2D, 0.7D, 0.02D);
+        emitFar(level, ParticleTypes.LARGE_SMOKE, pos.x, pos.y + 0.4D, pos.z, 34, 1.0D, 0.5D, 1.0D, 0.03D);
+        emitFar(level, ParticleTypes.CAMPFIRE_COSY_SMOKE, pos.x, pos.y + 0.3D, pos.z, 10, 0.7D, 0.2D, 0.7D, 0.02D);
 
-        BombFlashPayload payload = new BombFlashPayload(
-                pos.x, pos.y, pos.z, 1.35f, (byte) BombSize.MEDIUM.ordinal());
+        BombFlashPayload payload = new BombFlashPayload(pos.x, pos.y, pos.z, 1.35f, (byte) BombSize.MEDIUM.ordinal());
         double reachSqr = 200.0D * 200.0D;
         for (ServerPlayer player : level.players()) {
             if (player.distanceToSqr(pos) <= reachSqr) {
@@ -211,16 +201,31 @@ public final class BombBlastFx {
 
         // The billowing part arrives after the fireball peak, so it does not cover it.
         schedule(level, 4, () -> {
-            emitFar(level, new ShellExplosionCloudParticleData(
-                            Math.max(2.6f, blockPower * 0.42f), true),
-                    pos.x, pos.y + 0.6D, pos.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+            emitFar(
+                    level,
+                    new ShellExplosionCloudParticleData(Math.max(2.6f, blockPower * 0.42f), true),
+                    pos.x,
+                    pos.y + 0.6D,
+                    pos.z,
+                    1,
+                    0.0D,
+                    0.0D,
+                    0.0D,
+                    0.0D);
             for (int i = 0; i < 14; i++) {
                 double ox = (level.random.nextDouble() - 0.5D) * 2.4D;
                 double oz = (level.random.nextDouble() - 0.5D) * 2.4D;
-                emitFar(level, 
+                emitFar(
+                        level,
                         new ShellExplosionSmokeParticleData(90 + level.random.nextInt(50), 1.05f),
-                        pos.x + ox, pos.y + 0.45D + level.random.nextDouble() * 0.7D, pos.z + oz,
-                        0, ox * 0.05D, 0.07D, oz * 0.05D, 1.0D);
+                        pos.x + ox,
+                        pos.y + 0.45D + level.random.nextDouble() * 0.7D,
+                        pos.z + oz,
+                        0,
+                        ox * 0.05D,
+                        0.07D,
+                        oz * 0.05D,
+                        1.0D);
             }
         });
     }
@@ -235,8 +240,16 @@ public final class BombBlastFx {
      * where the fog takes over instead.
      */
     private static <T extends net.minecraft.core.particles.ParticleOptions> void emitFar(
-            ServerLevel level, T type, double x, double y, double z,
-            int count, double dx, double dy, double dz, double speed) {
+            ServerLevel level,
+            T type,
+            double x,
+            double y,
+            double z,
+            int count,
+            double dx,
+            double dy,
+            double dz,
+            double speed) {
         double reach = viewDistanceBlocks(level);
         double reachSqr = reach * reach;
         for (ServerPlayer player : level.players()) {
@@ -263,11 +276,7 @@ public final class BombBlastFx {
     }
 
     private static void spawnDelayedSmoke(
-            ServerLevel level,
-            Vec3 pos,
-            BombSize size,
-            FxProfile profile,
-            BombBurstBudget.Lod lod) {
+            ServerLevel level, Vec3 pos, BombSize size, FxProfile profile, BombBurstBudget.Lod lod) {
         for (ServerPlayer player : level.players()) {
             double distSqr = player.distanceToSqr(pos);
             if (distSqr > profile.farSyncDistSqr) {
@@ -277,36 +286,41 @@ public final class BombBlastFx {
             if (dist > profile.nearSoundDist) {
                 continue;
             }
-            // For close players, spawn smoke slightly above ground so it renders surrounding the player without clipping.
+            // For close players, spawn smoke slightly above ground so it renders surrounding the player without
+            // clipping.
             double smokeY = dist < 2.5D ? pos.y + 0.8D : pos.y;
             ShellExplosionCloudParticleData cloud =
                     new ShellExplosionCloudParticleData(profile.smokeScale * 0.85f, profile.plume);
             if (dist >= 1.2D) {
-                level.sendParticles(player, cloud, true,
-                        pos.x, smokeY, pos.z, 1,
-                        0.0D, 0.0D, 0.0D, 0.0D);
+                level.sendParticles(player, cloud, true, pos.x, smokeY, pos.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
             }
             if (size == BombSize.LARGE && lod.allowMushroomRing()) {
                 spawnMushroomForPlayer(level, player, pos, profile, lod);
             } else if (size == BombSize.LARGE && lod == BombBurstBudget.Lod.MINIMAL) {
-                level.sendParticles(player,
+                level.sendParticles(
+                        player,
                         new ShellExplosionCloudParticleData(profile.smokeScale * 0.75f, true),
-                        true, pos.x, pos.y + 1.0D, pos.z, 1,
-                        0.0D, 0.0D, 0.0D, 0.0D);
+                        true,
+                        pos.x,
+                        pos.y + 1.0D,
+                        pos.z,
+                        1,
+                        0.0D,
+                        0.0D,
+                        0.0D,
+                        0.0D);
             } else if (size == BombSize.MEDIUM || size == BombSize.SMALL || size == BombSize.SEA) {
-                int basePuffs = scaleFx(size,
-                        size == BombSize.SMALL ? 6 : (size == BombSize.MEDIUM ? 20 : 5));
+                int basePuffs = scaleFx(size, size == BombSize.SMALL ? 6 : (size == BombSize.MEDIUM ? 20 : 5));
                 int puffs = lod.puffCount(basePuffs);
                 float puffScale = size == BombSize.SMALL
                         ? profile.smokeScale * 0.32f
-                        : (size == BombSize.MEDIUM
-                                ? profile.smokeScale * 0.48f
-                                : profile.smokeScale * 0.38f);
+                        : (size == BombSize.MEDIUM ? profile.smokeScale * 0.48f : profile.smokeScale * 0.38f);
                 for (int i = 0; i < puffs; i++) {
                     double ox = (level.random.nextDouble() - 0.5D) * profile.smokeScale;
                     double oy = level.random.nextDouble() * profile.smokeScale * 0.45D;
                     double oz = (level.random.nextDouble() - 0.5D) * profile.smokeScale;
-                    level.sendParticles(player,
+                    level.sendParticles(
+                            player,
                             new ShellExplosionSmokeParticleData(70 + level.random.nextInt(30), puffScale),
                             true,
                             pos.x + ox,
@@ -330,24 +344,22 @@ public final class BombBlastFx {
         };
     }
 
-    private static void dispatchLookFlash(
-            ServerLevel level,
-            Vec3 pos,
-            BombSize size,
-            BombBurstBudget.Snapshot budget) {
+    private static void dispatchLookFlash(ServerLevel level, Vec3 pos, BombSize size, BombBurstBudget.Snapshot budget) {
         float intensity = (switch (size) {
-            case SMALL -> 0.95f;
-            case SEA -> 1.05f;
-            case MEDIUM -> 1.8f;
-            case LARGE -> 1.55f;
-        }) * budget.lod().flashScale();
+                    case SMALL -> 0.95f;
+                    case SEA -> 1.05f;
+                    case MEDIUM -> 1.8f;
+                    case LARGE -> 1.55f;
+                })
+                * budget.lod().flashScale();
 
-        double reach = switch (size) {
-            case SMALL -> 140.0D;
-            case SEA -> 160.0D;
-            case MEDIUM -> 240.0D;
-            case LARGE -> 280.0D;
-        };
+        double reach =
+                switch (size) {
+                    case SMALL -> 140.0D;
+                    case SEA -> 160.0D;
+                    case MEDIUM -> 240.0D;
+                    case LARGE -> 280.0D;
+                };
         double reachSqr = reach * reach;
         BombFlashPayload payload = new BombFlashPayload(pos.x, pos.y, pos.z, intensity, (byte) size.ordinal());
         for (ServerPlayer player : level.players()) {
@@ -357,32 +369,49 @@ public final class BombBlastFx {
         }
     }
 
-    private static void spawnHotFlashParticles(
-            ServerLevel level, Vec3 pos, BombSize size, BombBurstBudget.Lod lod) {
+    private static void spawnHotFlashParticles(ServerLevel level, Vec3 pos, BombSize size, BombBurstBudget.Lod lod) {
         // No ParticleTypes.FLASH — those billboards read as pink/black sheets when close.
         // Embers stay small and offset so they don't fill the camera.
-        DustParticleOptions hot = new DustParticleOptions(new Vector3f(1.0f, 0.82f, 0.18f), size == BombSize.LARGE ? 1.35f : (size == BombSize.MEDIUM ? 1.15f : 0.95f));
-        DustParticleOptions white = new DustParticleOptions(new Vector3f(1.0f, 0.97f, 0.85f), size == BombSize.LARGE ? 1.1f : (size == BombSize.MEDIUM ? 0.95f : 0.75f));
-        int baseSparks = scaleFx(size, switch (size) {
-            case SMALL -> 12;
-            case SEA -> 7;
-            case MEDIUM -> 32;
-            case LARGE -> 16;
-        });
-        int sparks = switch (lod) {
-            case FULL -> baseSparks;
-            case REDUCED -> Math.max(3, baseSparks / 2);
-            case MINIMAL -> Math.max(2, baseSparks / 3);
-            case ESSENTIAL -> 1;
-        };
-        double spread = switch (size) {
-            case SMALL -> 0.55D;
-            case SEA -> 0.7D;
-            case MEDIUM -> 0.9D;
-            case LARGE -> 1.4D;
-        };
+        DustParticleOptions hot = new DustParticleOptions(
+                new Vector3f(1.0f, 0.82f, 0.18f),
+                size == BombSize.LARGE ? 1.35f : (size == BombSize.MEDIUM ? 1.15f : 0.95f));
+        DustParticleOptions white = new DustParticleOptions(
+                new Vector3f(1.0f, 0.97f, 0.85f),
+                size == BombSize.LARGE ? 1.1f : (size == BombSize.MEDIUM ? 0.95f : 0.75f));
+        int baseSparks = scaleFx(
+                size,
+                switch (size) {
+                    case SMALL -> 12;
+                    case SEA -> 7;
+                    case MEDIUM -> 32;
+                    case LARGE -> 16;
+                });
+        int sparks =
+                switch (lod) {
+                    case FULL -> baseSparks;
+                    case REDUCED -> Math.max(3, baseSparks / 2);
+                    case MINIMAL -> Math.max(2, baseSparks / 3);
+                    case ESSENTIAL -> 1;
+                };
+        double spread =
+                switch (size) {
+                    case SMALL -> 0.55D;
+                    case SEA -> 0.7D;
+                    case MEDIUM -> 0.9D;
+                    case LARGE -> 1.4D;
+                };
         emitFar(level, hot, pos.x, pos.y + 0.35D, pos.z, sparks, spread, spread * 0.4D, spread, 0.01D);
-        emitFar(level, white, pos.x, pos.y + 0.5D, pos.z, Math.max(1, sparks / 2), spread * 0.4D, spread * 0.3D, spread * 0.4D, 0.008D);
+        emitFar(
+                level,
+                white,
+                pos.x,
+                pos.y + 0.5D,
+                pos.z,
+                Math.max(1, sparks / 2),
+                spread * 0.4D,
+                spread * 0.3D,
+                spread * 0.4D,
+                0.008D);
 
         spawnEmissiveCore(level, pos, size, lod, spread, sparks);
 
@@ -400,58 +429,97 @@ public final class BombBlastFx {
      * light source under shaders while still looking like embers on vanilla lighting.
      */
     private static void spawnEmissiveCore(
-            ServerLevel level,
-            Vec3 pos,
-            BombSize size,
-            BombBurstBudget.Lod lod,
-            double spread,
-            int sparks) {
+            ServerLevel level, Vec3 pos, BombSize size, BombBurstBudget.Lod lod, double spread, int sparks) {
         if (lod == BombBurstBudget.Lod.ESSENTIAL) {
             return;
         }
 
         int flames = Math.max(2, sparks / 2);
-        emitFar(level, ParticleTypes.FLAME,
-                pos.x, pos.y + 0.4D, pos.z,
-                flames, spread * 0.55D, spread * 0.3D, spread * 0.55D, 0.035D);
-        emitFar(level, ParticleTypes.SMALL_FLAME,
-                pos.x, pos.y + 0.55D, pos.z,
-                flames, spread * 0.75D, spread * 0.35D, spread * 0.75D, 0.05D);
+        emitFar(
+                level,
+                ParticleTypes.FLAME,
+                pos.x,
+                pos.y + 0.4D,
+                pos.z,
+                flames,
+                spread * 0.55D,
+                spread * 0.3D,
+                spread * 0.55D,
+                0.035D);
+        emitFar(
+                level,
+                ParticleTypes.SMALL_FLAME,
+                pos.x,
+                pos.y + 0.55D,
+                pos.z,
+                flames,
+                spread * 0.75D,
+                spread * 0.35D,
+                spread * 0.75D,
+                0.05D);
 
         if (size == BombSize.SMALL || lod == BombBurstBudget.Lod.MINIMAL) {
             return;
         }
 
         // Heavier charges throw burning debris that arcs out of the crater.
-        emitFar(level, ParticleTypes.LAVA,
-                pos.x, pos.y + 0.3D, pos.z,
-                Math.max(2, flames / 2), spread * 0.4D, 0.1D, spread * 0.4D, 0.0D);
+        emitFar(
+                level,
+                ParticleTypes.LAVA,
+                pos.x,
+                pos.y + 0.3D,
+                pos.z,
+                Math.max(2, flames / 2),
+                spread * 0.4D,
+                0.1D,
+                spread * 0.4D,
+                0.0D);
 
         if (size == BombSize.LARGE && lod.fullFx()) {
-            emitFar(level, ParticleTypes.SOUL_FIRE_FLAME,
-                    pos.x, pos.y + 1.1D, pos.z,
-                    6, spread * 0.5D, spread * 0.4D, spread * 0.5D, 0.08D);
+            emitFar(
+                    level,
+                    ParticleTypes.SOUL_FIRE_FLAME,
+                    pos.x,
+                    pos.y + 1.1D,
+                    pos.z,
+                    6,
+                    spread * 0.5D,
+                    spread * 0.4D,
+                    spread * 0.5D,
+                    0.08D);
         }
     }
 
     private static void spawnMushroomForPlayer(
-            ServerLevel level,
-            ServerPlayer player,
-            Vec3 pos,
-            FxProfile profile,
-            BombBurstBudget.Lod lod) {
+            ServerLevel level, ServerPlayer player, Vec3 pos, FxProfile profile, BombBurstBudget.Lod lod) {
         float stem = profile.smokeScale * 0.55f;
         float cap = profile.smokeScale * 1.15f;
         double stemHeight = profile.smokeScale * 2.2D;
         double capY = pos.y + stemHeight;
-        level.sendParticles(player,
+        level.sendParticles(
+                player,
                 new ShellExplosionCloudParticleData(stem, true),
-                true, pos.x, pos.y + 0.5D, pos.z, 1,
-                0.0D, 0.0D, 0.0D, 0.0D);
-        level.sendParticles(player,
+                true,
+                pos.x,
+                pos.y + 0.5D,
+                pos.z,
+                1,
+                0.0D,
+                0.0D,
+                0.0D,
+                0.0D);
+        level.sendParticles(
+                player,
                 new ShellExplosionCloudParticleData(cap, false),
-                true, pos.x, capY, pos.z, 1,
-                0.0D, 0.0D, 0.0D, 0.0D);
+                true,
+                pos.x,
+                capY,
+                pos.z,
+                1,
+                0.0D,
+                0.0D,
+                0.0D,
+                0.0D);
 
         int sectors = lod.mushroomSectors();
         if (sectors <= 0) {
@@ -466,22 +534,47 @@ public final class BombBlastFx {
             double cz = pos.z + Math.sin(ang) * ringR;
             double ox = Math.cos(ang) * 0.12D;
             double oz = Math.sin(ang) * 0.12D;
-            level.sendParticles(player,
+            level.sendParticles(
+                    player,
                     new ShellExplosionSmokeParticleData(200 + level.random.nextInt(40), cap * 0.7f),
-                    true, cx, capY, cz, 0, ox, 0.08D, oz, 1.0D);
+                    true,
+                    cx,
+                    capY,
+                    cz,
+                    0,
+                    ox,
+                    0.08D,
+                    oz,
+                    1.0D);
             if (doubleRing) {
-                level.sendParticles(player,
+                level.sendParticles(
+                        player,
                         new ShellExplosionSmokeParticleData(160 + level.random.nextInt(30), cap * 0.45f),
-                        true, cx + ox, capY + 0.55D, cz + oz, 0,
-                        ox * 0.7D, 0.06D, oz * 0.7D, 1.0D);
+                        true,
+                        cx + ox,
+                        capY + 0.55D,
+                        cz + oz,
+                        0,
+                        ox * 0.7D,
+                        0.06D,
+                        oz * 0.7D,
+                        1.0D);
             }
         }
 
         if (doubleRing) {
-            level.sendParticles(player,
+            level.sendParticles(
+                    player,
                     new ShellExplosionCloudParticleData(cap * 0.35f, false),
-                    true, pos.x, pos.y + 0.35D, pos.z, 1,
-                    0.0D, 0.0D, 0.0D, 0.0D);
+                    true,
+                    pos.x,
+                    pos.y + 0.35D,
+                    pos.z,
+                    1,
+                    0.0D,
+                    0.0D,
+                    0.0D,
+                    0.0D);
         }
     }
 
@@ -494,11 +587,12 @@ public final class BombBlastFx {
      * the LOD budget still trims all of this during carpet bombing.
      */
     private static int scaleFx(BombSize size, int base) {
-        float factor = switch (size) {
-            case SMALL -> 2.0f;
-            case MEDIUM -> 3.0f;
-            case SEA, LARGE -> 1.0f;
-        };
+        float factor =
+                switch (size) {
+                    case SMALL -> 2.0f;
+                    case MEDIUM -> 3.0f;
+                    case SEA, LARGE -> 1.0f;
+                };
         return Math.max(1, Math.round(base * factor));
     }
 

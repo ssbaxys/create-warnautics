@@ -21,16 +21,14 @@ public final class WarnauticsClientConfig {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
 
         builder.comment("Create Warnautics — Veil effects").push("veil");
-        BOMB_LIGHTS = builder
-                .comment(
+        BOMB_LIGHTS = builder.comment(
                         "Real dynamic light from detonations, through Veil's light renderer.",
                         "Veil draws a point light as an inverted cube; if one of those cubes",
                         "is ever rasterised into the scene it shows up as a flat white sheet",
                         "and can leave the first-person hand drawn at the wrong transform.",
                         "Turn this off to rule the lights out.")
                 .define("bombLights", true);
-        SCREEN_EFFECTS = builder
-                .comment(
+        SCREEN_EFFECTS = builder.comment(
                         "Veil post-processing: the long-range flash and the concussion blur.",
                         "Without it the mod falls back to plain overlay quads, which look",
                         "worse but cannot touch the framebuffer the hand is drawn into.")
@@ -40,8 +38,7 @@ public final class WarnauticsClientConfig {
         SPEC = builder.build();
     }
 
-    private WarnauticsClientConfig() {
-    }
+    private WarnauticsClientConfig() {}
 
     public static boolean bombLights() {
         return !SPEC.isLoaded() || BOMB_LIGHTS.get();

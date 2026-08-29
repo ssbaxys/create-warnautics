@@ -1,7 +1,6 @@
 package com.cbc_more_content.registry;
 
 import com.cbc_more_content.CBCMoreContent;
-
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
@@ -13,11 +12,14 @@ public final class ModSounds {
             DeferredRegister.create(BuiltInRegistries.SOUND_EVENT, CBCMoreContent.MOD_ID);
 
     public static final DeferredHolder<SoundEvent, SoundEvent> BOMB_EXPLOSION_SMALL = register("bomb_explosion_small");
-    public static final DeferredHolder<SoundEvent, SoundEvent> BOMB_EXPLOSION_MEDIUM = register("bomb_explosion_medium");
+    public static final DeferredHolder<SoundEvent, SoundEvent> BOMB_EXPLOSION_MEDIUM =
+            register("bomb_explosion_medium");
     public static final DeferredHolder<SoundEvent, SoundEvent> BOMB_EXPLOSION_LARGE = register("bomb_explosion_large");
-    public static final DeferredHolder<SoundEvent, SoundEvent> BOMB_EXPLOSION_LARGE_RUMBLE = register("bomb_explosion_large_rumble");
+    public static final DeferredHolder<SoundEvent, SoundEvent> BOMB_EXPLOSION_LARGE_RUMBLE =
+            register("bomb_explosion_large_rumble");
     /** Distant muffled battlefield boom — heard far from the blast. */
     public static final DeferredHolder<SoundEvent, SoundEvent> BOMB_WAR_RUMBLE = register("bomb_war_rumble");
+
     public static final DeferredHolder<SoundEvent, SoundEvent> BOMB_FALLING = register("bomb_falling");
     public static final DeferredHolder<SoundEvent, SoundEvent> SEA_BOMB_PROPELLER = register("sea_bomb_propeller");
     public static final DeferredHolder<SoundEvent, SoundEvent> SEA_BOMB_SPLASH = register("sea_bomb_splash");
@@ -32,9 +34,11 @@ public final class ModSounds {
     /** The charge going live. The countdown stays silent until this has played out. */
     public static final DeferredHolder<SoundEvent, SoundEvent> C4_ARMED = register("c4_armed");
     /** Ignition when a cruise missile leaves its rack. */
-    public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_MISSILE_LAUNCH = register("cruise_missile_launch");
+    public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_MISSILE_LAUNCH =
+            register("cruise_missile_launch");
     /** Sustained engine note while the missile is under power. */
-    public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_MISSILE_ENGINE = register("cruise_missile_engine");
+    public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_MISSILE_ENGINE =
+            register("cruise_missile_engine");
     /** Air-raid post, close enough to hear the wail itself. */
     public static final DeferredHolder<SoundEvent, SoundEvent> SIREN = register("siren");
     /** The same post from a long way off: the edge rolled off, only the swell left. */
@@ -44,10 +48,11 @@ public final class ModSounds {
             register("music.breaker_of_skies");
 
     private static DeferredHolder<SoundEvent, SoundEvent> register(String name) {
-        return SOUND_EVENTS.register(name, () -> SoundEvent.createVariableRangeEvent(
-                ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, name)));
+        return SOUND_EVENTS.register(
+                name,
+                () -> SoundEvent.createVariableRangeEvent(
+                        ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, name)));
     }
 
-    private ModSounds() {
-    }
+    private ModSounds() {}
 }

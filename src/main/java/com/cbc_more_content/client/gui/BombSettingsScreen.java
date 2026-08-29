@@ -1,10 +1,8 @@
 package com.cbc_more_content.client.gui;
 
-import java.util.Locale;
-
 import com.cbc_more_content.block.DropBombBlock;
 import com.cbc_more_content.network.ConfigureBombPayload;
-
+import java.util.Locale;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -31,6 +29,7 @@ public class BombSettingsScreen extends Screen {
     private static final int PANEL_H = 95;
     /** Total sweep of the dial, centred on 12 o'clock. */
     private static final float ARC_DEGREES = 240.0f;
+
     private static final int DIAL_MARKERS = 11;
     private static final int KNOB_CX = 50;
     private static final int KNOB_CY = 54;
@@ -44,6 +43,7 @@ public class BombSettingsScreen extends Screen {
     private int ticksOpen;
     /** Eased pointer angle, so the dial swings to a new detent rather than jumping. */
     private float previousVisualAngle;
+
     private float visualAngle;
     private float targetAngle;
 
@@ -102,8 +102,7 @@ public class BombSettingsScreen extends Screen {
 
         WarnauticsGuiTextures.BOMB_SETTINGS.render(graphics, this.guiLeft, this.guiTop);
 
-        graphics.drawCenteredString(this.font, this.title,
-                this.guiLeft + PANEL_W / 2, this.guiTop + 4, 0xE8E2CF);
+        graphics.drawCenteredString(this.font, this.title, this.guiLeft + PANEL_W / 2, this.guiTop + 4, 0xE8E2CF);
 
         this.renderDetents(graphics);
         this.renderKnob(graphics, mouseX, mouseY, partialTick);
@@ -116,24 +115,19 @@ public class BombSettingsScreen extends Screen {
         int selectedMarker = Math.round(progressOf(this.delayTicks) * (DIAL_MARKERS - 1));
         for (int i = 0; i < DIAL_MARKERS; i++) {
             double rad = Math.toRadians(angleAtProgress(i / (float) (DIAL_MARKERS - 1)));
-            WarnauticsGuiTextures sprite = i == selectedMarker
-                    ? WarnauticsGuiTextures.DETENT_LIT
-                    : WarnauticsGuiTextures.DETENT;
+            WarnauticsGuiTextures sprite =
+                    i == selectedMarker ? WarnauticsGuiTextures.DETENT_LIT : WarnauticsGuiTextures.DETENT;
             // Centred on the sprite's own size rather than a hardcoded half-width, so the
             // dots stay on the ring whatever dimensions the authored atlas gives them.
-            int x = this.guiLeft + KNOB_CX
-                    + (int) Math.round(Math.sin(rad) * DETENT_RADIUS) - sprite.width / 2;
-            int y = this.guiTop + KNOB_CY
-                    - (int) Math.round(Math.cos(rad) * DETENT_RADIUS) - sprite.height / 2;
+            int x = this.guiLeft + KNOB_CX + (int) Math.round(Math.sin(rad) * DETENT_RADIUS) - sprite.width / 2;
+            int y = this.guiTop + KNOB_CY - (int) Math.round(Math.cos(rad) * DETENT_RADIUS) - sprite.height / 2;
             sprite.render(graphics, x, y);
         }
     }
 
     private void renderKnob(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         boolean lit = this.dragging || this.overKnob(mouseX, mouseY);
-        WarnauticsGuiTextures sprite = lit
-                ? WarnauticsGuiTextures.KNOB_LIT
-                : WarnauticsGuiTextures.KNOB;
+        WarnauticsGuiTextures sprite = lit ? WarnauticsGuiTextures.KNOB_LIT : WarnauticsGuiTextures.KNOB;
 
         int cx = this.guiLeft + KNOB_CX;
         int cy = this.guiTop + KNOB_CY;
@@ -153,19 +147,19 @@ public class BombSettingsScreen extends Screen {
         int x = this.guiLeft + 130;
         int y = this.guiTop + 30;
 
-        graphics.drawCenteredString(this.font,
-                Component.translatable("gui.cbc_more_content.bomb_settings.interval"),
-                x, y, 0x9AA08C);
-        graphics.drawCenteredString(this.font,
-                Component.literal(ticks + "t"), x, y + 14, 0xFFB036);
-        graphics.drawCenteredString(this.font,
-                Component.literal(String.format(Locale.ROOT, "%.1f s", ticks / 20.0D)),
-                x, y + 24, 0xE8E2CF);
+        graphics.drawCenteredString(
+                this.font, Component.translatable("gui.cbc_more_content.bomb_settings.interval"), x, y, 0x9AA08C);
+        graphics.drawCenteredString(this.font, Component.literal(ticks + "t"), x, y + 14, 0xFFB036);
+        graphics.drawCenteredString(
+                this.font, Component.literal(String.format(Locale.ROOT, "%.1f s", ticks / 20.0D)), x, y + 24, 0xE8E2CF);
 
         if (this.cassette > 1) {
-            graphics.drawCenteredString(this.font,
+            graphics.drawCenteredString(
+                    this.font,
                     Component.translatable("gui.cbc_more_content.bomb_settings.cassette", this.cassette),
-                    this.guiLeft + KNOB_CX, this.guiTop + PANEL_H - 12, 0x9AA08C);
+                    this.guiLeft + KNOB_CX,
+                    this.guiTop + PANEL_H - 12,
+                    0x9AA08C);
         }
     }
 
@@ -203,9 +197,10 @@ public class BombSettingsScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (scrollY != 0.0D) {
-            this.setDelayTicks(this.delayTicks + (scrollY > 0.0D
-                    ? DropBombBlock.RELEASE_DELAY_STEP_TICKS
-                    : -DropBombBlock.RELEASE_DELAY_STEP_TICKS));
+            this.setDelayTicks(this.delayTicks
+                    + (scrollY > 0.0D
+                            ? DropBombBlock.RELEASE_DELAY_STEP_TICKS
+                            : -DropBombBlock.RELEASE_DELAY_STEP_TICKS));
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
@@ -221,9 +216,8 @@ public class BombSettingsScreen extends Screen {
         float angle = (float) Math.toDegrees(Math.atan2(dx, -dy));
         angle = Mth.clamp(angle, -ARC_DEGREES * 0.5f, ARC_DEGREES * 0.5f);
         float progress = (angle + ARC_DEGREES * 0.5f) / ARC_DEGREES;
-        int ticks = Math.round(Mth.lerp(progress,
-                DropBombBlock.MIN_RELEASE_DELAY_TICKS,
-                DropBombBlock.MAX_RELEASE_DELAY_TICKS));
+        int ticks = Math.round(
+                Mth.lerp(progress, DropBombBlock.MIN_RELEASE_DELAY_TICKS, DropBombBlock.MAX_RELEASE_DELAY_TICKS));
         this.setDelayTicks(ticks);
     }
 

@@ -1,11 +1,9 @@
 package com.cbc_more_content.client.sound;
 
+import com.cbc_more_content.CBCMoreContent;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-
-import com.cbc_more_content.CBCMoreContent;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -27,8 +25,7 @@ public final class SirenSoundManager {
     private static final Map<BlockPos, Voices> ACTIVE = new HashMap<>();
     private static ClientLevel activeLevel;
 
-    private SirenSoundManager() {
-    }
+    private SirenSoundManager() {}
 
     /** A post has started, or is still going. Idempotent — the keepalive lands often. */
     public static void wail(BlockPos pos, int remainingTicks, float voice) {
@@ -81,6 +78,5 @@ public final class SirenSoundManager {
         activeLevel = null;
     }
 
-    private record Voices(SirenSoundInstance near, SirenSoundInstance far) {
-    }
+    private record Voices(SirenSoundInstance near, SirenSoundInstance far) {}
 }

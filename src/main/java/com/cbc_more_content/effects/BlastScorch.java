@@ -1,7 +1,6 @@
 package com.cbc_more_content.effects;
 
 import java.util.Map;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
@@ -31,11 +30,7 @@ public final class BlastScorch {
      * burnt-over ground through the same patch, so the scar looks churned instead.
      */
     private static final Block[] SOIL_SCARS = {
-            Blocks.DIRT,
-            Blocks.COARSE_DIRT,
-            Blocks.COARSE_DIRT,
-            Blocks.ROOTED_DIRT,
-            Blocks.PODZOL,
+        Blocks.DIRT, Blocks.COARSE_DIRT, Blocks.COARSE_DIRT, Blocks.ROOTED_DIRT, Blocks.PODZOL,
     };
 
     /** Blocks answered by {@link #SOIL_SCARS} instead of by a fixed mapping. */
@@ -59,14 +54,12 @@ public final class BlastScorch {
             Map.entry(Blocks.DEEPSLATE, Blocks.COBBLED_DEEPSLATE),
             Map.entry(Blocks.TUFF, Blocks.GRAVEL),
             Map.entry(Blocks.CALCITE, Blocks.GRAVEL),
-
             Map.entry(Blocks.STONE_BRICKS, Blocks.CRACKED_STONE_BRICKS),
             Map.entry(Blocks.CRACKED_STONE_BRICKS, Blocks.COBBLESTONE),
             Map.entry(Blocks.DEEPSLATE_BRICKS, Blocks.CRACKED_DEEPSLATE_BRICKS),
             Map.entry(Blocks.DEEPSLATE_TILES, Blocks.CRACKED_DEEPSLATE_TILES),
             Map.entry(Blocks.NETHER_BRICKS, Blocks.CRACKED_NETHER_BRICKS),
             Map.entry(Blocks.POLISHED_BLACKSTONE_BRICKS, Blocks.CRACKED_POLISHED_BLACKSTONE_BRICKS),
-
             Map.entry(Blocks.SMOOTH_STONE, Blocks.STONE),
             Map.entry(Blocks.POLISHED_GRANITE, Blocks.GRANITE),
             Map.entry(Blocks.POLISHED_DIORITE, Blocks.DIORITE),
@@ -76,13 +69,11 @@ public final class BlastScorch {
             Map.entry(Blocks.CUT_RED_SANDSTONE, Blocks.RED_SANDSTONE),
             Map.entry(Blocks.SANDSTONE, Blocks.SAND),
             Map.entry(Blocks.RED_SANDSTONE, Blocks.RED_SAND),
-
             Map.entry(Blocks.SNOW_BLOCK, Blocks.POWDER_SNOW),
             Map.entry(Blocks.CLAY, Blocks.MUD),
             Map.entry(Blocks.PACKED_MUD, Blocks.MUD));
 
-    private BlastScorch() {
-    }
+    private BlastScorch() {}
 
     /**
      * Scuffs the surface inside {@code radius}. Chance falls off with distance, so the
@@ -127,8 +118,7 @@ public final class BlastScorch {
         }
 
         // Ground cover is simply blown off; it has nothing left to degrade into.
-        if (state.is(BlockTags.REPLACEABLE) || state.is(BlockTags.FLOWERS)
-                || state.is(BlockTags.LEAVES)) {
+        if (state.is(BlockTags.REPLACEABLE) || state.is(BlockTags.FLOWERS) || state.is(BlockTags.LEAVES)) {
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), FLAGS);
             return;
         }

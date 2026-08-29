@@ -1,12 +1,10 @@
 package com.cbc_more_content.block;
 
-import javax.annotation.Nullable;
-
 import com.cbc_more_content.registry.ModBlockEntities;
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.content.kinetics.base.KineticBlock;
 import com.simibubi.create.foundation.block.IBE;
-
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -36,13 +34,13 @@ public class SirenBlock extends KineticBlock implements IBE<SirenBlockEntity> {
     public static final MapCodec<SirenBlock> CODEC = simpleCodec(SirenBlock::new);
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     /**
-      * Lit: the post has been told to sound, drive or no drive.
-      * <p>
-      * Separate from {@link #SOUNDING} on purpose. The lamp is the control circuit, and a
-      * signal reaches that whether or not there is a shaft turning underneath — a post
-      * standing lit and silent is telling you it is armed and waiting for drive, which is
-      * far more use than a block that looks dead until someone finds the gearbox.
-      */
+     * Lit: the post has been told to sound, drive or no drive.
+     * <p>
+     * Separate from {@link #SOUNDING} on purpose. The lamp is the control circuit, and a
+     * signal reaches that whether or not there is a shaft turning underneath — a post
+     * standing lit and silent is telling you it is armed and waiting for drive, which is
+     * far more use than a block that looks dead until someone finds the gearbox.
+     */
     public static final BooleanProperty POWERED = BooleanProperty.create("powered");
     /** Actually making a note. Needs the lamp and a turning rotor both. */
     public static final BooleanProperty SOUNDING = BooleanProperty.create("sounding");
@@ -54,7 +52,8 @@ public class SirenBlock extends KineticBlock implements IBE<SirenBlockEntity> {
 
     public SirenBlock(Properties properties) {
         super(properties);
-        this.registerDefaultState(this.stateDefinition.any()
+        this.registerDefaultState(this.stateDefinition
+                .any()
                 .setValue(FACING, Direction.NORTH)
                 .setValue(POWERED, false)
                 .setValue(SOUNDING, false));

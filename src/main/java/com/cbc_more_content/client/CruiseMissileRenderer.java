@@ -4,7 +4,7 @@ import com.cbc_more_content.munitions.CruiseMissileProjectile;
 import com.cbc_more_content.registry.ModBlocks;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-
+import com.mojang.math.Axis;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -14,11 +14,8 @@ import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
-
-import com.mojang.math.Axis;
 
 /**
  * Draws the missile in flight using the same block model the placed airframe uses, so
@@ -58,9 +55,10 @@ public class CruiseMissileRenderer extends EntityRenderer<CruiseMissileProjectil
         BlockState state = ModBlocks.CRUISE_MISSILE.get().defaultBlockState();
         BakedModel model = mc.getBlockRenderer().getBlockModel(state);
         VertexConsumer consumer = buffers.getBuffer(RenderType.cutout());
-        mc.getBlockRenderer().getModelRenderer().renderModel(
-                pose.last(), consumer, state, model,
-                1.0f, 1.0f, 1.0f, packedLight, OverlayTexture.NO_OVERLAY);
+        mc.getBlockRenderer()
+                .getModelRenderer()
+                .renderModel(
+                        pose.last(), consumer, state, model, 1.0f, 1.0f, 1.0f, packedLight, OverlayTexture.NO_OVERLAY);
 
         pose.popPose();
         super.render(entity, yaw, partialTick, pose, buffers, packedLight);

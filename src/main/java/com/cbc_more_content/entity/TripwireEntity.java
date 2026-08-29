@@ -1,11 +1,9 @@
 package com.cbc_more_content.entity;
 
-import javax.annotation.Nullable;
-
 import com.cbc_more_content.compat.SableDropCompat;
 import com.cbc_more_content.event.TripwireSignal;
 import com.cbc_more_content.registry.ModEntityTypes;
-
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
@@ -66,6 +64,7 @@ public class TripwireEntity extends Entity {
     /** Where along the run the wire is snagged, 0 at A and 1 at B. */
     private static final EntityDataAccessor<Float> CAUGHT_AT =
             SynchedEntityData.defineId(TripwireEntity.class, EntityDataSerializers.FLOAT);
+
     private static final EntityDataAccessor<Float> PULL_X =
             SynchedEntityData.defineId(TripwireEntity.class, EntityDataSerializers.FLOAT);
     private static final EntityDataAccessor<Float> PULL_Y =
@@ -121,9 +120,7 @@ public class TripwireEntity extends Entity {
 
     /** How far the wire has been dragged out of line, and in which direction. */
     public Vec3 pull() {
-        return new Vec3(this.entityData.get(PULL_X),
-                this.entityData.get(PULL_Y),
-                this.entityData.get(PULL_Z));
+        return new Vec3(this.entityData.get(PULL_X), this.entityData.get(PULL_Y), this.entityData.get(PULL_Z));
     }
 
     /** Where along the run the drag is applied. */
@@ -160,8 +157,7 @@ public class TripwireEntity extends Entity {
         if (!(this.level() instanceof ServerLevel server)) {
             return;
         }
-        if (!isPost(server, this.entityData.get(ANCHOR_A))
-                || !isPost(server, this.entityData.get(ANCHOR_B))) {
+        if (!isPost(server, this.entityData.get(ANCHOR_A)) || !isPost(server, this.entityData.get(ANCHOR_B))) {
             this.snap();
             return;
         }
@@ -200,7 +196,8 @@ public class TripwireEntity extends Entity {
             // Walked through it. Crossing the plane inside the run is the whole trigger:
             // no accumulating tension to lose track of, no direction to guess at, and a
             // sprint cannot skip it because the side simply reads the other way round.
-            if (before != null && Math.signum(before) != Math.signum(side)
+            if (before != null
+                    && Math.signum(before) != Math.signum(side)
                     && Math.abs(before) + Math.abs(side) > 1.0E-4D) {
                 this.part(server);
                 return;
@@ -306,9 +303,7 @@ public class TripwireEntity extends Entity {
      * take the strain.
      */
     public static boolean canAnchor(BlockState state) {
-        return !state.isAir()
-                && !state.canBeReplaced()
-                && state.getFluidState().isEmpty();
+        return !state.isAir() && !state.canBeReplaced() && state.getFluidState().isEmpty();
     }
 
     /**
@@ -320,8 +315,7 @@ public class TripwireEntity extends Entity {
     private void part(ServerLevel server) {
         TripwireSignal.pulse(server, this.entityData.get(ANCHOR_A));
         TripwireSignal.pulse(server, this.entityData.get(ANCHOR_B));
-        server.playSound(null, this.blockPosition(), SoundEvents.LEASH_KNOT_BREAK,
-                SoundSource.BLOCKS, 1.0f, 1.6f);
+        server.playSound(null, this.blockPosition(), SoundEvents.LEASH_KNOT_BREAK, SoundSource.BLOCKS, 1.0f, 1.6f);
         this.snap();
     }
 
@@ -331,8 +325,8 @@ public class TripwireEntity extends Entity {
      * turned a one-shot trap into a reusable trigger nobody had to replace.
      */
     private void snap() {
-        this.level().playSound(null, this.blockPosition(), SoundEvents.LEASH_KNOT_BREAK,
-                SoundSource.BLOCKS, 0.7f, 1.4f);
+        this.level()
+                .playSound(null, this.blockPosition(), SoundEvents.LEASH_KNOT_BREAK, SoundSource.BLOCKS, 0.7f, 1.4f);
         this.discard();
     }
 
@@ -341,8 +335,7 @@ public class TripwireEntity extends Entity {
         AABB around = new AABB(post).inflate(MAX_SPAN + 1);
         boolean cut = false;
         for (TripwireEntity wire : server.getEntitiesOfClass(TripwireEntity.class, around)) {
-            if (post.equals(wire.entityData.get(ANCHOR_A))
-                    || post.equals(wire.entityData.get(ANCHOR_B))) {
+            if (post.equals(wire.entityData.get(ANCHOR_A)) || post.equals(wire.entityData.get(ANCHOR_B))) {
                 wire.snap();
                 cut = true;
             }
@@ -354,8 +347,7 @@ public class TripwireEntity extends Entity {
     public static boolean occupied(ServerLevel server, BlockPos post) {
         AABB around = new AABB(post).inflate(MAX_SPAN + 1);
         for (TripwireEntity wire : server.getEntitiesOfClass(TripwireEntity.class, around)) {
-            if (post.equals(wire.entityData.get(ANCHOR_A))
-                    || post.equals(wire.entityData.get(ANCHOR_B))) {
+            if (post.equals(wire.entityData.get(ANCHOR_A)) || post.equals(wire.entityData.get(ANCHOR_B))) {
                 return true;
             }
         }
@@ -372,13 +364,10 @@ public class TripwireEntity extends Entity {
 
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
-        this.entityData.set(ANCHOR_A,
-                NbtUtils.readBlockPos(tag, "AnchorA").orElse(BlockPos.ZERO));
-        this.entityData.set(ANCHOR_B,
-                NbtUtils.readBlockPos(tag, "AnchorB").orElse(BlockPos.ZERO));
+        this.entityData.set(ANCHOR_A, NbtUtils.readBlockPos(tag, "AnchorA").orElse(BlockPos.ZERO));
+        this.entityData.set(ANCHOR_B, NbtUtils.readBlockPos(tag, "AnchorB").orElse(BlockPos.ZERO));
         this.setBoundingBox(this.makeBoundingBox());
     }
 
-    private record Snag(float along, Vec3 point, Vec3 offset) {
-    }
+    private record Snag(float along, Vec3 point, Vec3 offset) {}
 }

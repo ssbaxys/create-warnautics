@@ -1,34 +1,27 @@
 package com.cbc_more_content.effects;
 
+import com.cbc_more_content.bomb.BombSize;
+import com.cbc_more_content.compat.RagdollBlastCompat;
+import com.cbc_more_content.compat.SableDropCompat;
+import com.cbc_more_content.config.WarnauticsConfig;
+import com.cbc_more_content.event.WarnauticsBlockDetonateEvent;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Set;
-
 import javax.annotation.Nullable;
-
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import it.unimi.dsi.fastutil.longs.LongSet;
-
-import com.cbc_more_content.bomb.BombSize;
-import com.cbc_more_content.compat.RagdollBlastCompat;
-import com.cbc_more_content.compat.SableDropCompat;
-import com.cbc_more_content.config.WarnauticsConfig;
-import com.cbc_more_content.event.WarnauticsBlockDetonateEvent;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
@@ -36,8 +29,8 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.common.NeoForge;
-import rbasamoyai.createbigcannons.config.CBCConfigs;
 import rbasamoyai.createbigcannons.block_hit_effects.BlockImpactTransformationHandler;
+import rbasamoyai.createbigcannons.config.CBCConfigs;
 import rbasamoyai.createbigcannons.multiloader.IndexPlatform;
 import rbasamoyai.createbigcannons.munitions.ProjectileDamageHooks;
 import rbasamoyai.createbigcannons.munitions.ShellExplosion;
@@ -56,8 +49,7 @@ public final class BombExplosionHandler {
     /** No neighbor updates — critical when vaporizing thousands of blocks in one tick. */
     private static final int VAPORIZE_FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
 
-    private BombExplosionHandler() {
-    }
+    private BombExplosionHandler() {}
 
     public static void detonate(
             ServerLevel level,
@@ -77,18 +69,13 @@ public final class BombExplosionHandler {
 
     /** Breaching charge: same blast everywhere, hull or ground. */
     public static void detonateBreachingCharge(
-            ServerLevel level,
-            DamageSource damageSource,
-            Vec3 pos,
-            float blockPower,
-            float entityPower) {
+            ServerLevel level, DamageSource damageSource, Vec3 pos, float blockPower, float entityPower) {
         if (ModList.get().isLoaded("sable")) {
             SableDropCompat.BlastTarget target = SableDropCompat.resolveWorldBlast(level, pos);
             level = target.level();
             pos = target.pos();
         }
-        detonateInternal(level, null, damageSource, pos, blockPower, entityPower,
-                BombSize.MEDIUM, false);
+        detonateInternal(level, null, damageSource, pos, blockPower, entityPower, BombSize.MEDIUM, false);
     }
 
     /** Compact anti-vehicle mine profile: same impulse, far fewer visual emitters. */
@@ -104,14 +91,13 @@ public final class BombExplosionHandler {
             level = target.level();
             pos = target.pos();
         }
-        detonateInternal(level, source, damageSource, pos, blockPower, entityPower,
-                BombSize.LARGE, true);
+        detonateInternal(level, source, damageSource, pos, blockPower, entityPower, BombSize.LARGE, true);
         // Wider and harder than the infantry charge: an anti-vehicle mine leaves the
         // ground around its crater visibly torn up, not just the hole itself.
         BlastScorch.scuff(level, pos, Math.max(6.0D, blockPower * 1.6D), 1.0f);
     }
 
-        private static void detonateInternal(
+    private static void detonateInternal(
             ServerLevel level,
             @Nullable Entity source,
             DamageSource damageSource,
@@ -173,13 +159,11 @@ public final class BombExplosionHandler {
             // charges a sub-linear curve, so soft ground is unaffected (it is already
             // gone) and payload size decides how far into hard material a blast reaches.
             if (canDamageTerrain) {
-                List<BlockPos> fractured =
-                        BlastFracture.gather(level, pos, blockPower, explosion.getToBlow());
+                List<BlockPos> fractured = BlastFracture.gather(level, pos, blockPower, explosion.getToBlow());
                 if (!fractured.isEmpty()) {
                     // Through the same protection gate as everything else: a claim that
                     // stops a bomb has to stop the heavy end of one too.
-                    explosion.getToBlow().addAll(
-                            BlastProtection.filter(level, pos, blockPower, fractured));
+                    explosion.getToBlow().addAll(BlastProtection.filter(level, pos, blockPower, fractured));
                 }
             }
 
@@ -240,8 +224,7 @@ public final class BombExplosionHandler {
         // Sorting the whole crater to throw most of it away is wasted work when several
         // bombs go off at once; keep the nearest cap as the list is walked instead.
         PriorityQueue<BlockPos> nearest = new PriorityQueue<>(
-                cap + 1,
-                Comparator.comparingDouble(p -> -p.distToCenterSqr(center.x, center.y, center.z)));
+                cap + 1, Comparator.comparingDouble(p -> -p.distToCenterSqr(center.x, center.y, center.z)));
         for (BlockPos pos : toBlow) {
             if (nearest.size() < cap) {
                 nearest.add(pos);
@@ -290,12 +273,13 @@ public final class BombExplosionHandler {
     }
 
     private static void sendBlastToNearbyPlayers(ServerLevel level, ShellExplosion explosion, Vec3 pos, BombSize size) {
-        double syncDistSqr = switch (size) {
-            case SMALL -> 180.0D * 180.0D;
-            case SEA -> 210.0D * 210.0D;
-            case MEDIUM -> 260.0D * 260.0D;
-            case LARGE -> 360.0D * 360.0D;
-        };
+        double syncDistSqr =
+                switch (size) {
+                    case SMALL -> 180.0D * 180.0D;
+                    case SEA -> 210.0D * 210.0D;
+                    case MEDIUM -> 260.0D * 260.0D;
+                    case LARGE -> 360.0D * 360.0D;
+                };
         for (ServerPlayer player : level.players()) {
             if (player.distanceToSqr(pos) <= syncDistSqr) {
                 explosion.sendExplosionToClient(player);
@@ -319,12 +303,13 @@ public final class BombExplosionHandler {
             BombSize size,
             BombBurstBudget.Lod lod) {
         double radius = Math.max(entityPower * 2.0D, 5.0D);
-        float base = switch (size) {
-            case SMALL -> 1.85f;
-            case SEA -> 2.85f;
-            case MEDIUM -> 2.9f;
-            case LARGE -> 4.2f;
-        };
+        float base =
+                switch (size) {
+                    case SMALL -> 1.85f;
+                    case SEA -> 2.85f;
+                    case MEDIUM -> 2.9f;
+                    case LARGE -> 4.2f;
+                };
         boolean raycast = lod.useExplosionExposureRays();
         // Blocks this blast is about to remove must not shield anyone: the cover that
         // fails absorbs its share and lets the rest through. applyBlastToEntities runs
@@ -408,10 +393,7 @@ public final class BombExplosionHandler {
     }
 
     private static void vaporizeBlastCore(
-            ServerLevel level,
-            ShellExplosion explosion,
-            BombSize size,
-            float vaporizeChance) {
+            ServerLevel level, ShellExplosion explosion, BombSize size, float vaporizeChance) {
         List<BlockPos> toBlow = explosion.getToBlow();
         if (toBlow.isEmpty()) {
             return;
@@ -422,12 +404,13 @@ public final class BombExplosionHandler {
             return;
         }
 
-        double coreScale = switch (size) {
-            case SMALL -> 0.28D;
-            case SEA -> 0.31D;
-            case MEDIUM -> 0.37D;
-            case LARGE -> 0.43D;
-        };
+        double coreScale =
+                switch (size) {
+                    case SMALL -> 0.28D;
+                    case SEA -> 0.31D;
+                    case MEDIUM -> 0.37D;
+                    case LARGE -> 0.43D;
+                };
         double coreRadius = Math.max(1.35D, explosion.radius() * coreScale);
         double coreRadiusSqr = coreRadius * coreRadius;
         Vec3 center = explosion.center();
@@ -451,8 +434,7 @@ public final class BombExplosionHandler {
             if (level.random.nextFloat() < localChance) {
                 BlockState state = level.getBlockState(blockPos);
                 if (!state.isAir()) {
-                    level.setBlock(blockPos,
-                            BlastRubble.replacementFor(level, blockPos, state), VAPORIZE_FLAGS);
+                    level.setBlock(blockPos, BlastRubble.replacementFor(level, blockPos, state), VAPORIZE_FLAGS);
                 }
             } else {
                 remaining.add(blockPos.immutable());
@@ -482,8 +464,7 @@ public final class BombExplosionHandler {
                 boolean fire,
                 BlockInteraction interaction,
                 boolean noEffects) {
-            super(level, source, damageSource, x, y, z,
-                    blockRadius, entityRadius, fire, interaction, noEffects);
+            super(level, source, damageSource, x, y, z, blockRadius, entityRadius, fire, interaction, noEffects);
         }
 
         @Override

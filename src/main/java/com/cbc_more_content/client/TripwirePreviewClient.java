@@ -1,13 +1,11 @@
 package com.cbc_more_content.client;
 
-import javax.annotation.Nullable;
-
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.entity.TripwireEntity;
 import com.cbc_more_content.item.TripwireCoilItem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-
+import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -33,8 +31,7 @@ public final class TripwirePreviewClient {
     private static final int SEGMENTS = 16;
     private static final double SAG = 0.09D;
 
-    private TripwirePreviewClient() {
-    }
+    private TripwirePreviewClient() {}
 
     @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent event) {
@@ -93,22 +90,17 @@ public final class TripwirePreviewClient {
     @Nullable
     private static BlockPos pendingPost(LocalPlayer player) {
         ItemStack stack = player.getMainHandItem();
-        return stack.getItem() instanceof TripwireCoilItem
-                ? TripwireCoilItem.pendingPost(stack)
-                : null;
+        return stack.getItem() instanceof TripwireCoilItem ? TripwireCoilItem.pendingPost(stack) : null;
     }
 
     @Nullable
     private static BlockPos lookingAt(Minecraft mc) {
-        return mc.hitResult instanceof BlockHitResult hit
-                && mc.hitResult.getType() == HitResult.Type.BLOCK
+        return mc.hitResult instanceof BlockHitResult hit && mc.hitResult.getType() == HitResult.Type.BLOCK
                 ? hit.getBlockPos()
                 : null;
     }
 
-    private static void edge(
-            VertexConsumer lines, PoseStack pose, Vec3 from, Vec3 to,
-            float r, float g, float b) {
+    private static void edge(VertexConsumer lines, PoseStack pose, Vec3 from, Vec3 to, float r, float g, float b) {
         float dx = (float) (to.x - from.x);
         float dy = (float) (to.y - from.y);
         float dz = (float) (to.z - from.z);

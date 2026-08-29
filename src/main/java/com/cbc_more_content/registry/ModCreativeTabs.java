@@ -1,7 +1,6 @@
 package com.cbc_more_content.registry;
 
 import com.cbc_more_content.CBCMoreContent;
-
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -40,6 +39,5 @@ public final class ModCreativeTabs {
                     })
                     .build());
 
-    private ModCreativeTabs() {
-    }
+    private ModCreativeTabs() {}
 }

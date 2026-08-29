@@ -1,7 +1,6 @@
 package com.cbc_more_content.registry;
 
 import com.cbc_more_content.CBCMoreContent;
-
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -24,6 +23,5 @@ public final class ModParticles {
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MISSILE_GAS =
             PARTICLE_TYPES.register("missile_gas", () -> new SimpleParticleType(false));
 
-    private ModParticles() {
-    }
+    private ModParticles() {}
 }

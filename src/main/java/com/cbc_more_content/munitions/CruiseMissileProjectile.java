@@ -1,7 +1,5 @@
 package com.cbc_more_content.munitions;
 
-import javax.annotation.Nullable;
-
 import com.cbc_more_content.block.CruiseMissileBlockEntity.Guidance;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.compat.SableDropCompat;
@@ -9,26 +7,26 @@ import com.cbc_more_content.damage.BombDamageSource;
 import com.cbc_more_content.effects.BombExplosionHandler;
 import com.cbc_more_content.registry.ModParticles;
 import com.cbc_more_content.registry.ModSounds;
-
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.Mth;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.ModList;
-import net.minecraft.world.phys.AABB;
 
 /**
  * A cruise missile in flight.
@@ -45,6 +43,7 @@ public class CruiseMissileProjectile extends Entity {
      * turning into something you fire at a map reference and forget about.
      */
     public static final int FUEL_TICKS = 190;
+
     private static final double CRUISE_SPEED = 1.4D;
     /** Unpowered descent. Steeper than a shell so burnout reads as the engine dying. */
     private static final double GRAVITY = 0.085D;
@@ -111,6 +110,7 @@ public class CruiseMissileProjectile extends Entity {
      * bigger than anything a rack carries.
      */
     private static final float BLOCK_POWER = BombSize.LARGE.blockBlastPower * 1.3f;
+
     private static final float ENTITY_POWER = BombSize.LARGE.entityBlastPower * 1.6f;
     /** Scorched, churned ground well past the hole itself. */
     private static final double SCUFF_RADIUS = BLOCK_POWER * 2.1D;
@@ -121,23 +121,19 @@ public class CruiseMissileProjectile extends Entity {
     private double closestApproach = Double.MAX_VALUE;
     /** True once the range has actually started falling, so the fuse can arm. */
     private boolean closing;
+
     private double lastRange = Double.MAX_VALUE;
     /** Ticks left of being thrown off by a target that broke hard. */
     private int shaken;
+
     @Nullable
     private Vec3 lastAim;
+
     @Nullable
     private Vec3 lastAimDrift;
+
     private int ejecting;
-    private Guidance guidance = Guidance.NONE;
-    @Nullable
-    private BlockPos target;
-    private int lockedSubLevel = -1;
-    @Nullable
-    private BlockPos controller;
-    /** The track being chased, so the seeker does not swap targets every tick. */
-    @Nullable
-    private String contact;
+    private final MissileTargetingState targeting = new MissileTargetingState();
 
     public CruiseMissileProjectile(EntityType<? extends CruiseMissileProjectile> type, Level level) {
         super(type, level);
@@ -156,14 +152,12 @@ public class CruiseMissileProjectile extends Entity {
 
     /** The radar set the missile listens to while intercepting. */
     public void setController(@Nullable BlockPos controller) {
-        this.controller = controller;
+        this.targeting.setController(controller);
     }
 
     /** Copied off the rack's guidance package as the missile is released. */
     public void setGuidance(Guidance guidance, @Nullable BlockPos target, int lockedSubLevel) {
-        this.guidance = guidance;
-        this.target = target;
-        this.lockedSubLevel = lockedSubLevel;
+        this.targeting.setGuidance(guidance, target, lockedSubLevel);
     }
 
     /** True while the missile is coasting up out of a rack with its engine cold. */
@@ -216,13 +210,20 @@ public class CruiseMissileProjectile extends Entity {
             this.fuel--;
             if (this.fuel == 0) {
                 this.entityData.set(POWERED, false);
-                this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
-                        SoundEvents.FIRE_EXTINGUISH, SoundSource.HOSTILE, 2.2f, 0.6f);
+                this.level()
+                        .playSound(
+                                null,
+                                this.getX(),
+                                this.getY(),
+                                this.getZ(),
+                                SoundEvents.FIRE_EXTINGUISH,
+                                SoundSource.HOSTILE,
+                                2.2f,
+                                0.6f);
             }
         }
 
-        // Resolved once: a locked hull is looked up through Sable, and both the steering
-        // and the fuse want the same answer within a tick.
+        // Resolve the aim once so steering and fusing use the same target snapshot.
         Vec3 aim = this.aimPoint();
         this.watchForJink(aim);
 
@@ -231,9 +232,16 @@ public class CruiseMissileProjectile extends Entity {
             // Powered flight holds speed; the engine cancels drag and weight.
             motion = this.steer(motion.normalize(), aim).scale(this.speedFor(aim));
             if (this.tickCount % 4 == 0) {
-                this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
-                        ModSounds.CRUISE_MISSILE_ENGINE.get(), SoundSource.HOSTILE, 3.0f,
-                        0.9f + this.random.nextFloat() * 0.1f);
+                this.level()
+                        .playSound(
+                                null,
+                                this.getX(),
+                                this.getY(),
+                                this.getZ(),
+                                ModSounds.CRUISE_MISSILE_ENGINE.get(),
+                                SoundSource.HOSTILE,
+                                3.0f,
+                                0.9f + this.random.nextFloat() * 0.1f);
             }
         } else {
             motion = motion.scale(DRAG).subtract(0.0D, GRAVITY, 0.0D);
@@ -266,18 +274,21 @@ public class CruiseMissileProjectile extends Entity {
             return;
         }
 
-        // Ignition. The report is what sells a two-stage launch, so it is loud and it
-        // happens exactly once. The flash itself is drawn client-side, off the same
-        // EJECTING flag flipping here — see MissileExhaustLights, which fires a Veil
-        // light burst and the mod's own particles rather than a vanilla flash and puff.
+        // Ignition is one distinct event; client effects observe the synced state change.
         this.entityData.set(EJECTING, false);
         this.entityData.set(POWERED, true);
-        Vec3 heading = motion.lengthSqr() < 1.0E-4D
-                ? new Vec3(0.0D, 1.0D, 0.0D)
-                : motion.normalize();
+        Vec3 heading = motion.lengthSqr() < 1.0E-4D ? new Vec3(0.0D, 1.0D, 0.0D) : motion.normalize();
         this.setDeltaMovement(heading.scale(CRUISE_SPEED));
-        this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
-                ModSounds.CRUISE_MISSILE_LAUNCH.get(), SoundSource.HOSTILE, 5.0f, 0.72f);
+        this.level()
+                .playSound(
+                        null,
+                        this.getX(),
+                        this.getY(),
+                        this.getZ(),
+                        ModSounds.CRUISE_MISSILE_LAUNCH.get(),
+                        SoundSource.HOSTILE,
+                        5.0f,
+                        0.72f);
     }
 
     /** Cruise speed, or the terminal run-in, which is flown harder. */
@@ -377,8 +388,7 @@ public class CruiseMissileProjectile extends Entity {
             // Sailing past on a spoiled solution; it is not bursting out here.
             return;
         }
-        if (distance <= FUSE_RANGE
-                || (this.closing && distance > this.closestApproach + 0.05D)) {
+        if (distance <= FUSE_RANGE || (this.closing && distance > this.closestApproach + 0.05D)) {
             this.detonate(this.position());
             return;
         }
@@ -388,21 +398,22 @@ public class CruiseMissileProjectile extends Entity {
     /** Where the missile is trying to get to this tick, or null if it was never told. */
     @Nullable
     private Vec3 aimPoint() {
-        if (this.guidance == Guidance.INTERCEPT) {
+        if (this.targeting.guidance() == Guidance.INTERCEPT) {
             return this.radarAim();
         }
-        if (this.guidance == Guidance.LOCK && this.lockedSubLevel >= 0
+        if (this.targeting.guidance() == Guidance.LOCK
+                && this.targeting.lockedSubLevel() >= 0
                 && ModList.get().isLoaded("sable")
                 && this.level() instanceof ServerLevel server) {
-            Vec3 tracked = SableDropCompat.subLevelCentre(server, this.lockedSubLevel);
+            Vec3 tracked = SableDropCompat.subLevelCentre(server, this.targeting.lockedSubLevel());
             if (tracked != null) {
                 return tracked;
             }
             // Lost the hull mid-flight; carry on to where it last was.
         }
-        return this.target == null || this.guidance == Guidance.NONE
+        return this.targeting.target() == null || this.targeting.guidance() == Guidance.NONE
                 ? null
-                : Vec3.atCenterOf(this.target);
+                : Vec3.atCenterOf(this.targeting.target());
     }
 
     /**
@@ -414,29 +425,29 @@ public class CruiseMissileProjectile extends Entity {
      */
     @Nullable
     private Vec3 radarAim() {
-        if (this.controller == null || !com.cbc_more_content.compat.RadarCompat.loaded()) {
+        if (this.targeting.controller() == null || !com.cbc_more_content.compat.RadarCompat.loaded()) {
             return null;
         }
-        if (this.contact != null) {
+        if (this.targeting.contact() != null) {
             var held = com.cbc_more_content.compat.RadarCompat.contactById(
-                    this.level(), this.controller, this.contact);
+                    this.level(), this.targeting.controller(), this.targeting.contact());
             if (held != null) {
                 return held.position();
             }
-            this.contact = null;
+            this.targeting.setContact(null);
         }
         // Conditions come off the network rather than off the missile: retuning the
         // controller has to change what the next launch will chase.
         var settings = this.level() instanceof ServerLevel server
                 ? com.cbc_more_content.radar.InterceptSettingsStore.get(server)
-                        .forController(this.controller)
+                        .forController(this.targeting.controller())
                 : com.cbc_more_content.radar.InterceptSettings.DEFAULT;
         var fresh = com.cbc_more_content.compat.RadarCompat.bestContact(
-                this.level(), this.controller, this.position(), settings);
+                this.level(), this.targeting.controller(), this.position(), settings);
         if (fresh == null) {
             return null;
         }
-        this.contact = fresh.id();
+        this.targeting.setContact(fresh.id());
         return fresh.position();
     }
 
@@ -446,9 +457,13 @@ public class CruiseMissileProjectile extends Entity {
      */
     private Vec3 avoid(Vec3 heading, Vec3 wanted) {
         Vec3 from = this.position();
-        BlockHitResult hit = this.level().clip(new ClipContext(
-                from, from.add(heading.scale(LOOKAHEAD)),
-                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
+        BlockHitResult hit = this.level()
+                .clip(new ClipContext(
+                        from,
+                        from.add(heading.scale(LOOKAHEAD)),
+                        ClipContext.Block.COLLIDER,
+                        ClipContext.Fluid.NONE,
+                        this));
         if (hit.getType() != HitResult.Type.BLOCK) {
             return wanted;
         }
@@ -456,7 +471,8 @@ public class CruiseMissileProjectile extends Entity {
         // Climb over rather than around: the ground is the usual obstruction, and a
         // missile that sidesteps a hill just flies into its shoulder instead.
         double closeness = 1.0D - Math.sqrt(hit.getLocation().distanceToSqr(from)) / LOOKAHEAD;
-        Vec3 lift = new Vec3(hit.getDirection().getStepX(),
+        Vec3 lift = new Vec3(
+                hit.getDirection().getStepX(),
                 Math.max(0.35D, hit.getDirection().getStepY()),
                 hit.getDirection().getStepZ());
         return wanted.add(lift.scale(Mth.clamp(closeness, 0.0D, 1.0D) * 1.4D)).normalize();
@@ -477,8 +493,8 @@ public class CruiseMissileProjectile extends Entity {
 
     /** Detonates on the first block or entity in the path this tick. */
     private boolean checkImpact(Vec3 from, Vec3 to) {
-        BlockHitResult block = this.level().clip(new ClipContext(
-                from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
+        BlockHitResult block =
+                this.level().clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
         Vec3 stop = block.getType() == HitResult.Type.BLOCK ? block.getLocation() : null;
 
         // A physics hull is not made of blocks that stand where the hull looks like it
@@ -522,14 +538,12 @@ public class CruiseMissileProjectile extends Entity {
         this.detonated = true;
         try {
             BombExplosionHandler.detonate(
-                    server, this, BombDamageSource.create(server), at,
-                    BLOCK_POWER, ENTITY_POWER, BombSize.LARGE);
+                    server, this, BombDamageSource.create(server), at, BLOCK_POWER, ENTITY_POWER, BombSize.LARGE);
             // The crater alone reads as a big hole in a field. Tearing up the ground
             // around it is what makes it read as a strike.
             com.cbc_more_content.effects.BlastScorch.scuff(server, at, SCUFF_RADIUS, 1.0f);
         } catch (Throwable t) {
-            com.cbc_more_content.CBCMoreContent.LOGGER.error(
-                    "Cruise missile detonation failed at {}", at, t);
+            com.cbc_more_content.CBCMoreContent.LOGGER.error("Cruise missile detonation failed at {}", at, t);
         } finally {
             this.discard();
         }
@@ -563,17 +577,21 @@ public class CruiseMissileProjectile extends Entity {
         Vec3 nozzle = this.position().add(back);
 
         if (this.isEjecting()) {
-            // The gas charge, not the motor: our own cold-gas particle dumped out fast
-            // and left behind, so the ignition that follows reads as a separate event.
-            // Deliberately not the exhaust particle — that one runs white-hot, and this
-            // is the one moment in the flight where nothing has actually ignited yet.
+            // Cold-gas particles distinguish ejection from the later motor ignition.
             for (int i = 0; i < 10; i++) {
                 double ox = (this.random.nextDouble() - 0.5D) * 0.9D;
                 double oy = (this.random.nextDouble() - 0.5D) * 0.5D;
                 double oz = (this.random.nextDouble() - 0.5D) * 0.9D;
-                this.level().addParticle(ModParticles.MISSILE_GAS.get(), true,
-                        nozzle.x + ox, nozzle.y + oy, nozzle.z + oz,
-                        ox * 0.35D, -0.12D + oy * 0.2D, oz * 0.35D);
+                this.level()
+                        .addParticle(
+                                ModParticles.MISSILE_GAS.get(),
+                                true,
+                                nozzle.x + ox,
+                                nozzle.y + oy,
+                                nozzle.z + oz,
+                                ox * 0.35D,
+                                -0.12D + oy * 0.2D,
+                                oz * 0.35D);
             }
             return;
         }
@@ -587,20 +605,29 @@ public class CruiseMissileProjectile extends Entity {
             double oy = (this.random.nextDouble() - 0.5D) * jitter;
             double oz = (this.random.nextDouble() - 0.5D) * jitter;
             if (powered) {
-                // Our own plume rather than vanilla flame and cloud: it is drawn
-                // full-bright and cools through its own colour ramp, so the trail keeps
-                // reading as efflux at night and under shader packs alike.
-                this.level().addParticle(ModParticles.MISSILE_EXHAUST.get(), true,
-                        nozzle.x + ox, nozzle.y + oy, nozzle.z + oz,
-                        back.x * 0.10D + ox * 0.4D,
-                        back.y * 0.10D + oy * 0.4D,
-                        back.z * 0.10D + oz * 0.4D);
+                // Use the mod plume so the trail remains visible under shaders and at night.
+                this.level()
+                        .addParticle(
+                                ModParticles.MISSILE_EXHAUST.get(),
+                                true,
+                                nozzle.x + ox,
+                                nozzle.y + oy,
+                                nozzle.z + oz,
+                                back.x * 0.10D + ox * 0.4D,
+                                back.y * 0.10D + oy * 0.4D,
+                                back.z * 0.10D + oz * 0.4D);
             } else {
-                // Burnout: the same cold-gas particle as the ejection charge, since a
-                // dead motor trailing off is the same kind of nothing-left-to-burn cloud.
-                this.level().addParticle(ModParticles.MISSILE_GAS.get(), true,
-                        nozzle.x + ox * 2.0D, nozzle.y + oy * 2.0D, nozzle.z + oz * 2.0D,
-                        back.x * 0.02D, 0.01D, back.z * 0.02D);
+                // A dead motor fades into the same cold-gas trail as ejection.
+                this.level()
+                        .addParticle(
+                                ModParticles.MISSILE_GAS.get(),
+                                true,
+                                nozzle.x + ox * 2.0D,
+                                nozzle.y + oy * 2.0D,
+                                nozzle.z + oz * 2.0D,
+                                back.x * 0.02D,
+                                0.01D,
+                                back.z * 0.02D);
             }
         }
     }
@@ -638,31 +665,13 @@ public class CruiseMissileProjectile extends Entity {
     protected void readAdditionalSaveData(CompoundTag tag) {
         this.fuel = tag.getInt("Fuel");
         this.entityData.set(POWERED, tag.getBoolean("Powered"));
-        this.guidance = Guidance.byId(tag.getInt("Guidance"));
-        this.lockedSubLevel = tag.contains("Lock") ? tag.getInt("Lock") : -1;
-        this.controller = tag.contains("RadarX")
-                ? new BlockPos(tag.getInt("RadarX"), tag.getInt("RadarY"), tag.getInt("RadarZ"))
-                : null;
-        this.target = tag.contains("TargetX")
-                ? new BlockPos(tag.getInt("TargetX"), tag.getInt("TargetY"), tag.getInt("TargetZ"))
-                : null;
+        this.targeting.readFrom(tag);
     }
 
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {
         tag.putInt("Fuel", this.fuel);
         tag.putBoolean("Powered", this.isPowered());
-        tag.putInt("Guidance", this.guidance.ordinal());
-        tag.putInt("Lock", this.lockedSubLevel);
-        if (this.controller != null) {
-            tag.putInt("RadarX", this.controller.getX());
-            tag.putInt("RadarY", this.controller.getY());
-            tag.putInt("RadarZ", this.controller.getZ());
-        }
-        if (this.target != null) {
-            tag.putInt("TargetX", this.target.getX());
-            tag.putInt("TargetY", this.target.getY());
-            tag.putInt("TargetZ", this.target.getZ());
-        }
+        this.targeting.writeTo(tag);
     }
 }

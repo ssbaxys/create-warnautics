@@ -1,14 +1,12 @@
 package com.cbc_more_content.compat.sable;
 
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.block.DropBombBlock;
 import com.cbc_more_content.block.LandMineBlock;
-
 import dev.ryanhcode.sable.neoforge.event.ForgeSablePostPhysicsTickEvent;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
@@ -23,8 +21,7 @@ public final class SableCollisionDetonationQueue {
     private static final Map<Key, Kind> PENDING = new LinkedHashMap<>();
     private static boolean registered;
 
-    private SableCollisionDetonationQueue() {
-    }
+    private SableCollisionDetonationQueue() {}
 
     public static synchronized void register() {
         if (registered) {
@@ -87,6 +84,5 @@ public final class SableCollisionDetonationQueue {
         MINE
     }
 
-    private record Key(ServerLevel level, long pos) {
-    }
+    private record Key(ServerLevel level, long pos) {}
 }

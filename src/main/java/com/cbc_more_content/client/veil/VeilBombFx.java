@@ -1,22 +1,18 @@
 package com.cbc_more_content.client.veil;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
-import org.joml.Vector3f;
-
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.client.BombFlashClient;
 import com.cbc_more_content.client.FlashRenderMode;
-
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.light.data.PointLightData;
 import foundry.veil.api.client.render.light.renderer.LightRenderHandle;
 import foundry.veil.api.client.render.post.PostProcessingManager;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
 import foundry.veil.forge.event.ForgeVeilPostProcessingEvent;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -28,6 +24,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import org.joml.Vector3f;
 
 /**
  * Veil point lights + long-range screen flash/bloom for bomb detonations.
@@ -44,6 +41,7 @@ public final class VeilBombFx {
      */
     public static final ResourceLocation PIPELINE =
             ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "bomb_flash");
+
     private static final ResourceLocation SEED_SHADER =
             ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "bomb_flash_seed");
     private static final ResourceLocation COMPOSITE_SHADER =
@@ -68,8 +66,7 @@ public final class VeilBombFx {
     private static float uBlastV = OFFSCREEN_UV;
     private static final Vector3f uColor = new Vector3f(1.0f, 0.82f, 0.32f);
 
-    private VeilBombFx() {
-    }
+    private VeilBombFx() {}
 
     public static void onFlash(BombFlashClient.Flash flash) {
         try {
@@ -77,7 +74,7 @@ public final class VeilBombFx {
             // Use the renderer-independent overlay path in that combination.
             if (FlashRenderMode.sodiumExtrasLoaded()
                     || (!com.cbc_more_content.config.WarnauticsClientConfig.bombLights()
-                    && !com.cbc_more_content.config.WarnauticsClientConfig.screenEffects())) {
+                            && !com.cbc_more_content.config.WarnauticsClientConfig.screenEffects())) {
                 return;
             }
             if (LIGHTS.size() >= MAX_ACTIVE_LIGHTS) {
@@ -148,9 +145,7 @@ public final class VeilBombFx {
             ActiveLight active = it.next();
             float screenFade = active.flash.fade(0.0f);
             float physicalFade = active.flash.lightFade(0.0f);
-            if (active.flash.level != mc.level
-                    || physicalFade <= 0.001f
-                    || active.flash.age >= active.flash.life) {
+            if (active.flash.level != mc.level || physicalFade <= 0.001f || active.flash.age >= active.flash.life) {
                 freeHandles(active);
                 it.remove();
                 continue;
@@ -169,21 +164,16 @@ public final class VeilBombFx {
             active.light.setOcclusionEnabled(true);
             active.light.setBrightness(baseBrightness * lightFade);
             active.light.setRadius(renderedRadius);
-            float hot = smoothstep(Mth.clamp(1.0f - active.flash.age / (float) Math.max(6, active.flash.life / 3), 0.0f, 1.0f));
-            active.light.setColor(
-                    1.0f,
-                    Mth.lerp(hot, 0.58f, 0.90f),
-                    Mth.lerp(hot, 0.16f, 0.48f));
+            float hot = smoothstep(
+                    Mth.clamp(1.0f - active.flash.age / (float) Math.max(6, active.flash.life / 3), 0.0f, 1.0f));
+            active.light.setColor(1.0f, Mth.lerp(hot, 0.58f, 0.90f), Mth.lerp(hot, 0.16f, 0.48f));
             double skyY = active.flash.pos.y + skyOffsetFor(active.flash.size);
             float skyRadius = renderedRadius * 1.28f;
             active.skyLight.setPosition(active.flash.pos.x, skyY, active.flash.pos.z);
             active.skyLight.setOcclusionEnabled(true);
             active.skyLight.setBrightness(baseBrightness * lightFade * 0.52f);
             active.skyLight.setRadius(skyRadius);
-            active.skyLight.setColor(
-                    1.0f,
-                    Mth.lerp(hot, 0.50f, 0.78f),
-                    Mth.lerp(hot, 0.10f, 0.30f));
+            active.skyLight.setColor(1.0f, Mth.lerp(hot, 0.50f, 0.78f), Mth.lerp(hot, 0.10f, 0.30f));
 
             // Brightness zero is insufficient: Veil still submits the light cube.
             // Remove the handle whenever the camera intersects (or nearly touches)
@@ -200,8 +190,7 @@ public final class VeilBombFx {
             }
             if (FlashRenderMode.sodiumExtrasLoaded()
                     || !com.cbc_more_content.config.WarnauticsClientConfig.bombLights()
-                    || cameraIntersectsLightVolume(
-                            camPos, active.flash.pos.x, skyY, active.flash.pos.z, skyRadius)) {
+                    || cameraIntersectsLightVolume(camPos, active.flash.pos.x, skyY, active.flash.pos.z, skyRadius)) {
                 freeSkyHandle(active);
             } else {
                 ensureSkyHandle(active);
@@ -241,21 +230,15 @@ public final class VeilBombFx {
             if (active.visibilityRefresh <= 0) {
                 active.directVisibility = visibilityFactor(mc, camPos, active.flash.pos, player);
                 active.skyVisibility = visibilityFactor(
-                        mc,
-                        camPos,
-                        active.flash.pos.add(0.0D, skyOffsetFor(active.flash.size), 0.0D),
-                        player);
+                        mc, camPos, active.flash.pos.add(0.0D, skyOffsetFor(active.flash.size), 0.0D), player);
                 active.visibilityRefresh = VISIBILITY_REFRESH_TICKS;
             } else {
                 active.visibilityRefresh--;
             }
             boolean skyOnly = active.directVisibility <= 0.05f && active.skyVisibility > 0.02f;
-            Vec3 effectPos = skyOnly
-                    ? active.flash.pos.add(0.0D, skyOffsetFor(active.flash.size), 0.0D)
-                    : active.flash.pos;
-            float visibility = skyOnly
-                    ? active.skyVisibility * 0.68f
-                    : active.directVisibility;
+            Vec3 effectPos =
+                    skyOnly ? active.flash.pos.add(0.0D, skyOffsetFor(active.flash.size), 0.0D) : active.flash.pos;
+            float visibility = skyOnly ? active.skyVisibility * 0.68f : active.directVisibility;
             if (visibility <= 0.02f) {
                 continue;
             }
@@ -279,10 +262,14 @@ public final class VeilBombFx {
             float closeT = Mth.clamp((float) ((dist - 0.75D) / 8.25D), 0.0f, 1.0f);
             float closeBoost = Mth.lerp(smoothstep(closeT), 1.72f, 1.0f);
 
-            float strength = Math.min(1.85f, active.flash.intensity * screenLevel * visibility
-                    * (0.4f + 0.6f * distFactor)
-                    * (0.35f + 0.65f * lookFactor)
-                    * closeBoost);
+            float strength = Math.min(
+                    1.85f,
+                    active.flash.intensity
+                            * screenLevel
+                            * visibility
+                            * (0.4f + 0.6f * distFactor)
+                            * (0.35f + 0.65f * lookFactor)
+                            * closeBoost);
             if (skyOnly) {
                 strength *= 0.62f;
             }
@@ -298,7 +285,8 @@ public final class VeilBombFx {
 
             float z = look.dot(dir);
             if (z > 0.02f && lookFactor > 0.05f) {
-                float fovRad = (float) Math.toRadians(Math.max(30.0D, mc.options.fov().get()));
+                float fovRad =
+                        (float) Math.toRadians(Math.max(30.0D, mc.options.fov().get()));
                 float tanHalf = (float) Math.tan(fovRad * 0.5D);
                 float aspect = aspectOf(mc);
                 float ndcX = (right.dot(dir) / z) / (tanHalf * aspect);
@@ -336,8 +324,7 @@ public final class VeilBombFx {
         // second was over before it arrived. Coming back into view, it snaps.
         float targetU = Mth.clamp(bestU, -0.2f, 1.2f);
         float targetV = Mth.clamp(bestV, -0.2f, 1.2f);
-        boolean wasOffScreen = uBlastU <= -0.19f || uBlastU >= 1.19f
-                || uBlastV <= -0.19f || uBlastV >= 1.19f;
+        boolean wasOffScreen = uBlastU <= -0.19f || uBlastU >= 1.19f || uBlastV <= -0.19f || uBlastV >= 1.19f;
         if (!onScreen || wasOffScreen) {
             uBlastU = targetU;
             uBlastV = targetV;
@@ -365,7 +352,6 @@ public final class VeilBombFx {
             CBCMoreContent.LOGGER.debug("Veil post-processing update failed: {}", t.toString());
         }
     }
-
 
     @SubscribeEvent
     public static void onPostPre(ForgeVeilPostProcessingEvent.Pre event) {
@@ -406,22 +392,24 @@ public final class VeilBombFx {
     }
 
     private static float radiusFor(BombFlashClient.Flash flash) {
-        float radius = switch (flash.size) {
-            case SMALL -> 16.0f;
-            case SEA -> 20.0f;
-            case MEDIUM -> 28.0f;
-            case LARGE -> 38.0f;
-        };
+        float radius =
+                switch (flash.size) {
+                    case SMALL -> 16.0f;
+                    case SEA -> 20.0f;
+                    case MEDIUM -> 28.0f;
+                    case LARGE -> 38.0f;
+                };
         return radius * Mth.clamp(flash.intensity, 0.55f, 1.35f);
     }
 
     private static float brightnessFor(BombFlashClient.Flash flash) {
-        float brightness = switch (flash.size) {
-            case SMALL -> 13.0f;
-            case SEA -> 17.0f;
-            case MEDIUM -> 25.0f;
-            case LARGE -> 34.0f;
-        };
+        float brightness =
+                switch (flash.size) {
+                    case SMALL -> 13.0f;
+                    case SEA -> 17.0f;
+                    case MEDIUM -> 25.0f;
+                    case LARGE -> 34.0f;
+                };
         return brightness * Mth.clamp(flash.intensity, 0.55f, 1.35f);
     }
 
@@ -498,11 +486,7 @@ public final class VeilBombFx {
     }
 
     private static boolean cameraIntersectsLightVolume(
-            Vec3 camera,
-            double lightX,
-            double lightY,
-            double lightZ,
-            float radius) {
+            Vec3 camera, double lightX, double lightY, double lightZ, float radius) {
         double extent = radius + LIGHT_VOLUME_MARGIN;
         return Math.abs(camera.x - lightX) <= extent
                 && Math.abs(camera.y - lightY) <= extent

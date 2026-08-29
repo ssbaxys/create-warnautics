@@ -1,15 +1,13 @@
 package com.cbc_more_content.effects;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.block.DropBombBlock;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.config.WarnauticsConfig;
 import com.cbc_more_content.munitions.DropBombProjectile;
-
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
@@ -37,8 +35,7 @@ public final class BombSympatheticDetonation {
     private static final Set<PendingCookoff> PENDING = ConcurrentHashMap.newKeySet();
     private static final ThreadLocal<Integer> BOMB_BLAST_DEPTH = ThreadLocal.withInitial(() -> 0);
 
-    private BombSympatheticDetonation() {
-    }
+    private BombSympatheticDetonation() {}
 
     @SubscribeEvent
     public static void onExplosionDetonate(ExplosionEvent.Detonate event) {
@@ -56,14 +53,13 @@ public final class BombSympatheticDetonation {
             // to the crater completely unhurt.
             event.getAffectedEntities().clear();
             if (!allowsCookoffFrom(explosion)) {
-                event.getAffectedBlocks().removeIf(pos ->
-                        level.getBlockState(pos).getBlock() instanceof DropBombBlock);
+                event.getAffectedBlocks()
+                        .removeIf(pos -> level.getBlockState(pos).getBlock() instanceof DropBombBlock);
             }
             return;
         }
         if (!allowsCookoffFrom(explosion)) {
-            event.getAffectedBlocks().removeIf(pos ->
-                    level.getBlockState(pos).getBlock() instanceof DropBombBlock);
+            event.getAffectedBlocks().removeIf(pos -> level.getBlockState(pos).getBlock() instanceof DropBombBlock);
             event.getAffectedEntities().removeIf(entity -> entity instanceof DropBombProjectile);
             return;
         }
@@ -91,9 +87,7 @@ public final class BombSympatheticDetonation {
         // Include nearby bombs only if no solid block shields the fuze.
         int r = Mth.ceil(chainRadius);
         BlockPos origin = BlockPos.containing(center);
-        for (BlockPos pos : BlockPos.betweenClosed(
-                origin.offset(-r, -r, -r),
-                origin.offset(r, r, r))) {
+        for (BlockPos pos : BlockPos.betweenClosed(origin.offset(-r, -r, -r), origin.offset(r, r, r))) {
             if (pos.distToCenterSqr(center.x, center.y, center.z) > chainRadiusSqr) {
                 continue;
             }
@@ -113,8 +107,7 @@ public final class BombSympatheticDetonation {
         }
 
         AABB area = new AABB(center, center).inflate(chainRadius);
-        for (DropBombProjectile bomb : level.getEntitiesOfClass(
-                DropBombProjectile.class, area, Entity::isAlive)) {
+        for (DropBombProjectile bomb : level.getEntitiesOfClass(DropBombProjectile.class, area, Entity::isAlive)) {
             if (bomb.distanceToSqr(center) <= chainRadiusSqr
                     && hasDirectBlastPath(level, center, bomb.blockPosition(), explosion)) {
                 bomb.sympatheticDetonate();
@@ -126,15 +119,9 @@ public final class BombSympatheticDetonation {
         }
     }
 
-    public static void schedulePlacedBombCookoff(
-            ServerLevel level,
-            BlockPos pos,
-            int minTicks,
-            int maxTicks) {
+    public static void schedulePlacedBombCookoff(ServerLevel level, BlockPos pos, int minTicks, int maxTicks) {
         BlockState initial = level.getBlockState(pos);
-        BombSize fallback = initial.getBlock() instanceof DropBombBlock bomb
-                ? bomb.getBombSize()
-                : null;
+        BombSize fallback = initial.getBlock() instanceof DropBombBlock bomb ? bomb.getBombSize() : null;
         scheduleCookoff(level, pos, fallback, minTicks, maxTicks);
     }
 
@@ -169,20 +156,12 @@ public final class BombSympatheticDetonation {
     }
 
     public static void scheduleDetachedBombCookoff(
-            ServerLevel level,
-            BlockPos pos,
-            BombSize size,
-            int minTicks,
-            int maxTicks) {
+            ServerLevel level, BlockPos pos, BombSize size, int minTicks, int maxTicks) {
         scheduleCookoff(level, pos, size, minTicks, maxTicks);
     }
 
     private static void scheduleCookoff(
-            ServerLevel level,
-            BlockPos pos,
-            BombSize fallbackSize,
-            int minTicks,
-            int maxTicks) {
+            ServerLevel level, BlockPos pos, BombSize fallbackSize, int minTicks, int maxTicks) {
         BlockPos cooked = pos.immutable();
         PendingCookoff pending = new PendingCookoff(level, cooked.asLong());
         if (!PENDING.add(pending)) {
@@ -208,15 +187,10 @@ public final class BombSympatheticDetonation {
     }
 
     private static boolean isActiveCassette(BlockState state) {
-        return state.hasProperty(DropBombBlock.POWERED)
-                && state.getValue(DropBombBlock.POWERED);
+        return state.hasProperty(DropBombBlock.POWERED) && state.getValue(DropBombBlock.POWERED);
     }
 
-    private static boolean hasDirectBlastPath(
-            ServerLevel level,
-            Vec3 center,
-            BlockPos targetPos,
-            Explosion explosion) {
+    private static boolean hasDirectBlastPath(ServerLevel level, Vec3 center, BlockPos targetPos, Explosion explosion) {
         BlockHitResult hit = level.clip(new ClipContext(
                 center,
                 Vec3.atCenterOf(targetPos),
@@ -226,6 +200,5 @@ public final class BombSympatheticDetonation {
         return hit.getType() == HitResult.Type.MISS || hit.getBlockPos().equals(targetPos);
     }
 
-    private record PendingCookoff(ServerLevel level, long pos) {
-    }
+    private record PendingCookoff(ServerLevel level, long pos) {}
 }

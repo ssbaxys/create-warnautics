@@ -8,8 +8,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 /** Client-only entry point for {@link BombSettingsScreen}. */
 @OnlyIn(Dist.CLIENT)
 public final class BombSettingsClient {
-    private BombSettingsClient() {
-    }
+    private BombSettingsClient() {}
 
     public static void open(BlockPos pos, int storedDelay, int cassette) {
         Minecraft.getInstance().setScreen(new BombSettingsScreen(pos, storedDelay, cassette));

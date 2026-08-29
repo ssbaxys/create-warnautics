@@ -1,15 +1,13 @@
 package com.cbc_more_content.effects;
 
+import com.cbc_more_content.entity.BlastDebrisEntity;
 import java.util.List;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-
-import com.cbc_more_content.entity.BlastDebrisEntity;
 
 /**
  * Three chunks thrown clear of whatever a blast actually broke.
@@ -23,8 +21,7 @@ public final class BlastDebris {
     private static final double SPEED = 0.55D;
     private static final double UPWARD_BIAS = 0.35D;
 
-    private BlastDebris() {
-    }
+    private BlastDebris() {}
 
     /**
      * @param candidates positions still holding their original block, read before the
@@ -42,8 +39,7 @@ public final class BlastDebris {
         for (int i = 0; i < attempts && thrown < COUNT; i++) {
             BlockPos pos = candidates.get(random.nextInt(candidates.size()));
             BlockState state = level.getBlockState(pos);
-            if (state.isAir() || state.getBlock() instanceof LiquidBlock
-                    || state.getDestroySpeed(level, pos) < 0.0f) {
+            if (state.isAir() || state.getBlock() instanceof LiquidBlock || state.getDestroySpeed(level, pos) < 0.0f) {
                 continue;
             }
 
@@ -53,7 +49,8 @@ public final class BlastDebris {
                 outward = new Vec3(random.nextDouble() - 0.5D, 0.4D, random.nextDouble() - 0.5D);
             }
             Vec3 direction = outward.normalize();
-            Vec3 velocity = direction.scale(SPEED * (0.6D + random.nextDouble() * 0.8D))
+            Vec3 velocity = direction
+                    .scale(SPEED * (0.6D + random.nextDouble() * 0.8D))
                     .add(0.0D, UPWARD_BIAS + random.nextDouble() * 0.3D, 0.0D);
 
             level.addFreshEntity(BlastDebrisEntity.create(level, state, from, velocity));

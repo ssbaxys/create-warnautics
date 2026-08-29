@@ -3,7 +3,6 @@ package com.cbc_more_content.client;
 import com.cbc_more_content.entity.TripwireEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -45,8 +44,12 @@ public class TripwireRenderer extends EntityRenderer<TripwireEntity> {
 
     @Override
     public void render(
-            TripwireEntity wire, float yaw, float partialTick,
-            PoseStack pose, MultiBufferSource buffers, int packedLight) {
+            TripwireEntity wire,
+            float yaw,
+            float partialTick,
+            PoseStack pose,
+            MultiBufferSource buffers,
+            int packedLight) {
         Vec3 origin = wire.position();
         Vec3 a = wire.endA().subtract(origin);
         Vec3 b = wire.endB().subtract(origin);
@@ -88,8 +91,7 @@ public class TripwireRenderer extends EntityRenderer<TripwireEntity> {
         face(consumer, pose, from, to, up);
     }
 
-    private static void face(
-            VertexConsumer consumer, PoseStack.Pose pose, Vec3 from, Vec3 to, Vec3 offset) {
+    private static void face(VertexConsumer consumer, PoseStack.Pose pose, Vec3 from, Vec3 to, Vec3 offset) {
         vertex(consumer, pose, from.subtract(offset));
         vertex(consumer, pose, from.add(offset));
         vertex(consumer, pose, to.add(offset));
@@ -97,8 +99,7 @@ public class TripwireRenderer extends EntityRenderer<TripwireEntity> {
     }
 
     private static void vertex(VertexConsumer consumer, PoseStack.Pose pose, Vec3 at) {
-        consumer.addVertex(pose, (float) at.x, (float) at.y, (float) at.z)
-                .setColor(0.05f, 0.05f, 0.06f, 1.0f);
+        consumer.addVertex(pose, (float) at.x, (float) at.y, (float) at.z).setColor(0.05f, 0.05f, 0.06f, 1.0f);
     }
 
     /**
@@ -116,7 +117,6 @@ public class TripwireRenderer extends EntityRenderer<TripwireEntity> {
         double reach = t <= caughtAt
                 ? (caughtAt <= 0.0f ? 0.0D : t / caughtAt)
                 : (caughtAt >= 1.0f ? 0.0D : (1.0f - t) / (1.0f - caughtAt));
-        return base.add(0.0D, sag, 0.0D)
-                .add(pull.scale(net.minecraft.util.Mth.clamp(reach, 0.0D, 1.0D)));
+        return base.add(0.0D, sag, 0.0D).add(pull.scale(net.minecraft.util.Mth.clamp(reach, 0.0D, 1.0D)));
     }
 }

@@ -2,7 +2,6 @@ package com.cbc_more_content.event;
 
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.block.LandMineBlock;
-
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -18,8 +17,7 @@ import net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent;
  */
 @EventBusSubscriber(modid = CBCMoreContent.MOD_ID)
 public final class BeddedMineHandler {
-    private BeddedMineHandler() {
-    }
+    private BeddedMineHandler() {}
 
     @SubscribeEvent
     public static void onSleep(CanPlayerSleepEvent event) {

@@ -1,12 +1,11 @@
 package com.cbc_more_content.block;
 
-import javax.annotation.Nullable;
-
-import com.mojang.serialization.MapCodec;
-
-import net.minecraft.core.BlockPos;
 import com.cbc_more_content.block.CruiseMissileBlockEntity.Guidance;
+import com.mojang.serialization.MapCodec;
+import javax.annotation.Nullable;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -18,11 +17,9 @@ import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RenderShape;
-import net.minecraft.world.level.block.SimpleWaterloggedBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
@@ -51,14 +48,14 @@ public class CruiseMissileBlock extends BaseEntityBlock {
      * the full depth of their cell.
      */
     private static final VoxelShape NOSE_WEST = Block.box(0.0D, 4.5D, 4.5D, 16.0D, 11.5D, 11.5D);
+
     private static final VoxelShape BODY_WEST = Block.box(0.0D, 4.5D, 0.0D, 16.0D, 11.5D, 16.0D);
     private static final VoxelShape TAIL_WEST = Block.box(0.0D, 4.5D, 0.0D, 16.0D, 11.5D, 16.0D);
 
     public CruiseMissileBlock(Properties properties) {
         super(properties);
-        this.registerDefaultState(this.stateDefinition.any()
-                .setValue(FACING, Direction.WEST)
-                .setValue(PART, Part.BODY));
+        this.registerDefaultState(
+                this.stateDefinition.any().setValue(FACING, Direction.WEST).setValue(PART, Part.BODY));
     }
 
     @Override
@@ -85,16 +82,14 @@ public class CruiseMissileBlock extends BaseEntityBlock {
         // All three cells have to be free, or the missile would place half-formed.
         for (Direction axis : new Direction[] {nose, nose.getOpposite()}) {
             // Straddling the clicked cell, for a click into open space.
-            if (canOccupy(level, pos.relative(axis))
-                    && canOccupy(level, pos.relative(axis.getOpposite()))) {
+            if (canOccupy(level, pos.relative(axis)) && canOccupy(level, pos.relative(axis.getOpposite()))) {
                 return this.defaultBlockState().setValue(FACING, axis).setValue(PART, Part.BODY);
             }
             // Standing out of the clicked cell, tail first. Clicking the top of a block
             // puts the cell behind the body inside that block, so an upright missile could
             // never be placed at all — which is why it only ever went up while sneaking,
             // where the airframe was laid flat into open air instead.
-            if (canOccupy(level, pos.relative(axis))
-                    && canOccupy(level, pos.relative(axis, 2))) {
+            if (canOccupy(level, pos.relative(axis)) && canOccupy(level, pos.relative(axis, 2))) {
                 return this.defaultBlockState().setValue(FACING, axis).setValue(PART, Part.TAIL);
             }
         }
@@ -122,7 +117,8 @@ public class CruiseMissileBlock extends BaseEntityBlock {
     }
 
     @Override
-    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
+    public void setPlacedBy(
+            Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
         Direction nose = state.getValue(FACING);
         BlockPos body = bodyPos(pos, state);
         // The middle goes down first. Every other cell deletes itself the moment it finds
@@ -130,8 +126,7 @@ public class CruiseMissileBlock extends BaseEntityBlock {
         // on the very update that placed it.
         level.setBlock(body, state.setValue(PART, Part.BODY), Block.UPDATE_ALL);
         level.setBlock(body.relative(nose), state.setValue(PART, Part.NOSE), Block.UPDATE_ALL);
-        level.setBlock(body.relative(nose.getOpposite()), state.setValue(PART, Part.TAIL),
-                Block.UPDATE_ALL);
+        level.setBlock(body.relative(nose.getOpposite()), state.setValue(PART, Part.TAIL), Block.UPDATE_ALL);
     }
 
     /** Position of the middle segment, whichever part was clicked. */
@@ -161,8 +156,7 @@ public class CruiseMissileBlock extends BaseEntityBlock {
             LevelAccessor level,
             BlockPos pos,
             BlockPos neighborPos) {
-        if (state.getValue(PART) != Part.BODY && bodyPos(pos, state).equals(neighborPos)
-                && !neighborState.is(this)) {
+        if (state.getValue(PART) != Part.BODY && bodyPos(pos, state).equals(neighborPos) && !neighborState.is(this)) {
             return Blocks.AIR.defaultBlockState();
         }
         return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
@@ -178,7 +172,8 @@ public class CruiseMissileBlock extends BaseEntityBlock {
      * for one.
      */
     @Override
-    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, net.minecraft.world.entity.player.Player player) {
+    public BlockState playerWillDestroy(
+            Level level, BlockPos pos, BlockState state, net.minecraft.world.entity.player.Player player) {
         if (!level.isClientSide && state.getValue(PART) != Part.BODY) {
             BlockPos body = bodyPos(pos, state);
             if (level.getBlockState(body).is(this)) {
@@ -190,11 +185,12 @@ public class CruiseMissileBlock extends BaseEntityBlock {
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        VoxelShape base = switch (state.getValue(PART)) {
-            case NOSE -> NOSE_WEST;
-            case BODY -> BODY_WEST;
-            case TAIL -> TAIL_WEST;
-        };
+        VoxelShape base =
+                switch (state.getValue(PART)) {
+                    case NOSE -> NOSE_WEST;
+                    case BODY -> BODY_WEST;
+                    case TAIL -> TAIL_WEST;
+                };
         return rotateFromWest(base, state.getValue(FACING));
     }
 
@@ -210,9 +206,15 @@ public class CruiseMissileBlock extends BaseEntityBlock {
         for (var box : shape.toAabbs()) {
             double[] a = corner(facing, box.minX, box.minY, box.minZ);
             double[] b = corner(facing, box.maxX, box.maxY, box.maxZ);
-            result = Shapes.or(result, Shapes.box(
-                    Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.min(a[2], b[2]),
-                    Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(a[2], b[2])));
+            result = Shapes.or(
+                    result,
+                    Shapes.box(
+                            Math.min(a[0], b[0]),
+                            Math.min(a[1], b[1]),
+                            Math.min(a[2], b[2]),
+                            Math.max(a[0], b[0]),
+                            Math.max(a[1], b[1]),
+                            Math.max(a[2], b[2])));
         }
         return result;
     }
@@ -234,15 +236,23 @@ public class CruiseMissileBlock extends BaseEntityBlock {
      */
     @Override
     protected void neighborChanged(
-            BlockState state, Level level, BlockPos pos, Block neighborBlock,
-            BlockPos neighborPos, boolean movedByPiston) {
+            BlockState state,
+            Level level,
+            BlockPos pos,
+            Block neighborBlock,
+            BlockPos neighborPos,
+            boolean movedByPiston) {
         if (!level.isClientSide && level.hasNeighborSignal(pos)) {
             level.scheduleTick(pos, this, 1);
         }
     }
 
     @Override
-    protected void tick(BlockState state, net.minecraft.server.level.ServerLevel level, BlockPos pos, net.minecraft.util.RandomSource random) {
+    protected void tick(
+            BlockState state,
+            net.minecraft.server.level.ServerLevel level,
+            BlockPos pos,
+            net.minecraft.util.RandomSource random) {
         if (level.hasNeighborSignal(pos)) {
             launch(level, pos, state);
         }
@@ -275,12 +285,13 @@ public class CruiseMissileBlock extends BaseEntityBlock {
         // rack it just left.
         for (BlockPos cell : new BlockPos[] {body.relative(nose), body, body.relative(nose.getOpposite())}) {
             if (level.getBlockState(cell).is(state.getBlock())) {
-                level.setBlock(cell, Blocks.AIR.defaultBlockState(),
-                        Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+                level.setBlock(cell, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
             }
         }
 
-        var missile = com.cbc_more_content.registry.ModEntityTypes.CRUISE_MISSILE.get().create(level);
+        var missile = com.cbc_more_content.registry.ModEntityTypes.CRUISE_MISSILE
+                .get()
+                .create(level);
         if (missile == null) {
             return;
         }
@@ -292,8 +303,7 @@ public class CruiseMissileBlock extends BaseEntityBlock {
         // point and the heading are mapped into world space before launch. Without this
         // a missile on a pitched deck flies flat instead of along the rail it left.
         if (net.neoforged.fml.ModList.get().isLoaded("sable")) {
-            var frame = com.cbc_more_content.compat.SableDropCompat.resolveLaunch(
-                    level, centre, heading, heading);
+            var frame = com.cbc_more_content.compat.SableDropCompat.resolveLaunch(level, centre, heading, heading);
             spawnLevel = frame.level();
             centre = frame.pos();
             heading = frame.orientation() == null ? frame.vel() : frame.orientation();
@@ -311,8 +321,13 @@ public class CruiseMissileBlock extends BaseEntityBlock {
         }
         spawnLevel.addFreshEntity(missile);
 
-        level.playSound(null, body, com.cbc_more_content.registry.ModSounds.CRUISE_MISSILE_LAUNCH.get(),
-                net.minecraft.sounds.SoundSource.BLOCKS, 4.0f, 1.0f);
+        level.playSound(
+                null,
+                body,
+                com.cbc_more_content.registry.ModSounds.CRUISE_MISSILE_LAUNCH.get(),
+                net.minecraft.sounds.SoundSource.BLOCKS,
+                4.0f,
+                1.0f);
     }
 
     @Nullable
@@ -325,12 +340,12 @@ public class CruiseMissileBlock extends BaseEntityBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<T> getTicker(
-            Level level, BlockState state,
-            net.minecraft.world.level.block.entity.BlockEntityType<T> type) {
+            Level level, BlockState state, net.minecraft.world.level.block.entity.BlockEntityType<T> type) {
         if (level.isClientSide || state.getValue(PART) != Part.BODY) {
             return null;
         }
-        return createTickerHelper(type,
+        return createTickerHelper(
+                type,
                 com.cbc_more_content.registry.ModBlockEntities.CRUISE_MISSILE.get(),
                 CruiseMissileBlockEntity::serverTick);
     }

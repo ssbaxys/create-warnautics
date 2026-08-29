@@ -5,7 +5,6 @@ import com.cbc_more_content.registry.ModBlocks;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -40,8 +39,12 @@ public class BoundingMineRenderer extends EntityRenderer<BoundingMineEntity> {
 
     @Override
     public void render(
-            BoundingMineEntity entity, float yaw, float partialTick,
-            PoseStack pose, MultiBufferSource buffers, int packedLight) {
+            BoundingMineEntity entity,
+            float yaw,
+            float partialTick,
+            PoseStack pose,
+            MultiBufferSource buffers,
+            int packedLight) {
         pose.pushPose();
         pose.translate(0.0D, 0.1D, 0.0D);
         pose.mulPose(Axis.YP.rotationDegrees((entity.tickCount + partialTick) * SPIN_PER_TICK));
@@ -52,9 +55,10 @@ public class BoundingMineRenderer extends EntityRenderer<BoundingMineEntity> {
         BlockState state = ModBlocks.BOUNDING_MINE.get().defaultBlockState();
         BakedModel model = mc.getBlockRenderer().getBlockModel(state);
         VertexConsumer consumer = buffers.getBuffer(RenderType.cutout());
-        mc.getBlockRenderer().getModelRenderer().renderModel(
-                pose.last(), consumer, state, model,
-                1.0f, 1.0f, 1.0f, packedLight, OverlayTexture.NO_OVERLAY);
+        mc.getBlockRenderer()
+                .getModelRenderer()
+                .renderModel(
+                        pose.last(), consumer, state, model, 1.0f, 1.0f, 1.0f, packedLight, OverlayTexture.NO_OVERLAY);
 
         pose.popPose();
         super.render(entity, yaw, partialTick, pose, buffers, packedLight);

@@ -6,7 +6,6 @@ import com.cbc_more_content.registry.ModBlocks;
 import com.cbc_more_content.registry.ModEntityTypes;
 import com.cbc_more_content.registry.ModItems;
 import com.cbc_more_content.registry.ModSounds;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -42,6 +41,7 @@ public class C4Projectile extends ThrowableItemProjectile {
     private boolean remote;
     /** Quarter turns about the face it lands on, taken from the thrower's heading. */
     private int rotation;
+
     private int sinceLastBeep;
 
     public C4Projectile(EntityType<? extends C4Projectile> type, Level level) {
@@ -75,10 +75,7 @@ public class C4Projectile extends ThrowableItemProjectile {
         // A slight tumble, so it reads as a charge coming loose rather than a block
         // model sliding straight down.
         RandomSource random = level.getRandom();
-        charge.setDeltaMovement(
-                (random.nextDouble() - 0.5D) * 0.08D,
-                -0.08D,
-                (random.nextDouble() - 0.5D) * 0.08D);
+        charge.setDeltaMovement((random.nextDouble() - 0.5D) * 0.08D, -0.08D, (random.nextDouble() - 0.5D) * 0.08D);
         // A charge coming loose keeps lying flat. The renderer reads the launch heading,
         // and -90 pitch is what leaves the model the way up it was already sitting.
         charge.setXRot(-90.0f);
@@ -129,9 +126,16 @@ public class C4Projectile extends ThrowableItemProjectile {
             return;
         }
         this.sinceLastBeep = 0;
-        this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
-                ModSounds.C4_TICK.get(), SoundSource.BLOCKS,
-                1.1f, C4BlockEntity.beepPitch(urgency));
+        this.level()
+                .playSound(
+                        null,
+                        this.getX(),
+                        this.getY(),
+                        this.getZ(),
+                        ModSounds.C4_TICK.get(),
+                        SoundSource.BLOCKS,
+                        1.1f,
+                        C4BlockEntity.beepPitch(urgency));
     }
 
     @Override
@@ -155,7 +159,9 @@ public class C4Projectile extends ThrowableItemProjectile {
         Direction face = hit.getDirection();
         BlockPos target = hit.getBlockPos().relative(face);
         BlockState existing = this.level().getBlockState(target);
-        BlockState charge = ModBlocks.C4.get().defaultBlockState()
+        BlockState charge = ModBlocks.C4
+                .get()
+                .defaultBlockState()
                 .setValue(C4Block.FACING, face)
                 .setValue(C4Block.ROTATION, C4Block.usableRotation(face, this.rotation));
 
@@ -194,8 +200,7 @@ public class C4Projectile extends ThrowableItemProjectile {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
-        this.fuseSeconds = tag.contains("FuseSeconds")
-                ? tag.getInt("FuseSeconds") : C4BlockEntity.DEFAULT_SECONDS;
+        this.fuseSeconds = tag.contains("FuseSeconds") ? tag.getInt("FuseSeconds") : C4BlockEntity.DEFAULT_SECONDS;
         this.remaining = tag.getInt("Remaining");
         this.code = tag.contains("Code") ? tag.getInt("Code") : -1;
         this.armed = tag.getBoolean("Armed");

@@ -3,6 +3,8 @@ plugins {
     id 'maven-publish'
     id 'net.neoforged.moddev' version '2.0.142'
     id 'idea'
+    id 'com.diffplug.spotless' version '7.0.2'
+    id 'checkstyle'
 }
 
 tasks.named('wrapper', Wrapper).configure {
@@ -144,6 +146,24 @@ publishing {
             url "file://${project.projectDir}/repo"
         }
     }
+}
+
+spotless {
+    java {
+        target 'src/main/java/**/*.java'
+        palantirJavaFormat('2.50.0')
+        removeUnusedImports()
+        endWithNewline()
+    }
+}
+
+checkstyle {
+    toolVersion = '10.21.2'
+    configFile = file('config/checkstyle/checkstyle.xml')
+}
+
+tasks.withType(Checkstyle).configureEach {
+    exclude '**/generated/**'
 }
 
 tasks.withType(JavaCompile).configureEach {

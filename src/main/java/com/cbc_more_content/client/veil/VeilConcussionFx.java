@@ -3,7 +3,6 @@ package com.cbc_more_content.client.veil;
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.client.ConcussionClient;
 import com.cbc_more_content.client.FlashRenderMode;
-
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.post.PostProcessingManager;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
@@ -25,6 +24,7 @@ public final class VeilConcussionFx {
     /** A plain single blit, for the same reason as {@link VeilBombFx#PIPELINE}. */
     public static final ResourceLocation PIPELINE =
             ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "concussion");
+
     private static final ResourceLocation SHADER =
             ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "concussion");
     /** Priority above the bomb flash so the blur is applied to the already-lit frame. */
@@ -32,8 +32,7 @@ public final class VeilConcussionFx {
 
     private static boolean active;
 
-    private VeilConcussionFx() {
-    }
+    private VeilConcussionFx() {}
 
     /** True once the pass is running, so the fallback overlay can stand down. */
     public static boolean isHandlingConcussion() {
@@ -74,14 +73,15 @@ public final class VeilConcussionFx {
             return;
         }
         try {
-            ShaderProgram shader = VeilRenderSystem.renderer().getShaderManager().getShader(SHADER);
+            ShaderProgram shader =
+                    VeilRenderSystem.renderer().getShaderManager().getShader(SHADER);
             if (shader == null) {
                 return;
             }
             shader.getUniformSafe("Shock").setFloat(ConcussionClient.shock());
             shader.getUniformSafe("Recovery").setFloat(ConcussionClient.recovery());
-            shader.getUniformSafe("Time").setFloat(
-                    (Minecraft.getInstance().level.getGameTime() % 20000L) / 20.0f);
+            shader.getUniformSafe("Time")
+                    .setFloat((Minecraft.getInstance().level.getGameTime() % 20000L) / 20.0f);
         } catch (Throwable t) {
             CBCMoreContent.LOGGER.debug("Veil concussion uniform upload failed: {}", t.toString());
         }

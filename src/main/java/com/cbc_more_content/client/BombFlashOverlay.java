@@ -2,7 +2,6 @@ package com.cbc_more_content.client;
 
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.bomb.BombSize;
-
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -15,7 +14,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
-
 import org.joml.Vector3f;
 
 /**
@@ -32,13 +30,14 @@ import org.joml.Vector3f;
 public final class BombFlashOverlay {
     /** Warm fireball tint the overlay fades toward at full intensity. */
     private static final Vector3f CORE_COLOR = new Vector3f(1.0f, 0.86f, 0.55f);
+
     private static final Vector3f EDGE_COLOR = new Vector3f(1.0f, 0.52f, 0.16f);
     /** A blast fully behind the camera still lifts ambient light this much. */
     private static final float BEHIND_CAMERA_GAIN = 0.28f;
+
     private static final float MAX_ALPHA = 0.82f;
 
-    private BombFlashOverlay() {
-    }
+    private BombFlashOverlay() {}
 
     @SubscribeEvent
     public static void onRenderGui(RenderGuiEvent.Post event) {
@@ -83,11 +82,7 @@ public final class BombFlashOverlay {
 
     /** Per-flash screen brightness from distance, view angle and line of sight. */
     private static float contributionOf(
-            Minecraft mc,
-            BombFlashClient.Flash flash,
-            Vec3 camPos,
-            Vector3f look,
-            float partialTick) {
+            Minecraft mc, BombFlashClient.Flash flash, Vec3 camPos, Vector3f look, float partialTick) {
         float fade = flash.fade(partialTick);
         if (fade <= 0.0f) {
             return 0.0f;
@@ -134,18 +129,18 @@ public final class BombFlashOverlay {
             return 1.0f;
         }
         Vec3[] samples = {
-                blastPos.add(0.0D, 1.6D, 0.0D),
-                blastPos,
-                blastPos.add(0.0D, 3.2D, 0.0D),
-                blastPos.add(1.6D, 0.8D, 0.0D),
-                blastPos.add(-1.6D, 0.8D, 0.0D),
-                blastPos.add(0.0D, 0.8D, 1.6D),
-                blastPos.add(0.0D, 0.8D, -1.6D),
+            blastPos.add(0.0D, 1.6D, 0.0D),
+            blastPos,
+            blastPos.add(0.0D, 3.2D, 0.0D),
+            blastPos.add(1.6D, 0.8D, 0.0D),
+            blastPos.add(-1.6D, 0.8D, 0.0D),
+            blastPos.add(0.0D, 0.8D, 1.6D),
+            blastPos.add(0.0D, 0.8D, -1.6D),
         };
         try {
             for (Vec3 sample : samples) {
-                BlockHitResult hit = mc.level.clip(new ClipContext(
-                        camPos, sample, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, mc.player));
+                BlockHitResult hit = mc.level.clip(
+                        new ClipContext(camPos, sample, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, mc.player));
                 if (hit.getType() == HitResult.Type.MISS) {
                     return 1.0f;
                 }

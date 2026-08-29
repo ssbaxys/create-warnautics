@@ -1,13 +1,11 @@
 package com.cbc_more_content.event;
 
+import com.cbc_more_content.CBCMoreContent;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.WeakHashMap;
-
-import com.cbc_more_content.CBCMoreContent;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.BlockGetter;
@@ -30,16 +28,13 @@ public final class TripwireSignal {
     /** A pulse long enough for any repeater or contraption to latch it. */
     public static final int PULSE_TICKS = 20;
 
-    private static final Map<Level, Map<BlockPos, Long>> LIVE =
-            Collections.synchronizedMap(new WeakHashMap<>());
+    private static final Map<Level, Map<BlockPos, Long>> LIVE = Collections.synchronizedMap(new WeakHashMap<>());
 
-    private TripwireSignal() {
-    }
+    private TripwireSignal() {}
 
     /** Marks a post live for {@link #PULSE_TICKS}, and tells its neighbours about it. */
     public static void pulse(ServerLevel level, BlockPos post) {
-        LIVE.computeIfAbsent(level, l -> new HashMap<>())
-                .put(post.immutable(), level.getGameTime() + PULSE_TICKS);
+        LIVE.computeIfAbsent(level, l -> new HashMap<>()).put(post.immutable(), level.getGameTime() + PULSE_TICKS);
         level.updateNeighborsAt(post, level.getBlockState(post).getBlock());
     }
 

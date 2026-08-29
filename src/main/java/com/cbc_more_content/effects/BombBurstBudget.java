@@ -1,13 +1,11 @@
 package com.cbc_more_content.effects;
 
+import com.cbc_more_content.CBCMoreContent;
+import com.cbc_more_content.config.WarnauticsConfig;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
-
-import com.cbc_more_content.CBCMoreContent;
-import com.cbc_more_content.config.WarnauticsConfig;
-
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -27,8 +25,7 @@ import rbasamoyai.ritchiesprojectilelib.effects.screen_shake.ScreenShakeEffect;
 public final class BombBurstBudget {
     private static final Map<ResourceKey<Level>, DimState> STATES = new HashMap<>();
 
-    private BombBurstBudget() {
-    }
+    private BombBurstBudget() {}
 
     public static Snapshot begin(ServerLevel level) {
         long tick = level.getGameTime();
@@ -68,9 +65,10 @@ public final class BombBurstBudget {
                 continue;
             }
             float shake = pending.shake;
-            CreateBigCannons.shakePlayerScreen(pending.player,
-                    new ScreenShakeEffect(0, shake, shake * 0.55f, shake * 0.55f, 1, 1, 1,
-                            pending.x, pending.y, pending.z));
+            CreateBigCannons.shakePlayerScreen(
+                    pending.player,
+                    new ScreenShakeEffect(
+                            0, shake, shake * 0.55f, shake * 0.55f, 1, 1, 1, pending.x, pending.y, pending.z));
         }
         state.pendingShake.clear();
     }
@@ -124,12 +122,13 @@ public final class BombBurstBudget {
         }
 
         public float flashScale() {
-            float base = switch (this) {
-                case FULL -> 1.0f;
-                case REDUCED -> 0.88f;
-                case MINIMAL -> 0.76f;
-                case ESSENTIAL -> 0.65f;
-            };
+            float base =
+                    switch (this) {
+                        case FULL -> 1.0f;
+                        case REDUCED -> 0.88f;
+                        case MINIMAL -> 0.76f;
+                        case ESSENTIAL -> 0.65f;
+                    };
             return base * WarnauticsConfig.blastFxScale();
         }
 
@@ -138,12 +137,13 @@ public final class BombBurstBudget {
          * The server-side FX scale is applied here to keep every call site honest.
          */
         public int puffCount(int basePuffs) {
-            int lodPuffs = switch (this) {
-                case FULL -> basePuffs;
-                case REDUCED -> Math.max(2, basePuffs / 2);
-                case MINIMAL -> Math.max(1, basePuffs / 3);
-                case ESSENTIAL -> 1;
-            };
+            int lodPuffs =
+                    switch (this) {
+                        case FULL -> basePuffs;
+                        case REDUCED -> Math.max(2, basePuffs / 2);
+                        case MINIMAL -> Math.max(1, basePuffs / 3);
+                        case ESSENTIAL -> 1;
+                    };
             float scale = WarnauticsConfig.blastFxScale();
             if (scale >= 1.0f) {
                 return lodPuffs;
@@ -181,9 +181,9 @@ public final class BombBurstBudget {
             }
             // Under load: coalesce to one max shake per player per tick (flushed end-of-tick).
             if (this.lod == Lod.FULL && this.index <= 3) {
-                CreateBigCannons.shakePlayerScreen(player,
-                        new ScreenShakeEffect(0, shake, shake * 0.55f, shake * 0.55f, 1, 1, 1,
-                                pos.x, pos.y, pos.z));
+                CreateBigCannons.shakePlayerScreen(
+                        player,
+                        new ScreenShakeEffect(0, shake, shake * 0.55f, shake * 0.55f, 1, 1, 1, pos.x, pos.y, pos.z));
                 return;
             }
             UUID id = player.getUUID();
@@ -200,6 +200,5 @@ public final class BombBurstBudget {
         final Map<UUID, PendingShake> pendingShake = new HashMap<>();
     }
 
-    private record PendingShake(ServerPlayer player, float shake, double x, double y, double z) {
-    }
+    private record PendingShake(ServerPlayer player, float shake, double x, double y, double z) {}
 }

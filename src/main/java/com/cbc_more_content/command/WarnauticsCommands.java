@@ -4,7 +4,6 @@ import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.network.OpenControlPanelPayload;
 import com.cbc_more_content.settings.WarnauticsServerSettings;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -26,8 +25,7 @@ public final class WarnauticsCommands {
     /** Game-master level. The same bar vanilla puts on /gamerule, and for the same reason. */
     public static final int PERMISSION_LEVEL = 2;
 
-    private WarnauticsCommands() {
-    }
+    private WarnauticsCommands() {}
 
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
@@ -37,8 +35,8 @@ public final class WarnauticsCommands {
                     ServerPlayer player = context.getSource().getPlayer();
                     if (player == null) {
                         // The panel is a screen; there is nowhere to put one on a console.
-                        context.getSource().sendFailure(
-                                Component.translatable("command.cbc_more_content.panel.player_only"));
+                        context.getSource()
+                                .sendFailure(Component.translatable("command.cbc_more_content.panel.player_only"));
                         return 0;
                     }
                     open(player);
@@ -50,7 +48,6 @@ public final class WarnauticsCommands {
     /** Sends an operator the current switch positions so the panel opens reading true. */
     public static void open(ServerPlayer player) {
         WarnauticsServerSettings settings = WarnauticsServerSettings.get(player.server);
-        PacketDistributor.sendToPlayer(player,
-                new OpenControlPanelPayload(settings.cannonFx()));
+        PacketDistributor.sendToPlayer(player, new OpenControlPanelPayload(settings.cannonFx()));
     }
 }

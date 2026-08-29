@@ -6,10 +6,8 @@ import com.cbc_more_content.effects.BombBlastFx;
 import com.cbc_more_content.effects.BombExplosionHandler;
 import com.cbc_more_content.registry.ModBlockEntities;
 import com.cbc_more_content.registry.ModSounds;
-
 import java.util.ArrayList;
 import java.util.List;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -37,9 +35,11 @@ public class C4BlockEntity extends BlockEntity {
 
     /** Breaching charge: hits hard, but over a tight radius. */
     private static final float BLOCK_POWER = 7.5f;
+
     private static final float ENTITY_POWER = 9.0f;
     /** Beep spacing: one a second while there is time, frantic at the end. */
     private static final int START_INTERVAL = 20;
+
     private static final int END_INTERVAL = 4;
     /** Screen stays lit this long after each beep — always under {@link #END_INTERVAL}. */
     private static final int BLINK_TICKS = 2;
@@ -65,6 +65,7 @@ public class C4BlockEntity extends BlockEntity {
     private final int[] wireColours = new int[WIRE_COUNT];
     /** Which wire does what. Never synced — that is the whole puzzle. */
     private int defuseWire = -1;
+
     private int detonateWire = -1;
     /** Bitmask of wires already cut. Synced, and persists across closing the panel. */
     private int cutMask;
@@ -153,8 +154,7 @@ public class C4BlockEntity extends BlockEntity {
         // block state and not only this block entity.
         BlockState state = this.level.getBlockState(this.worldPosition);
         if (state.hasProperty(C4Block.RECEIVER) && state.getValue(C4Block.RECEIVER) != value) {
-            this.level.setBlock(this.worldPosition,
-                    state.setValue(C4Block.RECEIVER, value), Block.UPDATE_CLIENTS);
+            this.level.setBlock(this.worldPosition, state.setValue(C4Block.RECEIVER, value), Block.UPDATE_CLIENTS);
         }
         BlockState updated = this.level.getBlockState(this.worldPosition);
         this.level.sendBlockUpdated(this.worldPosition, updated, updated, Block.UPDATE_CLIENTS);
@@ -175,8 +175,7 @@ public class C4BlockEntity extends BlockEntity {
     public static int fireRing(ServerLevel server, List<BlockPos> ring) {
         List<BlockPos> live = new ArrayList<>(ring.size());
         for (BlockPos at : ring) {
-            if (server.getBlockEntity(at) instanceof C4BlockEntity charge
-                    && charge.isWaitingOnRemote()) {
+            if (server.getBlockEntity(at) instanceof C4BlockEntity charge && charge.isWaitingOnRemote()) {
                 live.add(at);
             }
         }
@@ -202,7 +201,8 @@ public class C4BlockEntity extends BlockEntity {
         this.setChanged();
         // The settings screen reads this back off the client copy, so it has to travel.
         if (this.level != null) {
-            this.level.sendBlockUpdated(this.worldPosition, this.getBlockState(), this.getBlockState(), Block.UPDATE_CLIENTS);
+            this.level.sendBlockUpdated(
+                    this.worldPosition, this.getBlockState(), this.getBlockState(), Block.UPDATE_CLIENTS);
         }
     }
 
@@ -255,8 +255,8 @@ public class C4BlockEntity extends BlockEntity {
         this.cutMask |= 1 << wire;
         this.setChanged();
         if (this.level != null) {
-            this.level.sendBlockUpdated(this.worldPosition,
-                    this.getBlockState(), this.getBlockState(), Block.UPDATE_CLIENTS);
+            this.level.sendBlockUpdated(
+                    this.worldPosition, this.getBlockState(), this.getBlockState(), Block.UPDATE_CLIENTS);
         }
         if (wire == this.defuseWire) {
             this.disarm();
@@ -391,8 +391,7 @@ public class C4BlockEntity extends BlockEntity {
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
         this.fuseSeconds = Mth.clamp(
-                tag.contains("FuseSeconds") ? tag.getInt("FuseSeconds") : DEFAULT_SECONDS,
-                MIN_SECONDS, MAX_SECONDS);
+                tag.contains("FuseSeconds") ? tag.getInt("FuseSeconds") : DEFAULT_SECONDS, MIN_SECONDS, MAX_SECONDS);
         this.remaining = tag.getInt("Remaining");
         this.code = tag.contains("Code") ? tag.getInt("Code") : -1;
         this.tamperTicks = tag.getInt("Tamper");

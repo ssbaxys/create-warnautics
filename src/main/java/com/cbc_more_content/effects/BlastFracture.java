@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
@@ -35,8 +34,7 @@ public final class BlastFracture {
     /** Below this a charge has nothing to spare for hard material anyway. */
     private static final double MIN_POWER = 5.0D;
 
-    private BlastFracture() {
-    }
+    private BlastFracture() {}
 
     /** Energy a block absorbs before it breaks. */
     public static double cost(double explosionResistance) {
@@ -56,8 +54,7 @@ public final class BlastFracture {
      * block in every other blast model protects it here: a slab of obsidian shields what
      * is behind it, because the ray pays for the obsidian and runs out.
      */
-    public static List<BlockPos> gather(
-            ServerLevel level, Vec3 center, double power, Collection<BlockPos> already) {
+    public static List<BlockPos> gather(ServerLevel level, Vec3 center, double power, Collection<BlockPos> already) {
         List<BlockPos> added = new ArrayList<>();
         if (power < MIN_POWER) {
             return added;
@@ -71,9 +68,12 @@ public final class BlastFracture {
         for (int gx = 0; gx < RAYS_PER_AXIS; gx++) {
             for (int gy = 0; gy < RAYS_PER_AXIS; gy++) {
                 for (int gz = 0; gz < RAYS_PER_AXIS; gz++) {
-                    if (gx != 0 && gx != RAYS_PER_AXIS - 1
-                            && gy != 0 && gy != RAYS_PER_AXIS - 1
-                            && gz != 0 && gz != RAYS_PER_AXIS - 1) {
+                    if (gx != 0
+                            && gx != RAYS_PER_AXIS - 1
+                            && gy != 0
+                            && gy != RAYS_PER_AXIS - 1
+                            && gz != 0
+                            && gz != RAYS_PER_AXIS - 1) {
                         // Interior of the grid; only its surface gives ray directions.
                         continue;
                     }
@@ -87,8 +87,18 @@ public final class BlastFracture {
                     if (length < 1.0E-6D) {
                         continue;
                     }
-                    walk(level, center, dx / length, dy / length, dz / length,
-                            available(power, 0.0D, radius), drain, radius, seen, added, cursor);
+                    walk(
+                            level,
+                            center,
+                            dx / length,
+                            dy / length,
+                            dz / length,
+                            available(power, 0.0D, radius),
+                            drain,
+                            radius,
+                            seen,
+                            added,
+                            cursor);
                 }
             }
         }
@@ -96,9 +106,17 @@ public final class BlastFracture {
     }
 
     private static void walk(
-            ServerLevel level, Vec3 center, double dx, double dy, double dz,
-            double energy, double drain, double radius,
-            Set<BlockPos> seen, List<BlockPos> added, BlockPos.MutableBlockPos cursor) {
+            ServerLevel level,
+            Vec3 center,
+            double dx,
+            double dy,
+            double dz,
+            double energy,
+            double drain,
+            double radius,
+            Set<BlockPos> seen,
+            List<BlockPos> added,
+            BlockPos.MutableBlockPos cursor) {
         double x = center.x;
         double y = center.y;
         double z = center.z;

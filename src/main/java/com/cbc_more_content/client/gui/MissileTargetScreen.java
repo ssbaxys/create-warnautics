@@ -2,7 +2,6 @@ package com.cbc_more_content.client.gui;
 
 import com.cbc_more_content.network.MissileTargetPayload;
 import com.cbc_more_content.registry.ModSounds;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -12,7 +11,6 @@ import net.minecraft.util.Mth;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
-
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -47,8 +45,8 @@ public class MissileTargetScreen extends Screen {
      * with nothing behind it: the missile armed, waited on a picture nobody was painting,
      * and sat on the rack.
      */
-    private static final boolean INTERCEPT_AVAILABLE =
-            com.cbc_more_content.compat.RadarCompat.loaded();
+    private static final boolean INTERCEPT_AVAILABLE = com.cbc_more_content.compat.RadarCompat.loaded();
+
     private static final int MODES = INTERCEPT_AVAILABLE ? 3 : 2;
 
     private final BlockPos pos;
@@ -106,17 +104,20 @@ public class MissileTargetScreen extends Screen {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
         WarnauticsGuiTextures.C4_PANEL.render(graphics, this.guiLeft, this.guiTop);
 
-        graphics.drawCenteredString(this.font, this.title,
-                this.guiLeft + PANEL_W / 2, this.guiTop + 6, 0xE8E2CF);
+        graphics.drawCenteredString(this.font, this.title, this.guiLeft + PANEL_W / 2, this.guiTop + 6, 0xE8E2CF);
 
         float now = this.time + partialTick;
         this.renderMode(graphics, mouseX, mouseY);
         if (this.mode != 0) {
-            graphics.drawCenteredString(this.font,
-                    Component.translatable(this.mode == 1
-                            ? "gui.cbc_more_content.missile.remote.armed"
-                            : "gui.cbc_more_content.missile.intercept.armed"),
-                    this.guiLeft + PANEL_W / 2, this.guiTop + FIELDS_Y + 6, 0xFFB036);
+            graphics.drawCenteredString(
+                    this.font,
+                    Component.translatable(
+                            this.mode == 1
+                                    ? "gui.cbc_more_content.missile.remote.armed"
+                                    : "gui.cbc_more_content.missile.intercept.armed"),
+                    this.guiLeft + PANEL_W / 2,
+                    this.guiTop + FIELDS_Y + 6,
+                    0xFFB036);
         } else {
             for (int i = 0; i < 3; i++) {
                 this.renderField(graphics, i, mouseX, mouseY, now);
@@ -124,13 +125,17 @@ public class MissileTargetScreen extends Screen {
         }
         this.renderConfirm(graphics, mouseX, mouseY);
 
-        graphics.drawCenteredString(this.font,
-                Component.translatable(switch (this.mode) {
-                    case 1 -> "gui.cbc_more_content.missile.remote.hint";
-                    case 2 -> "gui.cbc_more_content.missile.intercept.hint";
-                    default -> "gui.cbc_more_content.missile.target.hint";
-                }),
-                this.guiLeft + PANEL_W / 2, this.guiTop + PANEL_H - 16, 0x9AA08C);
+        graphics.drawCenteredString(
+                this.font,
+                Component.translatable(
+                        switch (this.mode) {
+                            case 1 -> "gui.cbc_more_content.missile.remote.hint";
+                            case 2 -> "gui.cbc_more_content.missile.intercept.hint";
+                            default -> "gui.cbc_more_content.missile.target.hint";
+                        }),
+                this.guiLeft + PANEL_W / 2,
+                this.guiTop + PANEL_H - 16,
+                0x9AA08C);
 
         super.render(graphics, mouseX, mouseY, partialTick);
     }
@@ -143,15 +148,23 @@ public class MissileTargetScreen extends Screen {
             int y = this.guiTop + MODE_Y;
             boolean hot = mouseX >= x && mouseX < x + MODE_W && mouseY >= y && mouseY < y + MODE_H;
             graphics.fill(x, y, x + MODE_W, y + MODE_H, 0xFF12140F);
-            graphics.fill(x + 1, y + 1, x + MODE_W - 1, y + MODE_H - 1,
+            graphics.fill(
+                    x + 1,
+                    y + 1,
+                    x + MODE_W - 1,
+                    y + MODE_H - 1,
                     chosen ? 0xFF4A5042 : (hot ? 0xFF31362B : 0xFF23271E));
-            graphics.drawCenteredString(this.font,
-                    Component.translatable(switch (i) {
-                        case 1 -> "gui.cbc_more_content.missile.mode.remote";
-                        case 2 -> "gui.cbc_more_content.missile.mode.intercept";
-                        default -> "gui.cbc_more_content.missile.mode.coords";
-                    }),
-                    x + MODE_W / 2, y + 4, chosen ? 0xFFB036 : 0x9AA08C);
+            graphics.drawCenteredString(
+                    this.font,
+                    Component.translatable(
+                            switch (i) {
+                                case 1 -> "gui.cbc_more_content.missile.mode.remote";
+                                case 2 -> "gui.cbc_more_content.missile.mode.intercept";
+                                default -> "gui.cbc_more_content.missile.mode.coords";
+                            }),
+                    x + MODE_W / 2,
+                    y + 4,
+                    chosen ? 0xFFB036 : 0x9AA08C);
         }
     }
 
@@ -167,8 +180,7 @@ public class MissileTargetScreen extends Screen {
 
         graphics.fill(x, y, x + FIELD_W, y + FIELD_H, 0xFF12140F);
         graphics.fill(x + 1, y + 1, x + FIELD_W - 1, y + FIELD_H - 1, 0xFF1C1E1B);
-        graphics.fill(x + 1, y + FIELD_H - 2, x + FIELD_W - 1, y + FIELD_H - 1,
-                focused ? 0xFFB08A3E : 0xFF5C6450);
+        graphics.fill(x + 1, y + FIELD_H - 2, x + FIELD_W - 1, y + FIELD_H - 1, focused ? 0xFFB08A3E : 0xFF5C6450);
 
         graphics.drawString(this.font, LABELS[index], x + 3, y - 10, 0x9AA08C, false);
 
@@ -176,8 +188,12 @@ public class MissileTargetScreen extends Screen {
         if (focused && (int) (now / 8.0f) % 2 == 0) {
             text = text + "_";
         }
-        graphics.drawCenteredString(this.font, text.isEmpty() ? "-" : text,
-                x + FIELD_W / 2, y + FIELD_H / 2 - 4, focused ? 0xFFB036 : 0xE8E2CF);
+        graphics.drawCenteredString(
+                this.font,
+                text.isEmpty() ? "-" : text,
+                x + FIELD_W / 2,
+                y + FIELD_H / 2 - 4,
+                focused ? 0xFFB036 : 0xE8E2CF);
     }
 
     private void renderConfirm(GuiGraphics graphics, int mouseX, int mouseY) {
@@ -186,11 +202,12 @@ public class MissileTargetScreen extends Screen {
         boolean ready = this.complete();
         boolean hot = ready && this.overConfirm(mouseX, mouseY);
         graphics.fill(x, y, x + BUTTON_W, y + BUTTON_H, 0xFF12140F);
-        graphics.fill(x + 1, y + 1, x + BUTTON_W - 1, y + BUTTON_H - 1,
-                hot ? 0xFF4A5042 : 0xFF3A3F34);
-        graphics.drawCenteredString(this.font,
+        graphics.fill(x + 1, y + 1, x + BUTTON_W - 1, y + BUTTON_H - 1, hot ? 0xFF4A5042 : 0xFF3A3F34);
+        graphics.drawCenteredString(
+                this.font,
                 Component.translatable("gui.cbc_more_content.missile.target.set"),
-                x + BUTTON_W / 2, y + 5,
+                x + BUTTON_W / 2,
+                y + 5,
                 ready ? (hot ? 0xFFB036 : 0xE8E2CF) : 0x6A6F60);
     }
 
@@ -308,9 +325,8 @@ public class MissileTargetScreen extends Screen {
             return;
         }
         this.sent = true;
-        PacketDistributor.sendToServer(new MissileTargetPayload(this.pos,
-                parse(this.fields[0]), parse(this.fields[1]), parse(this.fields[2]),
-                this.mode));
+        PacketDistributor.sendToServer(new MissileTargetPayload(
+                this.pos, parse(this.fields[0]), parse(this.fields[1]), parse(this.fields[2]), this.mode));
         this.click(1.25f);
         this.onClose();
     }

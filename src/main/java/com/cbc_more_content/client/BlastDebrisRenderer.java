@@ -4,7 +4,6 @@ import com.cbc_more_content.entity.BlastDebrisEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -38,8 +37,12 @@ public class BlastDebrisRenderer extends EntityRenderer<BlastDebrisEntity> {
 
     @Override
     public void render(
-            BlastDebrisEntity entity, float yaw, float partialTick,
-            PoseStack pose, MultiBufferSource buffers, int packedLight) {
+            BlastDebrisEntity entity,
+            float yaw,
+            float partialTick,
+            PoseStack pose,
+            MultiBufferSource buffers,
+            int packedLight) {
         BlockState state = entity.blockState();
         if (state.isAir()) {
             return;
@@ -80,8 +83,7 @@ public class BlastDebrisRenderer extends EntityRenderer<BlastDebrisEntity> {
         PoseStack.Pose last = pose.last();
         int light = melt > 0.0f
                 ? packedLight
-                : net.minecraft.client.renderer.LevelRenderer.getLightColor(
-                        entity.level(), entity.blockPosition());
+                : net.minecraft.client.renderer.LevelRenderer.getLightColor(entity.level(), entity.blockPosition());
 
         cuboid(consumer, last, box, sprite, light);
         pose.popPose();
@@ -90,8 +92,7 @@ public class BlastDebrisRenderer extends EntityRenderer<BlastDebrisEntity> {
     }
 
     private static void cuboid(
-            VertexConsumer consumer, PoseStack.Pose pose, float[] box,
-            TextureAtlasSprite sprite, int light) {
+            VertexConsumer consumer, PoseStack.Pose pose, float[] box, TextureAtlasSprite sprite, int light) {
         float x0 = box[0];
         float y0 = box[1];
         float z0 = box[2];
@@ -116,11 +117,28 @@ public class BlastDebrisRenderer extends EntityRenderer<BlastDebrisEntity> {
     }
 
     private static void quad(
-            VertexConsumer consumer, PoseStack.Pose pose,
-            float x1, float y1, float z1, float x2, float y2, float z2,
-            float x3, float y3, float z3, float x4, float y4, float z4,
-            float u0, float v0, float u1, float v1, int light,
-            float nx, float ny, float nz) {
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            float x1,
+            float y1,
+            float z1,
+            float x2,
+            float y2,
+            float z2,
+            float x3,
+            float y3,
+            float z3,
+            float x4,
+            float y4,
+            float z4,
+            float u0,
+            float v0,
+            float u1,
+            float v1,
+            int light,
+            float nx,
+            float ny,
+            float nz) {
         vertex(consumer, pose, x1, y1, z1, u0, v0, light, nx, ny, nz);
         vertex(consumer, pose, x2, y2, z2, u0, v1, light, nx, ny, nz);
         vertex(consumer, pose, x3, y3, z3, u1, v1, light, nx, ny, nz);
@@ -128,9 +146,17 @@ public class BlastDebrisRenderer extends EntityRenderer<BlastDebrisEntity> {
     }
 
     private static void vertex(
-            VertexConsumer consumer, PoseStack.Pose pose,
-            float x, float y, float z, float u, float v, int light,
-            float nx, float ny, float nz) {
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            float x,
+            float y,
+            float z,
+            float u,
+            float v,
+            int light,
+            float nx,
+            float ny,
+            float nz) {
         consumer.addVertex(pose, x, y, z)
                 .setColor(255, 255, 255, 255)
                 .setUv(u, v)

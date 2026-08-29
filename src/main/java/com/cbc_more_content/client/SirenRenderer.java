@@ -5,7 +5,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
-
 import net.createmod.catnip.render.CachedBuffers;
 import net.createmod.catnip.render.SuperByteBuffer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -36,11 +35,10 @@ public class SirenRenderer extends KineticBlockEntityRenderer<SirenBlockEntity> 
 
     @Override
     protected void renderSafe(
-            SirenBlockEntity be, float partialTicks, PoseStack ms,
-            MultiBufferSource buffer, int light, int overlay) {
+            SirenBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer, int light, int overlay) {
         VertexConsumer consumer = buffer.getBuffer(RenderType.solid());
-        SuperByteBuffer shaft = CachedBuffers.partialFacing(
-                AllPartialModels.SHAFT_HALF, be.getBlockState(), Direction.DOWN);
+        SuperByteBuffer shaft =
+                CachedBuffers.partialFacing(AllPartialModels.SHAFT_HALF, be.getBlockState(), Direction.DOWN);
         KineticBlockEntityRenderer.renderRotatingBuffer(be, shaft, ms, consumer, light);
     }
 }

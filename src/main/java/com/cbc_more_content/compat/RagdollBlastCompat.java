@@ -1,12 +1,9 @@
 package com.cbc_more_content.compat;
 
-import java.lang.reflect.Method;
-
-import javax.annotation.Nullable;
-
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.bomb.BombSize;
-
+import java.lang.reflect.Method;
+import javax.annotation.Nullable;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
@@ -31,17 +28,20 @@ public final class RagdollBlastCompat {
 
     @Nullable
     private static Method launchPlayer;
+
     @Nullable
     private static Method isPlayerRagdolled;
+
     @Nullable
     private static Method launchMob;
+
     @Nullable
     private static Method isMobRagdolled;
+
     private static boolean resolved;
     private static boolean available;
 
-    private RagdollBlastCompat() {
-    }
+    private RagdollBlastCompat() {}
 
     /**
      * Call after bomb knockback is computed. No-op if ragdoll mods absent or reactions
@@ -60,12 +60,13 @@ public final class RagdollBlastCompat {
         }
 
         double radius = Math.max(entityPower * 2.0D, 5.0D);
-        float launchMul = switch (size) {
-            case SMALL -> 12.0f;
-            case SEA -> 14.0f;
-            case MEDIUM -> 15.0f;
-            case LARGE -> 18.0f;
-        };
+        float launchMul =
+                switch (size) {
+                    case SMALL -> 12.0f;
+                    case SEA -> 14.0f;
+                    case MEDIUM -> 15.0f;
+                    case LARGE -> 18.0f;
+                };
 
         AABB area = new AABB(center, center).inflate(radius);
         for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, area, LivingEntity::isAlive)) {

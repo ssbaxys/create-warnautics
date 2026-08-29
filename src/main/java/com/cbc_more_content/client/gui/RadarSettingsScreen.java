@@ -3,7 +3,6 @@ package com.cbc_more_content.client.gui;
 import com.cbc_more_content.network.RadarSettingsPayload;
 import com.cbc_more_content.radar.InterceptSettings;
 import com.cbc_more_content.registry.ModSounds;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -14,7 +13,6 @@ import net.minecraft.util.Mth;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
-
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -53,6 +51,7 @@ public class RadarSettingsScreen extends Screen {
     private boolean hullsOnly;
     /** Which slider the mouse took hold of: 0 none, 1 speed, 2 range. */
     private int dragging;
+
     private boolean sent;
 
     private int guiLeft;
@@ -82,13 +81,17 @@ public class RadarSettingsScreen extends Screen {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
         WarnauticsGuiTextures.C4_PANEL.render(graphics, this.guiLeft, this.guiTop);
 
-        graphics.drawCenteredString(this.font, this.title,
-                this.guiLeft + PANEL_W / 2, this.guiTop + 5, 0xE8E2CF);
+        graphics.drawCenteredString(this.font, this.title, this.guiLeft + PANEL_W / 2, this.guiTop + 5, 0xE8E2CF);
 
-        this.renderSlider(graphics, SPEED_Y, this.speedProgress(),
-                Component.translatable("gui.cbc_more_content.radar.min_speed",
-                        String.format("%.2f", this.minSpeed)));
-        this.renderSlider(graphics, RANGE_Y, this.rangeProgress(),
+        this.renderSlider(
+                graphics,
+                SPEED_Y,
+                this.speedProgress(),
+                Component.translatable("gui.cbc_more_content.radar.min_speed", String.format("%.2f", this.minSpeed)));
+        this.renderSlider(
+                graphics,
+                RANGE_Y,
+                this.rangeProgress(),
                 Component.translatable("gui.cbc_more_content.radar.max_range", this.maxRange));
         this.renderToggle(graphics, mouseX, mouseY);
         this.renderConfirm(graphics, mouseX, mouseY);
@@ -114,13 +117,20 @@ public class RadarSettingsScreen extends Screen {
         int y = this.guiTop + TOGGLE_Y;
         boolean hot = this.over(mouseX, mouseY, x, y, TOGGLE_W, TOGGLE_H);
         graphics.fill(x, y, x + TOGGLE_W, y + TOGGLE_H, 0xFF12140F);
-        graphics.fill(x + 1, y + 1, x + TOGGLE_W - 1, y + TOGGLE_H - 1,
+        graphics.fill(
+                x + 1,
+                y + 1,
+                x + TOGGLE_W - 1,
+                y + TOGGLE_H - 1,
                 this.hullsOnly ? 0xFF3A4033 : (hot ? 0xFF2A2E24 : 0xFF1C1E1B));
-        graphics.fill(x + 1, y + 1, x + 3, y + TOGGLE_H - 1,
-                this.hullsOnly ? 0xFFB08A3E : 0xFF5C6450);
-        graphics.drawString(this.font,
+        graphics.fill(x + 1, y + 1, x + 3, y + TOGGLE_H - 1, this.hullsOnly ? 0xFFB08A3E : 0xFF5C6450);
+        graphics.drawString(
+                this.font,
                 Component.translatable("gui.cbc_more_content.radar.hulls_only"),
-                x + 8, y + 3, this.hullsOnly ? 0xFFB036 : 0x9AA08C, false);
+                x + 8,
+                y + 3,
+                this.hullsOnly ? 0xFFB036 : 0x9AA08C,
+                false);
     }
 
     private void renderConfirm(GuiGraphics graphics, int mouseX, int mouseY) {
@@ -128,11 +138,13 @@ public class RadarSettingsScreen extends Screen {
         int y = this.guiTop + BUTTON_Y;
         boolean hot = this.over(mouseX, mouseY, x, y, BUTTON_W, BUTTON_H);
         graphics.fill(x, y, x + BUTTON_W, y + BUTTON_H, 0xFF12140F);
-        graphics.fill(x + 1, y + 1, x + BUTTON_W - 1, y + BUTTON_H - 1,
-                hot ? 0xFF4A5042 : 0xFF3A3F34);
-        graphics.drawCenteredString(this.font,
+        graphics.fill(x + 1, y + 1, x + BUTTON_W - 1, y + BUTTON_H - 1, hot ? 0xFF4A5042 : 0xFF3A3F34);
+        graphics.drawCenteredString(
+                this.font,
                 Component.translatable("gui.cbc_more_content.radar.apply"),
-                x + BUTTON_W / 2, y + 4, hot ? 0xFFB036 : 0xE8E2CF);
+                x + BUTTON_W / 2,
+                y + 4,
+                hot ? 0xFFB036 : 0xE8E2CF);
     }
 
     private float speedProgress() {
@@ -149,8 +161,7 @@ public class RadarSettingsScreen extends Screen {
     }
 
     private boolean overTrack(double mouseX, double mouseY, int offsetY) {
-        return this.over(mouseX, mouseY, this.guiLeft + TRACK_X, this.guiTop + offsetY,
-                TRACK_W, KNOB_H);
+        return this.over(mouseX, mouseY, this.guiLeft + TRACK_X, this.guiTop + offsetY, TRACK_W, KNOB_H);
     }
 
     @Override
@@ -165,14 +176,12 @@ public class RadarSettingsScreen extends Screen {
             this.dragTo(mouseX);
             return true;
         }
-        if (this.over(mouseX, mouseY, this.guiLeft + TOGGLE_X, this.guiTop + TOGGLE_Y,
-                TOGGLE_W, TOGGLE_H)) {
+        if (this.over(mouseX, mouseY, this.guiLeft + TOGGLE_X, this.guiTop + TOGGLE_Y, TOGGLE_W, TOGGLE_H)) {
             this.hullsOnly = !this.hullsOnly;
             this.click(this.hullsOnly ? 1.4f : 1.0f);
             return true;
         }
-        if (this.over(mouseX, mouseY, this.guiLeft + BUTTON_X, this.guiTop + BUTTON_Y,
-                BUTTON_W, BUTTON_H)) {
+        if (this.over(mouseX, mouseY, this.guiLeft + BUTTON_X, this.guiTop + BUTTON_Y, BUTTON_W, BUTTON_H)) {
             this.confirm();
             return true;
         }
@@ -195,9 +204,8 @@ public class RadarSettingsScreen extends Screen {
     }
 
     private void dragTo(double mouseX) {
-        float progress = Mth.clamp(
-                (float) (mouseX - (this.guiLeft + TRACK_X + KNOB_W / 2.0D)) / (TRACK_W - KNOB_W),
-                0.0f, 1.0f);
+        float progress =
+                Mth.clamp((float) (mouseX - (this.guiLeft + TRACK_X + KNOB_W / 2.0D)) / (TRACK_W - KNOB_W), 0.0f, 1.0f);
         if (this.dragging == 1) {
             float next = progress * InterceptSettings.MIN_SPEED_CEILING;
             // Quantised, so the number under the label settles instead of flickering.
@@ -207,8 +215,8 @@ public class RadarSettingsScreen extends Screen {
                 this.tick(progress);
             }
         } else if (this.dragging == 2) {
-            int next = InterceptSettings.RANGE_FLOOR + Math.round(progress
-                    * (InterceptSettings.RANGE_CEILING - InterceptSettings.RANGE_FLOOR));
+            int next = InterceptSettings.RANGE_FLOOR
+                    + Math.round(progress * (InterceptSettings.RANGE_CEILING - InterceptSettings.RANGE_FLOOR));
             next = next / 8 * 8;
             if (next != this.maxRange) {
                 this.maxRange = next;
@@ -231,8 +239,8 @@ public class RadarSettingsScreen extends Screen {
             return;
         }
         this.sent = true;
-        PacketDistributor.sendToServer(new RadarSettingsPayload(this.controller,
-                new InterceptSettings(this.minSpeed, this.maxRange, this.hullsOnly)));
+        PacketDistributor.sendToServer(new RadarSettingsPayload(
+                this.controller, new InterceptSettings(this.minSpeed, this.maxRange, this.hullsOnly)));
         this.click(0.85f);
         this.onClose();
     }

@@ -3,16 +3,14 @@ package com.cbc_more_content.client;
 import com.cbc_more_content.CBCMoreContent;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.geom.EntityModelSet;
+import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
-import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.entity.ItemRenderer;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
-import net.minecraft.client.model.geom.EntityModelSet;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
@@ -32,6 +30,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 public class WireCutterRenderer extends BlockEntityWithoutLevelRenderer {
     /** The rivet, from the authored element rotation origins. */
     private static final float PIVOT_X = 8.0f / 16.0f;
+
     private static final float PIVOT_Y = 5.5f / 16.0f;
     private static final float PIVOT_Z = 7.5f / 16.0f;
     /** How far each handle travels at the tightest point of the squeeze. */
@@ -79,8 +78,14 @@ public class WireCutterRenderer extends BlockEntityWithoutLevelRenderer {
     }
 
     private void renderHinged(
-            ItemRenderer items, BakedModel model, ItemStack stack, PoseStack pose,
-            MultiBufferSource buffers, int light, int overlay, float angle) {
+            ItemRenderer items,
+            BakedModel model,
+            ItemStack stack,
+            PoseStack pose,
+            MultiBufferSource buffers,
+            int light,
+            int overlay,
+            float angle) {
         pose.pushPose();
         pose.translate(PIVOT_X, PIVOT_Y, PIVOT_Z);
         pose.mulPose(Axis.ZP.rotationDegrees(angle));
@@ -90,9 +95,19 @@ public class WireCutterRenderer extends BlockEntityWithoutLevelRenderer {
     }
 
     private void renderPart(
-            ItemRenderer items, BakedModel model, ItemStack stack, PoseStack pose,
-            MultiBufferSource buffers, int light, int overlay) {
-        items.renderModelLists(model, stack, light, overlay, pose,
+            ItemRenderer items,
+            BakedModel model,
+            ItemStack stack,
+            PoseStack pose,
+            MultiBufferSource buffers,
+            int light,
+            int overlay) {
+        items.renderModelLists(
+                model,
+                stack,
+                light,
+                overlay,
+                pose,
                 buffers.getBuffer(net.minecraft.client.renderer.Sheets.translucentCullBlockSheet()));
     }
 

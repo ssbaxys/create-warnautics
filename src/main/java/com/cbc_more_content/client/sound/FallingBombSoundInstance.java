@@ -4,7 +4,6 @@ import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.munitions.DropBombProjectile;
 import com.cbc_more_content.munitions.SeaBombProjectile;
 import com.cbc_more_content.registry.ModSounds;
-
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
@@ -32,7 +31,9 @@ public final class FallingBombSoundInstance extends AbstractTickableSoundInstanc
     private int fadeTicks;
 
     public FallingBombSoundInstance(LocalPlayer player, DropBombProjectile bomb) {
-        super(ModSounds.BOMB_FALLING.get(), SoundSource.BLOCKS,
+        super(
+                ModSounds.BOMB_FALLING.get(),
+                SoundSource.BLOCKS,
                 RandomSource.create((long) bomb.getId() * 31L + 0x5741524eL));
         this.player = player;
         this.bomb = bomb;
@@ -64,7 +65,8 @@ public final class FallingBombSoundInstance extends AbstractTickableSoundInstanc
         this.age++;
         this.updatePosition();
 
-        if (!this.selected || !isAirborne(this.bomb)
+        if (!this.selected
+                || !isAirborne(this.bomb)
                 || this.player.isRemoved()
                 || this.player.level() != this.bomb.level()) {
             this.fadeOut();
@@ -84,9 +86,7 @@ public final class FallingBombSoundInstance extends AbstractTickableSoundInstanc
         this.fadeTicks = 0;
         Vec3 relativeVelocity = this.bomb.getDeltaMovement().subtract(this.player.getDeltaMovement());
         double speed = this.bomb.getDeltaMovement().length();
-        double radialSpeed = distance > 1.0E-4D
-                ? relativeVelocity.dot(toListener.scale(1.0D / distance))
-                : 0.0D;
+        double radialSpeed = distance > 1.0E-4D ? relativeVelocity.dot(toListener.scale(1.0D / distance)) : 0.0D;
 
         float proximity = Mth.clamp(1.0f - (float) (distance / range), 0.0f, 1.0f);
         float distanceEnvelope = 0.035f + 0.965f * (float) Math.pow(proximity, 0.72D);
@@ -108,10 +108,8 @@ public final class FallingBombSoundInstance extends AbstractTickableSoundInstanc
         // Positive radial speed means the bomb is moving toward the listener.
         float doppler = Mth.clamp((float) radialSpeed * 0.075f, -0.12f, 0.15f);
         float speedPitch = Mth.clamp((float) speed * 0.025f, 0.0f, 0.08f);
-        float targetPitch = Mth.clamp(
-                basePitch(this.bomb.bombSize()) + this.detune + doppler + speedPitch,
-                0.55f,
-                1.35f);
+        float targetPitch =
+                Mth.clamp(basePitch(this.bomb.bombSize()) + this.detune + doppler + speedPitch, 0.55f, 1.35f);
 
         this.volume = Mth.lerp(0.24f, this.volume, targetVolume);
         this.pitch = Mth.lerp(0.18f, this.pitch, targetPitch);

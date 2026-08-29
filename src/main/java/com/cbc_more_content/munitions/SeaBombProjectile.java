@@ -1,7 +1,6 @@
 package com.cbc_more_content.munitions;
 
 import com.cbc_more_content.registry.ModSounds;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -45,6 +44,7 @@ public class SeaBombProjectile extends DropBombProjectile {
     private static final double SWIM_SPEED = 1.15D;
     /** Underwater blast — nearly full power (was intentionally soft before). */
     private static final float UNDERWATER_BLOCK_POWER = 0.85f;
+
     private static final float UNDERWATER_ENTITY_POWER = 1.25f;
 
     private double swimDistance;
@@ -89,8 +89,10 @@ public class SeaBombProjectile extends DropBombProjectile {
     private boolean touchingWater() {
         return this.isInWater()
                 || this.isWaterFluid(this.level().getFluidState(this.blockPosition()))
-                || this.isWaterFluid(this.level().getFluidState(this.blockPosition().above()))
-                || this.isWaterFluid(this.level().getFluidState(this.blockPosition().below()));
+                || this.isWaterFluid(
+                        this.level().getFluidState(this.blockPosition().above()))
+                || this.isWaterFluid(
+                        this.level().getFluidState(this.blockPosition().below()));
     }
 
     private boolean isSolidObstacle(BlockPos pos, BlockState state) {
@@ -98,7 +100,8 @@ public class SeaBombProjectile extends DropBombProjectile {
             return false;
         }
         // Pure water / bubble columns are not obstacles.
-        if (this.isWaterFluid(state.getFluidState()) && state.getCollisionShape(this.level(), pos).isEmpty()) {
+        if (this.isWaterFluid(state.getFluidState())
+                && state.getCollisionShape(this.level(), pos).isEmpty()) {
             return false;
         }
         VoxelShape shape = state.getCollisionShape(this.level(), pos);
@@ -112,8 +115,8 @@ public class SeaBombProjectile extends DropBombProjectile {
         Vec3 start = this.position();
         Vec3 end = start.add(motion);
 
-        BlockHitResult hit = this.level().clip(new ClipContext(
-                start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
+        BlockHitResult hit = this.level()
+                .clip(new ClipContext(start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
 
         if (hit.getType() == HitResult.Type.BLOCK) {
             BlockPos hitPos = hit.getBlockPos();
@@ -141,9 +144,8 @@ public class SeaBombProjectile extends DropBombProjectile {
 
     @Override
     protected void forceDetonate(Vec3 position, float blockPowerScale, float entityPowerScale) {
-        boolean underwater = this.isWaterBlastSite(position)
-                || this.phase() == PHASE_SWIM
-                || this.phase() == PHASE_SINK;
+        boolean underwater =
+                this.isWaterBlastSite(position) || this.phase() == PHASE_SWIM || this.phase() == PHASE_SINK;
         if (underwater && this.level() instanceof ServerLevel server && !this.level().isClientSide) {
             // Projectile-into-water style plume before the HE blast.
             spawnUnderwaterDetonationSplash(server, position);
@@ -190,7 +192,8 @@ public class SeaBombProjectile extends DropBombProjectile {
         server.playSound(null, at.x, at.y, at.z, ModSounds.SEA_BOMB_SPLASH.get(), SoundSource.BLOCKS, 1.6f, 0.7f);
         server.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_SPLASH, SoundSource.BLOCKS, 1.4f, 0.65f);
         server.playSound(null, at.x, at.y, at.z, SoundEvents.PLAYER_SPLASH_HIGH_SPEED, SoundSource.BLOCKS, 1.1f, 0.55f);
-        server.playSound(null, at.x, at.y, at.z, SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_AMBIENT, SoundSource.BLOCKS, 1.0f, 0.5f);
+        server.playSound(
+                null, at.x, at.y, at.z, SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_AMBIENT, SoundSource.BLOCKS, 1.0f, 0.5f);
 
         // A depth-charge pressure ring travels through the water first, then
         // reaches the surface as a widening broken splash ring. The delayed
@@ -198,18 +201,12 @@ public class SeaBombProjectile extends DropBombProjectile {
         spawnWaterShockwaveRing(server, at, 1.8D, 20, false);
         spawnWaterShockwaveRing(server, surface, 2.4D, 24, true);
         int now = server.getServer().getTickCount();
-        server.getServer().tell(new TickTask(now + 3,
-                () -> spawnWaterShockwaveRing(server, at, 4.2D, 28, false)));
-        server.getServer().tell(new TickTask(now + 7,
-                () -> spawnWaterShockwaveRing(server, surface, 6.8D, 34, true)));
+        server.getServer().tell(new TickTask(now + 3, () -> spawnWaterShockwaveRing(server, at, 4.2D, 28, false)));
+        server.getServer().tell(new TickTask(now + 7, () -> spawnWaterShockwaveRing(server, surface, 6.8D, 34, true)));
     }
 
     private static void spawnWaterShockwaveRing(
-            ServerLevel server,
-            Vec3 center,
-            double radius,
-            int sectors,
-            boolean surface) {
+            ServerLevel server, Vec3 center, double radius, int sectors, boolean surface) {
         int count = Math.max(12, sectors);
         for (int i = 0; i < count; i++) {
             double angle = (Math.PI * 2.0D * i) / count;
@@ -217,18 +214,14 @@ public class SeaBombProjectile extends DropBombProjectile {
             double z = center.z + Math.sin(angle) * radius;
             double y = surface ? center.y + 0.05D : center.y;
             if (surface) {
-                emit(server, ParticleTypes.SPLASH, x, y, z,
-                        1, 0.0D, 0.10D, 0.0D, 0.24D);
+                emit(server, ParticleTypes.SPLASH, x, y, z, 1, 0.0D, 0.10D, 0.0D, 0.24D);
                 if ((i & 1) == 0) {
-                    emit(server, ParticleTypes.FISHING, x, y + 0.15D, z,
-                            1, 0.0D, 0.03D, 0.0D, 0.08D);
+                    emit(server, ParticleTypes.FISHING, x, y + 0.15D, z, 1, 0.0D, 0.03D, 0.0D, 0.08D);
                 }
             } else {
-                emit(server, ParticleTypes.BUBBLE_COLUMN_UP, x, y, z,
-                        1, 0.02D, 0.08D, 0.02D, 0.07D);
+                emit(server, ParticleTypes.BUBBLE_COLUMN_UP, x, y, z, 1, 0.02D, 0.08D, 0.02D, 0.07D);
                 if ((i & 3) == 0) {
-                    emit(server, ParticleTypes.BUBBLE_POP, x, y, z,
-                            1, 0.02D, 0.02D, 0.02D, 0.0D);
+                    emit(server, ParticleTypes.BUBBLE_POP, x, y, z, 1, 0.02D, 0.02D, 0.02D, 0.0D);
                 }
             }
         }
@@ -324,7 +317,8 @@ public class SeaBombProjectile extends DropBombProjectile {
         emit(server, ParticleTypes.CLOUD, at.x, at.y + 0.35D, at.z, 10, 0.4D, 0.1D, 0.4D, 0.02D);
         server.playSound(null, at.x, at.y, at.z, ModSounds.SEA_BOMB_SPLASH.get(), SoundSource.NEUTRAL, 1.25f, 0.85f);
         server.playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_SPLASH, SoundSource.NEUTRAL, 0.9f, 0.75f);
-        server.playSound(null, at.x, at.y, at.z, SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_INSIDE, SoundSource.NEUTRAL, 0.7f, 1.1f);
+        server.playSound(
+                null, at.x, at.y, at.z, SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_INSIDE, SoundSource.NEUTRAL, 0.7f, 1.1f);
     }
 
     private void tickSwim() {
@@ -370,7 +364,8 @@ public class SeaBombProjectile extends DropBombProjectile {
             emit(server, ParticleTypes.BUBBLE_COLUMN_UP, p.x, p.y, p.z, 28, 0.35D, 0.35D, 0.35D, 0.06D);
             emit(server, ParticleTypes.BUBBLE, p.x, p.y, p.z, 36, 0.4D, 0.4D, 0.4D, 0.1D);
             emit(server, ParticleTypes.CURRENT_DOWN, p.x, p.y + 0.2D, p.z, 10, 0.25D, 0.15D, 0.25D, 0.02D);
-            server.playSound(null, p.x, p.y, p.z, SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_AMBIENT, SoundSource.NEUTRAL, 0.85f, 0.7f);
+            server.playSound(
+                    null, p.x, p.y, p.z, SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_AMBIENT, SoundSource.NEUTRAL, 0.85f, 0.7f);
             server.playSound(null, p.x, p.y, p.z, ModSounds.SEA_BOMB_PROPELLER.get(), SoundSource.NEUTRAL, 0.4f, 0.55f);
         }
     }
@@ -430,12 +425,19 @@ public class SeaBombProjectile extends DropBombProjectile {
             double spread = 0.22D + random.nextDouble() * 0.12D;
             Vec3 from = nose.add(side.scale(s * spread));
             Vec3 push = side.scale(s * 0.16D).subtract(heading.scale(0.04D));
-            emit(server, ParticleTypes.BUBBLE,
-                    from.x, from.y, from.z, 0, push.x, push.y + 0.02D, push.z, 1.0D);
+            emit(server, ParticleTypes.BUBBLE, from.x, from.y, from.z, 0, push.x, push.y + 0.02D, push.z, 1.0D);
             if ((this.tickCount & 1) == 0) {
-                emit(server, ParticleTypes.BUBBLE,
-                        from.x, from.y - 0.12D, from.z, 0,
-                        push.x * 1.4D, 0.01D, push.z * 1.4D, 1.0D);
+                emit(
+                        server,
+                        ParticleTypes.BUBBLE,
+                        from.x,
+                        from.y - 0.12D,
+                        from.z,
+                        0,
+                        push.x * 1.4D,
+                        0.01D,
+                        push.z * 1.4D,
+                        1.0D);
             }
         }
 
@@ -443,10 +445,18 @@ public class SeaBombProjectile extends DropBombProjectile {
         if ((this.tickCount % 2) == 0) {
             for (int s = -1; s <= 1; s += 2) {
                 Vec3 flank = p.add(side.scale(s * 0.34D));
-                emit(server, ParticleTypes.BUBBLE,
-                        flank.x, flank.y, flank.z, 2, 0.06D, 0.10D, 0.06D, 0.02D);
-                emit(server, ParticleTypes.CURRENT_DOWN,
-                        flank.x, flank.y + 0.05D, flank.z, 1, 0.05D, 0.06D, 0.05D, 0.01D);
+                emit(server, ParticleTypes.BUBBLE, flank.x, flank.y, flank.z, 2, 0.06D, 0.10D, 0.06D, 0.02D);
+                emit(
+                        server,
+                        ParticleTypes.CURRENT_DOWN,
+                        flank.x,
+                        flank.y + 0.05D,
+                        flank.z,
+                        1,
+                        0.05D,
+                        0.06D,
+                        0.05D,
+                        0.01D);
             }
         }
 
@@ -466,8 +476,7 @@ public class SeaBombProjectile extends DropBombProjectile {
 
         // Collapse zone: the parted water folding back in behind the screw.
         emit(server, ParticleTypes.BUBBLE, wake.x, wake.y, wake.z, 7, 0.20D, 0.14D, 0.20D, 0.05D);
-        emit(server, ParticleTypes.BUBBLE_COLUMN_UP,
-                wake.x, wake.y - 0.05D, wake.z, 4, 0.14D, 0.10D, 0.14D, 0.03D);
+        emit(server, ParticleTypes.BUBBLE_COLUMN_UP, wake.x, wake.y - 0.05D, wake.z, 4, 0.14D, 0.10D, 0.14D, 0.03D);
 
         // Surface chop / spray when near the waterline.
         if ((this.tickCount % 2) == 0 && this.nearSurface()) {
@@ -476,9 +485,17 @@ public class SeaBombProjectile extends DropBombProjectile {
             // Surface V: foam thrown out to either side of the track.
             for (int s = -1; s <= 1; s += 2) {
                 Vec3 crest = p.add(side.scale(s * 0.5D)).subtract(heading.scale(0.3D));
-                emit(server, ParticleTypes.SPLASH,
-                        crest.x, crest.y + 0.4D, crest.z, 0,
-                        side.x * s * 0.12D, 0.06D, side.z * s * 0.12D, 1.0D);
+                emit(
+                        server,
+                        ParticleTypes.SPLASH,
+                        crest.x,
+                        crest.y + 0.4D,
+                        crest.z,
+                        0,
+                        side.x * s * 0.12D,
+                        0.06D,
+                        side.z * s * 0.12D,
+                        1.0D);
             }
             if (random.nextInt(4) == 0) {
                 emit(server, ParticleTypes.CLOUD, p.x, p.y + 0.4D, p.z, 2, 0.25D, 0.04D, 0.25D, 0.01D);
@@ -502,7 +519,8 @@ public class SeaBombProjectile extends DropBombProjectile {
             emit(server, ParticleTypes.BUBBLE_POP, p.x, p.y + 0.15D, p.z, 2, 0.1D, 0.1D, 0.1D, 0.0D);
         }
         if ((this.sinkTicks % 12) == 0) {
-            server.playSound(null, p.x, p.y, p.z, SoundEvents.BUBBLE_COLUMN_UPWARDS_AMBIENT, SoundSource.NEUTRAL, 0.35f, 0.8f);
+            server.playSound(
+                    null, p.x, p.y, p.z, SoundEvents.BUBBLE_COLUMN_UPWARDS_AMBIENT, SoundSource.NEUTRAL, 0.35f, 0.8f);
         }
     }
 
@@ -520,12 +538,31 @@ public class SeaBombProjectile extends DropBombProjectile {
         this.buzzCooldown = 4;
         Vec3 p = this.position();
         float pitch = 0.8f + (this.level().random.nextFloat() * 0.35f);
-        this.level().playSound(null, p.x, p.y, p.z, ModSounds.SEA_BOMB_PROPELLER.get(), SoundSource.NEUTRAL, 0.7f, pitch);
+        this.level()
+                .playSound(null, p.x, p.y, p.z, ModSounds.SEA_BOMB_PROPELLER.get(), SoundSource.NEUTRAL, 0.7f, pitch);
         if ((this.tickCount % 8) == 0) {
-            this.level().playSound(null, p.x, p.y, p.z, SoundEvents.BUBBLE_COLUMN_UPWARDS_AMBIENT, SoundSource.NEUTRAL, 0.25f, 1.2f);
+            this.level()
+                    .playSound(
+                            null,
+                            p.x,
+                            p.y,
+                            p.z,
+                            SoundEvents.BUBBLE_COLUMN_UPWARDS_AMBIENT,
+                            SoundSource.NEUTRAL,
+                            0.25f,
+                            1.2f);
         }
         if ((this.tickCount % 10) == 0) {
-            this.level().playSound(null, p.x, p.y, p.z, SoundEvents.GENERIC_SWIM, SoundSource.NEUTRAL, 0.2f, 0.6f + this.random.nextFloat() * 0.2f);
+            this.level()
+                    .playSound(
+                            null,
+                            p.x,
+                            p.y,
+                            p.z,
+                            SoundEvents.GENERIC_SWIM,
+                            SoundSource.NEUTRAL,
+                            0.2f,
+                            0.6f + this.random.nextFloat() * 0.2f);
         }
     }
 
@@ -549,46 +586,86 @@ public class SeaBombProjectile extends DropBombProjectile {
         for (int i = 0; i < blades; i++) {
             double a = ang + (Math.PI * 2.0D * i / blades);
             double r = 0.38D;
-            this.level().addParticle(ParticleTypes.BUBBLE, true,
-                    tail.x + Math.cos(a) * r,
-                    tail.y + Math.sin(a * 2.0D) * 0.06D,
-                    tail.z + Math.sin(a) * r,
-                    -heading.x * 0.05D, 0.02D, -heading.z * 0.05D);
+            this.level()
+                    .addParticle(
+                            ParticleTypes.BUBBLE,
+                            true,
+                            tail.x + Math.cos(a) * r,
+                            tail.y + Math.sin(a * 2.0D) * 0.06D,
+                            tail.z + Math.sin(a) * r,
+                            -heading.x * 0.05D,
+                            0.02D,
+                            -heading.z * 0.05D);
         }
 
         // Continuous wake on client for smoothness between server packets.
         if (this.phase() == PHASE_SWIM) {
             Vec3 side = new Vec3(-heading.z, 0.0D, heading.x);
             Vec3 wake = p.subtract(heading.scale(0.9D));
-            this.level().addParticle(ParticleTypes.BUBBLE, true, wake.x, wake.y, wake.z,
-                    -heading.x * 0.08D, 0.01D, -heading.z * 0.08D);
-            this.level().addParticle(ParticleTypes.BUBBLE_COLUMN_UP, true,
-                    wake.x + (this.random.nextDouble() - 0.5D) * 0.2D,
-                    wake.y,
-                    wake.z + (this.random.nextDouble() - 0.5D) * 0.2D,
-                    0.0D, 0.04D, 0.0D);
+            this.level()
+                    .addParticle(
+                            ParticleTypes.BUBBLE,
+                            true,
+                            wake.x,
+                            wake.y,
+                            wake.z,
+                            -heading.x * 0.08D,
+                            0.01D,
+                            -heading.z * 0.08D);
+            this.level()
+                    .addParticle(
+                            ParticleTypes.BUBBLE_COLUMN_UP,
+                            true,
+                            wake.x + (this.random.nextDouble() - 0.5D) * 0.2D,
+                            wake.y,
+                            wake.z + (this.random.nextDouble() - 0.5D) * 0.2D,
+                            0.0D,
+                            0.04D,
+                            0.0D);
 
             // Bow spray, thrown outward so the parted water is visible every frame
             // rather than only on the ticks the server happens to send.
             Vec3 nose = p.add(heading.scale(0.5D));
             for (int s = -1; s <= 1; s += 2) {
                 Vec3 from = nose.add(side.scale(s * 0.26D));
-                this.level().addParticle(ParticleTypes.BUBBLE, true,
-                        from.x, from.y, from.z,
-                        side.x * s * 0.14D, 0.02D, side.z * s * 0.14D);
+                this.level()
+                        .addParticle(
+                                ParticleTypes.BUBBLE,
+                                true,
+                                from.x,
+                                from.y,
+                                from.z,
+                                side.x * s * 0.14D,
+                                0.02D,
+                                side.z * s * 0.14D);
             }
 
             if ((this.tickCount & 1) == 0) {
-                this.level().addParticle(ParticleTypes.SPLASH, true, p.x, p.y + 0.25D, p.z,
-                        (this.random.nextDouble() - 0.5D) * 0.15D, 0.08D, (this.random.nextDouble() - 0.5D) * 0.15D);
+                this.level()
+                        .addParticle(
+                                ParticleTypes.SPLASH,
+                                true,
+                                p.x,
+                                p.y + 0.25D,
+                                p.z,
+                                (this.random.nextDouble() - 0.5D) * 0.15D,
+                                0.08D,
+                                (this.random.nextDouble() - 0.5D) * 0.15D);
             }
             if ((this.tickCount % 3) == 0) {
-                this.level().addParticle(ParticleTypes.BUBBLE_POP, true,
-                        tail.x, tail.y, tail.z, 0.0D, 0.02D, 0.0D);
+                this.level().addParticle(ParticleTypes.BUBBLE_POP, true, tail.x, tail.y, tail.z, 0.0D, 0.02D, 0.0D);
             }
         } else {
-            this.level().addParticle(ParticleTypes.BUBBLE, true, p.x, p.y, p.z,
-                    (this.random.nextDouble() - 0.5D) * 0.05D, 0.06D, (this.random.nextDouble() - 0.5D) * 0.05D);
+            this.level()
+                    .addParticle(
+                            ParticleTypes.BUBBLE,
+                            true,
+                            p.x,
+                            p.y,
+                            p.z,
+                            (this.random.nextDouble() - 0.5D) * 0.05D,
+                            0.06D,
+                            (this.random.nextDouble() - 0.5D) * 0.05D);
             if ((this.tickCount % 2) == 0) {
                 this.level().addParticle(ParticleTypes.CURRENT_DOWN, true, p.x, p.y + 0.2D, p.z, 0.0D, -0.05D, 0.0D);
             }
@@ -601,8 +678,16 @@ public class SeaBombProjectile extends DropBombProjectile {
      * drops every packet past 32 blocks — invisible for a torpedo that runs 800.
      */
     private static <T extends net.minecraft.core.particles.ParticleOptions> void emit(
-            ServerLevel server, T type, double x, double y, double z,
-            int count, double dx, double dy, double dz, double speed) {
+            ServerLevel server,
+            T type,
+            double x,
+            double y,
+            double z,
+            int count,
+            double dx,
+            double dy,
+            double dz,
+            double speed) {
         for (net.minecraft.server.level.ServerPlayer player : server.players()) {
             if (player.distanceToSqr(x, y, z) <= 192.0D * 192.0D) {
                 server.sendParticles(player, type, true, x, y, z, count, dx, dy, dz, speed);

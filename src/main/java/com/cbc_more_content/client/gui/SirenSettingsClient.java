@@ -1,7 +1,6 @@
 package com.cbc_more_content.client.gui;
 
 import com.cbc_more_content.block.SirenBlockEntity;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.neoforged.api.distmarker.Dist;
@@ -15,13 +14,11 @@ import net.neoforged.api.distmarker.OnlyIn;
  */
 @OnlyIn(Dist.CLIENT)
 public final class SirenSettingsClient {
-    private SirenSettingsClient() {
-    }
+    private SirenSettingsClient() {}
 
     public static void open(BlockPos pos) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null
-                || !(mc.level.getBlockEntity(pos) instanceof SirenBlockEntity siren)) {
+        if (mc.level == null || !(mc.level.getBlockEntity(pos) instanceof SirenBlockEntity siren)) {
             return;
         }
         mc.setScreen(new SirenSettingsScreen(pos, siren.settings()));

@@ -1,10 +1,8 @@
 package com.cbc_more_content.item;
 
-import java.util.List;
-
-import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.block.C4Block;
-
+import com.cbc_more_content.util.ReflectiveDispatcher;
+import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
@@ -29,8 +27,7 @@ public class WireCuttersItem extends Item {
         // A live charge comes first. A tripwire can be tied to anything solid, a charge
         // included, and once anchors stopped being limited to fences this branch was
         // swallowing every click on a C4 before the panel ever got a look at it.
-        if (state.getBlock() instanceof C4Block
-                && state.getValue(C4Block.STATE) != C4Block.Fuse.IDLE) {
+        if (state.getBlock() instanceof C4Block && state.getValue(C4Block.STATE) != C4Block.Fuse.IDLE) {
             if (level.isClientSide) {
                 openScreen(pos);
             }
@@ -46,19 +43,13 @@ public class WireCuttersItem extends Item {
 
     /** Resolved reflectively so the screen class is never loaded on a dedicated server. */
     private static void openScreen(BlockPos pos) {
-        try {
-            Class.forName("com.cbc_more_content.client.gui.C4WireClient")
-                    .getMethod("open", BlockPos.class)
-                    .invoke(null, pos);
-        } catch (ReflectiveOperationException e) {
-            CBCMoreContent.LOGGER.debug("C4 wire panel unavailable: {}", e.toString());
-        }
+        ReflectiveDispatcher.invoke(
+                "com.cbc_more_content.client.gui.C4WireClient", "open", new Class<?>[] {BlockPos.class}, pos);
     }
 
     @Override
     public void appendHoverText(
-            ItemStack stack, Item.TooltipContext context,
-            List<Component> tooltip, TooltipFlag flag) {
+            ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.translatable("tooltip.cbc_more_content.wire_cutters"));
     }
 }

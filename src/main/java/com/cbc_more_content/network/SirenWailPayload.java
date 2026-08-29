@@ -1,7 +1,6 @@
 package com.cbc_more_content.network;
 
 import com.cbc_more_content.CBCMoreContent;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -24,21 +23,18 @@ import net.minecraft.resources.ResourceLocation;
  * Stopping is still never sent. A listener close enough to have the chunk loaded sees the
  * block stop sounding, which is what makes a broken post go quiet at once.
  */
-public record SirenWailPayload(BlockPos pos, int remainingTicks, float voice)
-        implements CustomPacketPayload {
+public record SirenWailPayload(BlockPos pos, int remainingTicks, float voice) implements CustomPacketPayload {
 
-    public static final Type<SirenWailPayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "siren_wail"));
+    public static final Type<SirenWailPayload> TYPE =
+            new Type<>(ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "siren_wail"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, SirenWailPayload> STREAM_CODEC =
-            StreamCodec.of(
-                    (buf, payload) -> {
-                        buf.writeBlockPos(payload.pos);
-                        buf.writeVarInt(payload.remainingTicks);
-                        buf.writeFloat(payload.voice);
-                    },
-                    buf -> new SirenWailPayload(
-                            buf.readBlockPos(), buf.readVarInt(), buf.readFloat()));
+    public static final StreamCodec<RegistryFriendlyByteBuf, SirenWailPayload> STREAM_CODEC = StreamCodec.of(
+            (buf, payload) -> {
+                buf.writeBlockPos(payload.pos);
+                buf.writeVarInt(payload.remainingTicks);
+                buf.writeFloat(payload.voice);
+            },
+            buf -> new SirenWailPayload(buf.readBlockPos(), buf.readVarInt(), buf.readFloat()));
 
     @Override
     public Type<? extends CustomPacketPayload> type() {

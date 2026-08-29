@@ -9,8 +9,7 @@ public final class FlashRenderMode {
     private static Boolean veilOwnsFlash;
     private static Boolean sodiumExtrasLoaded;
 
-    private FlashRenderMode() {
-    }
+    private FlashRenderMode() {}
 
     public static boolean sodiumExtrasLoaded() {
         Boolean cached = sodiumExtrasLoaded;

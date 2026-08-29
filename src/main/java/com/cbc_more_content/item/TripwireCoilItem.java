@@ -1,11 +1,8 @@
 package com.cbc_more_content.item;
 
-import java.util.List;
-
-import javax.annotation.Nullable;
-
 import com.cbc_more_content.entity.TripwireEntity;
-
+import java.util.List;
+import javax.annotation.Nullable;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -114,9 +111,7 @@ public class TripwireCoilItem extends Item {
             return null;
         }
         CompoundTag tag = data.copyTag().getCompound(PENDING);
-        return tag.contains("X")
-                ? new BlockPos(tag.getInt("X"), tag.getInt("Y"), tag.getInt("Z"))
-                : null;
+        return tag.contains("X") ? new BlockPos(tag.getInt("X"), tag.getInt("Y"), tag.getInt("Z")) : null;
     }
 
     private static void setPending(ItemStack stack, BlockPos post) {
@@ -141,15 +136,14 @@ public class TripwireCoilItem extends Item {
 
     @Override
     public void appendHoverText(
-            ItemStack stack, Item.TooltipContext context,
-            List<Component> tooltip, TooltipFlag flag) {
+            ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         BlockPos pending = pendingPost(stack);
-        tooltip.add(Component.translatable(pending == null
-                        ? "tooltip.cbc_more_content.tripwire_coil"
-                        : "tooltip.cbc_more_content.tripwire_coil.pending")
+        tooltip.add(Component.translatable(
+                        pending == null
+                                ? "tooltip.cbc_more_content.tripwire_coil"
+                                : "tooltip.cbc_more_content.tripwire_coil.pending")
                 .withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("tooltip.cbc_more_content.tripwire_coil.span",
-                        TripwireEntity.MAX_SPAN)
+        tooltip.add(Component.translatable("tooltip.cbc_more_content.tripwire_coil.span", TripwireEntity.MAX_SPAN)
                 .withStyle(ChatFormatting.DARK_GRAY));
     }
 }

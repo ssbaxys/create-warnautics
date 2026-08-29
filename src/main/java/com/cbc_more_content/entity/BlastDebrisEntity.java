@@ -1,6 +1,6 @@
 package com.cbc_more_content.entity;
 
-import net.minecraft.core.BlockPos;
+import com.cbc_more_content.registry.ModEntityTypes;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
@@ -18,8 +18,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-
-import com.cbc_more_content.registry.ModEntityTypes;
 
 /**
  * A chunk thrown clear of a blast, carrying whatever block it broke off.
@@ -42,6 +40,7 @@ public class BlastDebrisEntity extends Entity {
     private static final int SETTLE_TICKS = 5;
     /** How long the shrink takes once it starts. */
     public static final int MELT_TICKS = 34;
+
     private static final int MAX_LIFETIME = 400;
 
     private boolean bounced;
@@ -104,9 +103,7 @@ public class BlastDebrisEntity extends Entity {
     public float[] spinDegreesPerTick() {
         RandomSource random = RandomSource.create(this.getId() * 104_729L + 1);
         return new float[] {
-                6.0f + random.nextFloat() * 14.0f,
-                6.0f + random.nextFloat() * 14.0f,
-                6.0f + random.nextFloat() * 14.0f,
+            6.0f + random.nextFloat() * 14.0f, 6.0f + random.nextFloat() * 14.0f, 6.0f + random.nextFloat() * 14.0f,
         };
     }
 
@@ -155,8 +152,8 @@ public class BlastDebrisEntity extends Entity {
         this.entityData.set(SETTLED, true);
         this.settledTicks = 0;
         if (this.level() instanceof ServerLevel server) {
-            server.sendParticles(ParticleTypes.POOF,
-                    this.getX(), this.getY() + 0.1D, this.getZ(), 3, 0.08D, 0.02D, 0.08D, 0.01D);
+            server.sendParticles(
+                    ParticleTypes.POOF, this.getX(), this.getY() + 0.1D, this.getZ(), 3, 0.08D, 0.02D, 0.08D, 0.01D);
         }
     }
 
@@ -183,7 +180,8 @@ public class BlastDebrisEntity extends Entity {
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
         BlockState state = NbtUtils.readBlockState(
-                this.level().holderLookup(net.minecraft.core.registries.Registries.BLOCK), tag.getCompound("BlockState"));
+                this.level().holderLookup(net.minecraft.core.registries.Registries.BLOCK),
+                tag.getCompound("BlockState"));
         this.entityData.set(BLOCK_STATE, state);
         this.entityData.set(SETTLED, tag.getBoolean("Settled"));
         this.settledTicks = tag.getInt("SettledTicks");

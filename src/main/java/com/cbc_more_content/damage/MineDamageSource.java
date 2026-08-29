@@ -1,7 +1,6 @@
 package com.cbc_more_content.damage;
 
 import com.cbc_more_content.mine.MineType;
-
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -17,29 +16,29 @@ import net.minecraft.world.level.Level;
  */
 public class MineDamageSource extends DamageSource {
     private static final String[] SMALL_KEYS = {
-            "death.attack.cbc_more_content.land_mine.small.1",
-            "death.attack.cbc_more_content.land_mine.small.2",
-            "death.attack.cbc_more_content.land_mine.small.3",
-            "death.attack.cbc_more_content.land_mine.small.4",
-            "death.attack.cbc_more_content.land_mine.small.5",
-            "death.attack.cbc_more_content.land_mine.small.6"
+        "death.attack.cbc_more_content.land_mine.small.1",
+        "death.attack.cbc_more_content.land_mine.small.2",
+        "death.attack.cbc_more_content.land_mine.small.3",
+        "death.attack.cbc_more_content.land_mine.small.4",
+        "death.attack.cbc_more_content.land_mine.small.5",
+        "death.attack.cbc_more_content.land_mine.small.6"
     };
     private static final String[] LARGE_KEYS = {
-            "death.attack.cbc_more_content.land_mine.large.1",
-            "death.attack.cbc_more_content.land_mine.large.2",
-            "death.attack.cbc_more_content.land_mine.large.3",
-            "death.attack.cbc_more_content.land_mine.large.4",
-            "death.attack.cbc_more_content.land_mine.large.5",
-            "death.attack.cbc_more_content.land_mine.large.6"
+        "death.attack.cbc_more_content.land_mine.large.1",
+        "death.attack.cbc_more_content.land_mine.large.2",
+        "death.attack.cbc_more_content.land_mine.large.3",
+        "death.attack.cbc_more_content.land_mine.large.4",
+        "death.attack.cbc_more_content.land_mine.large.5",
+        "death.attack.cbc_more_content.land_mine.large.6"
     };
 
     private static final String[] BOUNDING_KEYS = {
-            "death.attack.cbc_more_content.land_mine.bounding.1",
-            "death.attack.cbc_more_content.land_mine.bounding.2",
-            "death.attack.cbc_more_content.land_mine.bounding.3",
-            "death.attack.cbc_more_content.land_mine.bounding.4",
-            "death.attack.cbc_more_content.land_mine.bounding.5",
-            "death.attack.cbc_more_content.land_mine.bounding.6"
+        "death.attack.cbc_more_content.land_mine.bounding.1",
+        "death.attack.cbc_more_content.land_mine.bounding.2",
+        "death.attack.cbc_more_content.land_mine.bounding.3",
+        "death.attack.cbc_more_content.land_mine.bounding.4",
+        "death.attack.cbc_more_content.land_mine.bounding.5",
+        "death.attack.cbc_more_content.land_mine.bounding.6"
     };
 
     private final MineType type;
@@ -58,11 +57,12 @@ public class MineDamageSource extends DamageSource {
 
     @Override
     public Component getLocalizedDeathMessage(LivingEntity entity) {
-        String[] keys = switch (this.type) {
-            case SMALL -> SMALL_KEYS;
-            case BOUNDING -> BOUNDING_KEYS;
-            case LARGE -> LARGE_KEYS;
-        };
+        String[] keys =
+                switch (this.type) {
+                    case SMALL -> SMALL_KEYS;
+                    case BOUNDING -> BOUNDING_KEYS;
+                    case LARGE -> LARGE_KEYS;
+                };
         String key = keys[entity.getRandom().nextInt(keys.length)];
         return Component.translatable(key, entity.getDisplayName());
     }

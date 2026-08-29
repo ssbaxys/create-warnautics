@@ -4,9 +4,8 @@ import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.mixin.client.AbstractContainerScreenAccessor;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-
-import net.minecraft.client.Minecraft;
 import net.minecraft.Util;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
@@ -26,9 +25,8 @@ public final class BombedCreativeCardRenderer {
      * so a GeckoLib install was enough to break it.
      */
     private static final ResourceLocation BANNER_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(
-                    CBCMoreContent.MOD_ID,
-                    "textures/gui/banner.png");
+            ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "textures/gui/banner.png");
+
     private static final Component TITLE =
             Component.translatable(CBCMoreContent.MOD_ID + ".simulated_section.cbc_more_content");
 
@@ -38,18 +36,14 @@ public final class BombedCreativeCardRenderer {
     private static final int TEXTURE_HEIGHT = HEIGHT * FRAME_COUNT;
     /** Matches banner.png.mcmeta frametime=6 (six 20 TPS ticks). */
     private static final long FRAME_TIME_MS = 300L;
+
     private static final int TITLE_BACKGROUND = 0x602A1810;
     private static final int TITLE_DARK = 0xFFE08A3A;
     private static final int TITLE_LIGHT = 0xFFFFC86A;
 
-    private BombedCreativeCardRenderer() {
-    }
+    private BombedCreativeCardRenderer() {}
 
-    public static void render(
-            CreativeModeInventoryScreen screen,
-            GuiGraphics graphics,
-            int mouseX,
-            int mouseY) {
+    public static void render(CreativeModeInventoryScreen screen, GuiGraphics graphics, int mouseX, int mouseY) {
         AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) screen;
         int left = accessor.cbcMoreContent$getLeftPos() + 8;
         int top = accessor.cbcMoreContent$getTopPos() + 17;
@@ -67,16 +61,7 @@ public final class BombedCreativeCardRenderer {
         // the blast collapse back into a bomb and looked especially awkward at
         // the smoke-to-impact transition.
         int frame = (int) ((Util.getMillis() / FRAME_TIME_MS) % FRAME_COUNT);
-        graphics.blit(
-                BANNER_TEXTURE,
-                left,
-                top,
-                0.0f,
-                frame * HEIGHT,
-                WIDTH,
-                HEIGHT,
-                WIDTH,
-                TEXTURE_HEIGHT);
+        graphics.blit(BANNER_TEXTURE, left, top, 0.0f, frame * HEIGHT, WIDTH, HEIGHT, WIDTH, TEXTURE_HEIGHT);
 
         Font font = Minecraft.getInstance().font;
         int textWidth = font.width(TITLE);

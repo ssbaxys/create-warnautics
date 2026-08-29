@@ -12,7 +12,9 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
-
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -51,11 +53,6 @@ import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import rbasamoyai.createbigcannons.CBCCompatTransformers;
 
-import javax.annotation.Nullable;
-
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 /**
  * Placeable drop bomb. Rising-edge redstone launches; cassette stacks (small only)
  * eject one bomb per tick while powered. Create wrench: rotate / sneak-pickup.
@@ -67,6 +64,7 @@ public class DropBombBlock extends Block implements IWrenchable {
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
     /** How many bombs are bundled in this block (1–4). Only {@link BombSize#SMALL} can exceed 1. */
     public static final IntegerProperty CASSETTE = IntegerProperty.create("cassette", 1, 4);
+
     public static final int MAX_CASSETTE = 4;
     /**
      * Player-selectable release interval. New states store the actual tick count;
@@ -74,30 +72,31 @@ public class DropBombBlock extends Block implements IWrenchable {
      * still load without losing their setting.
      */
     public static final int MIN_RELEASE_DELAY_TICKS = 6;
+
     public static final int MAX_RELEASE_DELAY_TICKS = 100;
     public static final int RELEASE_DELAY_STEP_TICKS = 2;
     public static final int DEFAULT_RELEASE_DELAY = 26;
     private static final int[] LEGACY_RELEASE_DELAY_TICKS = {4, 8, 12, 20, 26, 40};
-    public static final IntegerProperty RELEASE_DELAY = IntegerProperty.create(
-            "release_delay", 0, MAX_RELEASE_DELAY_TICKS);
+    public static final IntegerProperty RELEASE_DELAY =
+            IntegerProperty.create("release_delay", 0, MAX_RELEASE_DELAY_TICKS);
     public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
     private static final Map<ProjectileHitKey, ProjectileHitState> PROJECTILE_HITS = new ConcurrentHashMap<>();
     /** A tally that has not been added to in ten seconds is not part of the same attack. */
     private static final int PROJECTILE_HIT_EXPIRY_TICKS = 200;
+
     private static long lastProjectileHitCleanup = Long.MIN_VALUE;
 
-    public static final MapCodec<DropBombBlock> CODEC = RecordCodecBuilder.mapCodec(instance ->
-            instance.group(
-                    propertiesCodec(),
-                    Codec.STRING.fieldOf("bomb_size").forGetter(b -> b.size.name())
-            ).apply(instance, (props, sizeName) -> new DropBombBlock(props, BombSize.valueOf(sizeName))));
+    public static final MapCodec<DropBombBlock> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+                    propertiesCodec(), Codec.STRING.fieldOf("bomb_size").forGetter(b -> b.size.name()))
+            .apply(instance, (props, sizeName) -> new DropBombBlock(props, BombSize.valueOf(sizeName))));
 
     private final BombSize size;
 
     public DropBombBlock(Properties properties, BombSize size) {
         super(properties);
         this.size = size;
-        this.registerDefaultState(this.stateDefinition.any()
+        this.registerDefaultState(this.stateDefinition
+                .any()
                 .setValue(FACING, Direction.DOWN)
                 .setValue(POWERED, false)
                 .setValue(CASSETTE, 1)
@@ -226,8 +225,7 @@ public class DropBombBlock extends Block implements IWrenchable {
     public static void applyReleaseDelay(Level level, BlockPos pos, int delayTicks) {
         int changed = applyReleaseDelayToRack(level, pos, normalizeReleaseDelayTicks(delayTicks));
         if (changed > 0) {
-            level.playSound(null, pos, SoundEvents.STONE_BUTTON_CLICK_ON,
-                    SoundSource.BLOCKS, 0.45f, 1.25f);
+            level.playSound(null, pos, SoundEvents.STONE_BUTTON_CLICK_ON, SoundSource.BLOCKS, 0.45f, 1.25f);
         }
     }
 
@@ -280,7 +278,13 @@ public class DropBombBlock extends Block implements IWrenchable {
     }
 
     @Override
-    protected void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock, BlockPos neighborPos, boolean movedByPiston) {
+    protected void neighborChanged(
+            BlockState state,
+            Level level,
+            BlockPos pos,
+            Block neighborBlock,
+            BlockPos neighborPos,
+            boolean movedByPiston) {
         if (level.isClientSide) {
             return;
         }
@@ -302,11 +306,7 @@ public class DropBombBlock extends Block implements IWrenchable {
     }
 
     @Override
-    protected void onProjectileHit(
-            Level level,
-            BlockState state,
-            BlockHitResult hit,
-            Projectile projectile) {
+    protected void onProjectileHit(Level level, BlockState state, BlockHitResult hit, Projectile projectile) {
         if (!(level instanceof ServerLevel serverLevel) || state.getBlock() != this) {
             return;
         }
@@ -314,7 +314,8 @@ public class DropBombBlock extends Block implements IWrenchable {
             return;
         }
 
-        ProjectileHitKey key = new ProjectileHitKey(serverLevel, hit.getBlockPos().asLong());
+        ProjectileHitKey key =
+                new ProjectileHitKey(serverLevel, hit.getBlockPos().asLong());
         int damage = projectile instanceof AbstractArrow ? 1 : 2;
         if (projectile.isOnFire()) {
             damage++;
@@ -328,16 +329,21 @@ public class DropBombBlock extends Block implements IWrenchable {
             return new ProjectileHitState(previous.hits + hitDamage, tick);
         });
         int hits = hitState.hits;
-        int threshold = switch (this.size) {
-            case SMALL -> 3;
-            case SEA -> 4;
-            case MEDIUM -> 5;
-            case LARGE -> 7;
-        };
+        int threshold =
+                switch (this.size) {
+                    case SMALL -> 3;
+                    case SEA -> 4;
+                    case MEDIUM -> 5;
+                    case LARGE -> 7;
+                };
 
-        serverLevel.playSound(null, hit.getBlockPos(),
-                SoundEvents.ANVIL_HIT, SoundSource.BLOCKS,
-                0.55f, 1.55f + serverLevel.random.nextFloat() * 0.18f);
+        serverLevel.playSound(
+                null,
+                hit.getBlockPos(),
+                SoundEvents.ANVIL_HIT,
+                SoundSource.BLOCKS,
+                0.55f,
+                1.55f + serverLevel.random.nextFloat() * 0.18f);
         if (hits < threshold) {
             return;
         }
@@ -345,8 +351,7 @@ public class DropBombBlock extends Block implements IWrenchable {
         PROJECTILE_HITS.remove(key);
         int minTicks = projectile.isOnFire() ? 6 : 14;
         int maxTicks = projectile.isOnFire() ? 22 : 48;
-        BombSympatheticDetonation.schedulePlacedBombCookoff(
-                serverLevel, hit.getBlockPos(), minTicks, maxTicks);
+        BombSympatheticDetonation.schedulePlacedBombCookoff(serverLevel, hit.getBlockPos(), minTicks, maxTicks);
     }
 
     /** Sweeps out tallies for bombs nobody is shooting at any more. */
@@ -394,12 +399,7 @@ public class DropBombBlock extends Block implements IWrenchable {
     }
 
     @Override
-    protected void onRemove(
-            BlockState state,
-            Level level,
-            BlockPos pos,
-            BlockState newState,
-            boolean movedByPiston) {
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (state.getBlock() != newState.getBlock() && level instanceof ServerLevel serverLevel) {
             PROJECTILE_HITS.remove(new ProjectileHitKey(serverLevel, pos.asLong()));
         }
@@ -522,7 +522,6 @@ public class DropBombBlock extends Block implements IWrenchable {
         BlockState remaining = state.setValue(CASSETTE, cassette - 1);
         level.setBlock(pos, remaining, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
         launchAlongNose(level, pos, nose, this.size);
-
     }
 
     public static boolean isReceivingPower(Level level, BlockPos pos) {
@@ -583,8 +582,12 @@ public class DropBombBlock extends Block implements IWrenchable {
             }
             double half = size.entitySize * 0.5D;
             AABB box = new AABB(
-                    candidate.x - half, candidate.y - half, candidate.z - half,
-                    candidate.x + half, candidate.y + half, candidate.z + half);
+                    candidate.x - half,
+                    candidate.y - half,
+                    candidate.z - half,
+                    candidate.x + half,
+                    candidate.y + half,
+                    candidate.z + half);
             if (level.noCollision(box)) {
                 return candidate;
             }
@@ -602,24 +605,27 @@ public class DropBombBlock extends Block implements IWrenchable {
             return new Direction[] {Direction.DOWN};
         }
         if (nose == Direction.UP) {
-            return new Direction[] {Direction.UP, Direction.NORTH, Direction.SOUTH,
-                    Direction.EAST, Direction.WEST, Direction.DOWN};
+            return new Direction[] {
+                Direction.UP, Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST, Direction.DOWN
+            };
         }
-        return new Direction[] {nose, Direction.DOWN, nose.getClockWise(),
-                nose.getCounterClockWise(), nose.getOpposite()};
+        return new Direction[] {
+            nose, Direction.DOWN, nose.getClockWise(), nose.getCounterClockWise(), nose.getOpposite()
+        };
     }
 
     /** Block collision extent toward {@code dir} plus the entity radius and a margin. */
     private static double clearance(Direction dir, BombSize size) {
         var bounds = size.shapeFor(dir.getAxis()).bounds();
-        double extentFromCenter = switch (dir) {
-            case EAST -> bounds.maxX - 0.5D;
-            case WEST -> 0.5D - bounds.minX;
-            case SOUTH -> bounds.maxZ - 0.5D;
-            case NORTH -> 0.5D - bounds.minZ;
-            case UP -> bounds.maxY - 0.5D;
-            case DOWN -> 0.5D - bounds.minY;
-        };
+        double extentFromCenter =
+                switch (dir) {
+                    case EAST -> bounds.maxX - 0.5D;
+                    case WEST -> 0.5D - bounds.minX;
+                    case SOUTH -> bounds.maxZ - 0.5D;
+                    case NORTH -> 0.5D - bounds.minZ;
+                    case UP -> bounds.maxY - 0.5D;
+                    case DOWN -> 0.5D - bounds.minY;
+                };
         return extentFromCenter + (size.entitySize * 0.5D) + 0.35D;
     }
 
@@ -655,15 +661,14 @@ public class DropBombBlock extends Block implements IWrenchable {
         }
 
         if (player != null && !player.isCreative()) {
-            ItemStack drop = DropBombItem.withSettings(
-                    this.asItem(),
-                    state.getValue(CASSETTE),
-                    state.getValue(RELEASE_DELAY));
+            ItemStack drop =
+                    DropBombItem.withSettings(this.asItem(), state.getValue(CASSETTE), state.getValue(RELEASE_DELAY));
             player.getInventory().placeItemBackInInventory(drop);
         }
 
         world.destroyBlock(pos, false);
-        AllSoundEvents.WRENCH_REMOVE.playOnServer(world, pos, 1.0f, world.getRandom().nextFloat() * 0.5f + 0.5f);
+        AllSoundEvents.WRENCH_REMOVE.playOnServer(
+                world, pos, 1.0f, world.getRandom().nextFloat() * 0.5f + 0.5f);
         return InteractionResult.SUCCESS;
     }
 
@@ -678,8 +683,7 @@ public class DropBombBlock extends Block implements IWrenchable {
         if (!BombSympatheticDetonation.allowsCookoffFrom(explosion)) {
             return;
         }
-        BombSympatheticDetonation.scheduleDetachedBombCookoff(
-                serverLevel, pos, this.size, 28, 92);
+        BombSympatheticDetonation.scheduleDetachedBombCookoff(serverLevel, pos, this.size, 28, 92);
     }
 
     /**
@@ -708,9 +712,7 @@ public class DropBombBlock extends Block implements IWrenchable {
         DropBombUtil.detonateAsReleasedProjectile(size, blastLevel, blastPos);
     }
 
-    private record ProjectileHitKey(ServerLevel level, long pos) {
-    }
+    private record ProjectileHitKey(ServerLevel level, long pos) {}
 
-    private record ProjectileHitState(int hits, long lastHitTick) {
-    }
+    private record ProjectileHitState(int hits, long lastHitTick) {}
 }

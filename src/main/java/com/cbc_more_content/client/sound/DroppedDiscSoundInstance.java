@@ -1,7 +1,6 @@
 package com.cbc_more_content.client.sound;
 
 import com.cbc_more_content.registry.ModSounds;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
@@ -29,8 +28,7 @@ public final class DroppedDiscSoundInstance extends AbstractTickableSoundInstanc
     private int fadeTicks;
 
     public DroppedDiscSoundInstance(ItemEntity disc, Role role) {
-        super(role.sound(), SoundSource.RECORDS,
-                RandomSource.create((long) disc.getId() * 31L + role.ordinal()));
+        super(role.sound(), SoundSource.RECORDS, RandomSource.create((long) disc.getId() * 31L + role.ordinal()));
         this.disc = disc;
         this.role = role;
         this.looping = role.loops;
@@ -52,7 +50,8 @@ public final class DroppedDiscSoundInstance extends AbstractTickableSoundInstanc
     @Override
     public void tick() {
         LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null || this.disc.isRemoved()
+        if (player == null
+                || this.disc.isRemoved()
                 || this.disc.level() != player.level()
                 || (this.role == Role.WHISTLE && !isFalling(this.disc))) {
             this.fadeOut();
@@ -112,9 +111,7 @@ public final class DroppedDiscSoundInstance extends AbstractTickableSoundInstanc
         }
 
         SoundEvent sound() {
-            return this == THEME
-                    ? ModSounds.MUSIC_BREAKER_OF_SKIES.get()
-                    : ModSounds.BOMB_FALLING.get();
+            return this == THEME ? ModSounds.MUSIC_BREAKER_OF_SKIES.get() : ModSounds.BOMB_FALLING.get();
         }
     }
 }

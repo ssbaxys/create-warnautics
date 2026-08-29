@@ -5,7 +5,6 @@ import com.cbc_more_content.munitions.SeaBombProjectile;
 import com.cbc_more_content.registry.ModBlocks;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
@@ -35,11 +34,12 @@ public class SeaBombRenderer extends BigCannonProjectileRenderer<SeaBombProjecti
             int packedLight) {
         super.render(entity, entityYaw, partialTick, poseStack, buffer, packedLight);
 
-        float degreesPerTick = switch (entity.phase()) {
-            case SeaBombProjectile.PHASE_SWIM -> 72.0f;
-            case SeaBombProjectile.PHASE_SINK -> 28.0f;
-            default -> 12.0f;
-        };
+        float degreesPerTick =
+                switch (entity.phase()) {
+                    case SeaBombProjectile.PHASE_SWIM -> 72.0f;
+                    case SeaBombProjectile.PHASE_SINK -> 28.0f;
+                    default -> 12.0f;
+                };
         float spin = entity.clientPropellerDegrees(partialTick, degreesPerTick);
 
         Vec3 orientation = entity.getOrientation();
@@ -57,22 +57,20 @@ public class SeaBombRenderer extends BigCannonProjectileRenderer<SeaBombProjecti
         poseStack.mulPose(Axis.ZP.rotationDegrees(spin));
         poseStack.translate(-0.5D, -0.5D, -0.5D);
 
-        BlockState rotor = ModBlocks.SEA_BOMB.get().defaultBlockState()
+        BlockState rotor = ModBlocks.SEA_BOMB
+                .get()
+                .defaultBlockState()
                 .setValue(DropBombBlock.FACING, Direction.NORTH)
                 .setValue(DropBombBlock.POWERED, true)
                 .setValue(DropBombBlock.CASSETTE, 3);
-        Minecraft.getInstance().getBlockRenderer().renderSingleBlock(
-                rotor,
-                poseStack,
-                buffer,
-                packedLight,
-                OverlayTexture.NO_OVERLAY);
+        Minecraft.getInstance()
+                .getBlockRenderer()
+                .renderSingleBlock(rotor, poseStack, buffer, packedLight, OverlayTexture.NO_OVERLAY);
         poseStack.popPose();
     }
 
     private static void applyProjectileOrientation(PoseStack poseStack, Vec3 orientation) {
-        if (orientation.horizontalDistanceSqr() > 1.0E-4D
-                && Math.abs(orientation.y) > 0.01D) {
+        if (orientation.horizontalDistanceSqr() > 1.0E-4D && Math.abs(orientation.y) > 0.01D) {
             Vec3 horizontal = new Vec3(orientation.x, 0.0D, orientation.z).normalize();
             poseStack.mulPose(CBCUtils.mat4x4fFacing(orientation.normalize().reverse(), horizontal));
             poseStack.mulPose(CBCUtils.mat4x4fFacing(horizontal));

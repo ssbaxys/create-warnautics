@@ -2,7 +2,6 @@ package com.cbc_more_content.mixin.compat.sodium;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -30,22 +29,19 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 @Mixin(targets = "net.caffeinemc.mods.sodium.client.gl.shader.GlShader", remap = false)
 public abstract class SodiumShaderLodBiasMixin {
     private static final String SODIUM_LOD_DECLARATION =
-            "\n    float lodBias = _material_use_mips(v_Material)"
-                    + " ? 0.0 : float(-MAX_TEXTURE_LOD_BIAS);";
-    private static final String SAFE_LOD_DECLARATION =
-            "\n    float lodBias = 0.0;";
+            "\n    float lodBias = _material_use_mips(v_Material)" + " ? 0.0 : float(-MAX_TEXTURE_LOD_BIAS);";
+    private static final String SAFE_LOD_DECLARATION = "\n    float lodBias = 0.0;";
 
-    private static final Pattern LOD_BIAS_DECLARATION =
-            Pattern.compile("\\bfloat\\s+lodBias\\b");
-    private static final Pattern LOD_BIAS_DECLARATION_STATEMENT =
-            Pattern.compile("\\bfloat\\s+lodBias\\s*=\\s*[^;]+;");
+    private static final Pattern LOD_BIAS_DECLARATION = Pattern.compile("\\bfloat\\s+lodBias\\b");
+    private static final Pattern LOD_BIAS_DECLARATION_STATEMENT = Pattern.compile("\\bfloat\\s+lodBias\\s*=\\s*[^;]+;");
 
     @ModifyArg(
             method = "<init>",
-            at = @At(
-                    value = "INVOKE",
-                    target = "Lnet/caffeinemc/mods/sodium/client/gl/shader/ShaderWorkarounds;"
-                            + "safeShaderSource(ILjava/lang/CharSequence;)V"),
+            at =
+                    @At(
+                            value = "INVOKE",
+                            target = "Lnet/caffeinemc/mods/sodium/client/gl/shader/ShaderWorkarounds;"
+                                    + "safeShaderSource(ILjava/lang/CharSequence;)V"),
             index = 1,
             require = 0)
     private CharSequence cbcMoreContent$restoreMissingLodBias(CharSequence source) {
@@ -78,15 +74,12 @@ public abstract class SodiumShaderLodBiasMixin {
         // The declaration is missing entirely, or (Veil + Deep Seas) it was
         // pushed after the first use. Re-insert it at the top of main() and
         // drop the misplaced original so it cannot redefine the new one.
-        String lodBiasDeclaration = shader.contains("MAX_TEXTURE_LOD_BIAS")
-                        && shader.contains("_material_use_mips")
+        String lodBiasDeclaration = shader.contains("MAX_TEXTURE_LOD_BIAS") && shader.contains("_material_use_mips")
                 ? SODIUM_LOD_DECLARATION
                 : SAFE_LOD_DECLARATION;
         if (declarationStart >= 0) {
             bodySource = LOD_BIAS_DECLARATION_STATEMENT.matcher(bodySource).replaceFirst("");
         }
-        return shader.substring(0, body + 1)
-                + lodBiasDeclaration
-                + bodySource;
+        return shader.substring(0, body + 1) + lodBiasDeclaration + bodySource;
     }
 }

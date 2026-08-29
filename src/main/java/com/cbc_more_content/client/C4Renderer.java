@@ -5,7 +5,7 @@ import com.cbc_more_content.block.C4Block;
 import com.cbc_more_content.block.C4Block.Fuse;
 import com.cbc_more_content.block.C4BlockEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
-
+import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -20,8 +20,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.client.model.data.ModelData;
 
-import com.mojang.math.Axis;
-
 /**
  * Spins the timer cog inside an armed charge.
  * <p>
@@ -33,22 +31,22 @@ import com.mojang.math.Axis;
 public class C4Renderer implements BlockEntityRenderer<C4BlockEntity> {
     /** Cog centre in model space, from the authored geometry. */
     private static final float PIVOT_X = 8.0f / 16.0f;
+
     private static final float PIVOT_Y = 4.1f / 16.0f;
     private static final float PIVOT_Z = 6.0f / 16.0f;
     /** Degrees per tick. Whole revolutions per 90 ticks, so the angle never jumps. */
     private static final float DEGREES_PER_TICK = 4.0f;
+
     private static final long REVOLUTION_TICKS = 90L;
 
     public static final ModelResourceLocation COG = standalone("block/c4/cog");
     public static final ModelResourceLocation COG_ARMED = standalone("block/c4/cog_armed");
     public static final ModelResourceLocation COG_LIT = standalone("block/c4/cog_lit");
 
-    public C4Renderer(BlockEntityRendererProvider.Context context) {
-    }
+    public C4Renderer(BlockEntityRendererProvider.Context context) {}
 
     private static ModelResourceLocation standalone(String path) {
-        return ModelResourceLocation.standalone(
-                ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, path));
+        return ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, path));
     }
 
     @Override
@@ -68,11 +66,14 @@ public class C4Renderer implements BlockEntityRenderer<C4BlockEntity> {
         // The cog is drawn here in every state, including IDLE — it was cut out of the
         // block model, so skipping it left an unarmed charge with a hole in its casing.
         // Only a live fuse turns it.
-        BakedModel model = Minecraft.getInstance().getModelManager().getModel(switch (fuse) {
-            case IDLE -> COG;
-            case ARMED -> COG_ARMED;
-            case LIT -> COG_LIT;
-        });
+        BakedModel model = Minecraft.getInstance()
+                .getModelManager()
+                .getModel(
+                        switch (fuse) {
+                            case IDLE -> COG;
+                            case ARMED -> COG_ARMED;
+                            case LIT -> COG_LIT;
+                        });
 
         // A running fuse turns the cog. A remote charge has none, so it only turns once a
         // set has taken it on — which is the same thing that lights its screen, so the
@@ -89,16 +90,21 @@ public class C4Renderer implements BlockEntityRenderer<C4BlockEntity> {
             pose.translate(-PIVOT_X, -PIVOT_Y, -PIVOT_Z);
         }
 
-        Minecraft.getInstance().getBlockRenderer().getModelRenderer().renderModel(
-                pose.last(),
-                buffers.getBuffer(RenderType.cutout()),
-                state,
-                model,
-                1.0f, 1.0f, 1.0f,
-                packedLight,
-                packedOverlay,
-                ModelData.EMPTY,
-                RenderType.cutout());
+        Minecraft.getInstance()
+                .getBlockRenderer()
+                .getModelRenderer()
+                .renderModel(
+                        pose.last(),
+                        buffers.getBuffer(RenderType.cutout()),
+                        state,
+                        model,
+                        1.0f,
+                        1.0f,
+                        1.0f,
+                        packedLight,
+                        packedOverlay,
+                        ModelData.EMPTY,
+                        RenderType.cutout());
         pose.popPose();
     }
 

@@ -1,13 +1,11 @@
 package com.cbc_more_content.client.sound;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.client.sound.DroppedDiscSoundInstance.Role;
 import com.cbc_more_content.registry.ModItems;
-
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -32,8 +30,7 @@ public final class DroppedDiscSoundManager {
 
     private static ClientLevel activeLevel;
 
-    private DroppedDiscSoundManager() {
-    }
+    private DroppedDiscSoundManager() {}
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
@@ -53,7 +50,9 @@ public final class DroppedDiscSoundManager {
 
         AABB area = player.getBoundingBox().inflate(SEARCH_RADIUS);
         int tracked = 0;
-        for (ItemEntity disc : level.getEntitiesOfClass(ItemEntity.class, area,
+        for (ItemEntity disc : level.getEntitiesOfClass(
+                ItemEntity.class,
+                area,
                 e -> e.isAlive() && e.getItem().is(ModItems.MUSIC_DISC_BREAKER_OF_SKIES.get()))) {
             if (tracked++ >= MAX_DISCS) {
                 break;

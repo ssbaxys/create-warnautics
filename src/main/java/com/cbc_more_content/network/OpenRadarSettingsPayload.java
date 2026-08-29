@@ -2,7 +2,6 @@ package com.cbc_more_content.network;
 
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.radar.InterceptSettings;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
@@ -16,23 +15,20 @@ import net.minecraft.resources.ResourceLocation;
  * guessed at by the client — otherwise every operator would be shown defaults and would
  * overwrite whatever the network was actually set to.
  */
-public record OpenRadarSettingsPayload(BlockPos controller, InterceptSettings settings)
-        implements CustomPacketPayload {
+public record OpenRadarSettingsPayload(BlockPos controller, InterceptSettings settings) implements CustomPacketPayload {
 
-    public static final Type<OpenRadarSettingsPayload> TYPE = new Type<>(
-            ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "open_radar_settings"));
+    public static final Type<OpenRadarSettingsPayload> TYPE =
+            new Type<>(ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "open_radar_settings"));
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, OpenRadarSettingsPayload> STREAM_CODEC =
-            StreamCodec.of(
-                    (buf, payload) -> {
-                        buf.writeBlockPos(payload.controller);
-                        buf.writeFloat(payload.settings.minSpeed());
-                        buf.writeVarInt(payload.settings.maxRange());
-                        buf.writeBoolean(payload.settings.hullsOnly());
-                    },
-                    buf -> new OpenRadarSettingsPayload(
-                            buf.readBlockPos(),
-                            new InterceptSettings(buf.readFloat(), buf.readVarInt(), buf.readBoolean())));
+    public static final StreamCodec<RegistryFriendlyByteBuf, OpenRadarSettingsPayload> STREAM_CODEC = StreamCodec.of(
+            (buf, payload) -> {
+                buf.writeBlockPos(payload.controller);
+                buf.writeFloat(payload.settings.minSpeed());
+                buf.writeVarInt(payload.settings.maxRange());
+                buf.writeBoolean(payload.settings.hullsOnly());
+            },
+            buf -> new OpenRadarSettingsPayload(
+                    buf.readBlockPos(), new InterceptSettings(buf.readFloat(), buf.readVarInt(), buf.readBoolean())));
 
     @Override
     public Type<? extends CustomPacketPayload> type() {

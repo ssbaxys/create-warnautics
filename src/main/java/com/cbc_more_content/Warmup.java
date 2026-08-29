@@ -34,8 +34,7 @@ public final class Warmup {
         "com.cbc_more_content.client.FlashRenderMode",
     };
 
-    private Warmup() {
-    }
+    private Warmup() {}
 
     public static void common() {
         load(COMMON);

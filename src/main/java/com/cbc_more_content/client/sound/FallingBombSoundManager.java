@@ -1,15 +1,13 @@
 package com.cbc_more_content.client.sound;
 
+import com.cbc_more_content.CBCMoreContent;
+import com.cbc_more_content.munitions.DropBombProjectile;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
-import com.cbc_more_content.CBCMoreContent;
-import com.cbc_more_content.munitions.DropBombProjectile;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -28,8 +26,7 @@ public final class FallingBombSoundManager {
 
     private static ClientLevel activeLevel;
 
-    private FallingBombSoundManager() {
-    }
+    private FallingBombSoundManager() {}
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
@@ -57,8 +54,8 @@ public final class FallingBombSoundManager {
 
         AABB area = player.getBoundingBox().inflate(SEARCH_RADIUS);
         List<Candidate> candidates = new ArrayList<>();
-        for (DropBombProjectile bomb : level.getEntitiesOfClass(
-                DropBombProjectile.class, area, FallingBombSoundInstance::isAirborne)) {
+        for (DropBombProjectile bomb :
+                level.getEntitiesOfClass(DropBombProjectile.class, area, FallingBombSoundInstance::isAirborne)) {
             double distance = player.getEyePosition().distanceTo(bomb.position());
             double range = FallingBombSoundInstance.range(bomb.bombSize());
             if (distance >= range) {
@@ -83,19 +80,21 @@ public final class FallingBombSoundManager {
                 ACTIVE.put(bomb.getId(), sound);
                 mc.getSoundManager().play(sound);
             }
-            float voiceGain = switch (index) {
-                case 0 -> 1.0f;
-                case 1 -> 0.88f;
-                case 2 -> 0.78f;
-                default -> 0.68f;
-            };
+            float voiceGain =
+                    switch (index) {
+                        case 0 -> 1.0f;
+                        case 1 -> 0.88f;
+                        case 2 -> 0.78f;
+                        default -> 0.68f;
+                    };
             sound.select(crowdGain, voiceGain);
         }
     }
 
     private static float score(LocalPlayer player, DropBombProjectile bomb, float proximity) {
         double distance = Math.max(0.001D, player.getEyePosition().distanceTo(bomb.position()));
-        double radial = bomb.getDeltaMovement().subtract(player.getDeltaMovement())
+        double radial = bomb.getDeltaMovement()
+                .subtract(player.getDeltaMovement())
                 .dot(player.getEyePosition().subtract(bomb.position()).scale(1.0D / distance));
         float approach = Math.max(0.72f, Math.min(1.28f, 1.0f + (float) radial * 0.12f));
         float persistentVoice = ACTIVE.containsKey(bomb.getId()) ? 1.08f : 1.0f;
@@ -113,6 +112,5 @@ public final class FallingBombSoundManager {
         activeLevel = null;
     }
 
-    private record Candidate(DropBombProjectile bomb, float score) {
-    }
+    private record Candidate(DropBombProjectile bomb, float score) {}
 }

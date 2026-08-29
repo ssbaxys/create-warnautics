@@ -1,12 +1,10 @@
 package com.cbc_more_content.util;
 
-import javax.annotation.Nullable;
-
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.compat.SableDropCompat;
 import com.cbc_more_content.munitions.DropBombProjectile;
 import com.cbc_more_content.registry.ModEntityTypes;
-
+import javax.annotation.Nullable;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -21,10 +19,10 @@ import rbasamoyai.createbigcannons.munitions.big_cannon.FuzedBigCannonProjectile
  * (see Sable wiki entity kicking) so we do not kick mid-physics-tick.
  */
 public final class DropBombUtil {
-    private DropBombUtil() {
-    }
+    private DropBombUtil() {}
 
-    public static DropBombProjectile spawn(BombSize size, ServerLevel level, Vec3 localPos, Vec3 localVel, @Nullable Entity owner) {
+    public static DropBombProjectile spawn(
+            BombSize size, ServerLevel level, Vec3 localPos, Vec3 localVel, @Nullable Entity owner) {
         return spawn(size, level, localPos, localVel, null, owner);
     }
 
@@ -41,8 +39,8 @@ public final class DropBombUtil {
         Vec3 orientation = localOrientation;
 
         if (ModList.get().isLoaded("sable")) {
-            SableDropCompat.LaunchFrame frame = SableDropCompat.resolveLaunch(
-                    level, localPos, localVel, localOrientation);
+            SableDropCompat.LaunchFrame frame =
+                    SableDropCompat.resolveLaunch(level, localPos, localVel, localOrientation);
             spawnLevel = frame.level();
             pos = frame.pos();
             vel = frame.vel();
@@ -59,10 +57,7 @@ public final class DropBombUtil {
      * briefly adding a duplicate entity to the world. This preserves CBC datapack
      * powers and sea-bomb underwater behaviour used by redstone-released bombs.
      */
-    public static void detonateAsReleasedProjectile(
-            BombSize size,
-            ServerLevel level,
-            Vec3 worldPos) {
+    public static void detonateAsReleasedProjectile(BombSize size, ServerLevel level, Vec3 worldPos) {
         DropBombProjectile bomb = createBomb(size, level);
         configure(bomb, worldPos, Vec3.ZERO, new Vec3(0.0D, -1.0D, 0.0D), null);
         bomb.detonateFromPhysicalImpact(worldPos);
@@ -74,12 +69,13 @@ public final class DropBombUtil {
         if (size == BombSize.SEA) {
             bomb = ModEntityTypes.SEA_BOMB.get().create(level);
         } else {
-            EntityType<DropBombProjectile> type = switch (size) {
-                case SMALL -> ModEntityTypes.SMALL_BOMB.get();
-                case MEDIUM -> ModEntityTypes.MEDIUM_BOMB.get();
-                case LARGE -> ModEntityTypes.LARGE_BOMB.get();
-                case SEA -> throw new IllegalStateException("unreachable");
-            };
+            EntityType<DropBombProjectile> type =
+                    switch (size) {
+                        case SMALL -> ModEntityTypes.SMALL_BOMB.get();
+                        case MEDIUM -> ModEntityTypes.MEDIUM_BOMB.get();
+                        case LARGE -> ModEntityTypes.LARGE_BOMB.get();
+                        case SEA -> throw new IllegalStateException("unreachable");
+                    };
             bomb = type.create(level);
         }
         if (bomb == null) {
@@ -112,9 +108,7 @@ public final class DropBombUtil {
 
         Vec3 orientation = launchOrientation != null && launchOrientation.lengthSqr() > 1.0E-6D
                 ? launchOrientation.normalize()
-                : vel.lengthSqr() > 1.0E-6D
-                        ? vel.normalize()
-                        : new Vec3(0.0D, -1.0D, 0.0D);
+                : vel.lengthSqr() > 1.0E-6D ? vel.normalize() : new Vec3(0.0D, -1.0D, 0.0D);
         bomb.setOrientation(orientation);
         bomb.setChargePower(1.0f);
         bomb.setFuze(new ItemStack(CBCItems.IMPACT_FUZE.get()));

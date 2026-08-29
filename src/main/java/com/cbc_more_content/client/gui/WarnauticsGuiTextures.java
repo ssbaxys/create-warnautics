@@ -1,7 +1,6 @@
 package com.cbc_more_content.client.gui;
 
 import com.cbc_more_content.CBCMoreContent;
-
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
@@ -37,8 +36,7 @@ public enum WarnauticsGuiTextures {
     public final int height;
 
     WarnauticsGuiTextures(String path, int startX, int startY, int width, int height) {
-        this.location = ResourceLocation.fromNamespaceAndPath(
-                CBCMoreContent.MOD_ID, "textures/gui/" + path + ".png");
+        this.location = ResourceLocation.fromNamespaceAndPath(CBCMoreContent.MOD_ID, "textures/gui/" + path + ".png");
         this.startX = startX;
         this.startY = startY;
         this.width = width;
@@ -46,8 +44,7 @@ public enum WarnauticsGuiTextures {
     }
 
     public void render(GuiGraphics graphics, int x, int y) {
-        graphics.blit(this.location, x, y, this.startX, this.startY,
-                this.width, this.height, ATLAS, ATLAS);
+        graphics.blit(this.location, x, y, this.startX, this.startY, this.width, this.height, ATLAS, ATLAS);
     }
 
     /** Blit with an ARGB tint, used to fade widgets in with the window. */

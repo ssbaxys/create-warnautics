@@ -1,9 +1,7 @@
 package com.cbc_more_content.block;
 
-import javax.annotation.Nullable;
-
 import com.cbc_more_content.registry.ModBlockEntities;
-
+import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -24,6 +22,7 @@ import net.minecraft.world.phys.Vec3;
 public class CruiseMissileBlockEntity extends BlockEntity {
     @Nullable
     private BlockPos target;
+
     private Guidance guidance = Guidance.NONE;
     /** Sub-level this missile was slaved to, when the designator locked one. */
     private int lockedSubLevel = -1;
@@ -47,18 +46,18 @@ public class CruiseMissileBlockEntity extends BlockEntity {
      * Wiring redstone to it stays possible and simply fires it early.
      */
     public static void serverTick(
-            net.minecraft.world.level.Level level, BlockPos pos, BlockState state,
-            CruiseMissileBlockEntity be) {
-        if (be.guidance != Guidance.INTERCEPT || be.controller == null
+            net.minecraft.world.level.Level level, BlockPos pos, BlockState state, CruiseMissileBlockEntity be) {
+        if (be.guidance != Guidance.INTERCEPT
+                || be.controller == null
                 || level.getGameTime() % SCAN_INTERVAL != 0
                 || !(level instanceof net.minecraft.server.level.ServerLevel server)
                 || !com.cbc_more_content.compat.RadarCompat.loaded()) {
             return;
         }
-        var settings = com.cbc_more_content.radar.InterceptSettingsStore.get(server)
-                .forController(be.controller);
-        if (com.cbc_more_content.compat.RadarCompat.bestContact(
-                level, be.controller, Vec3.atCenterOf(pos), settings) == null) {
+        var settings =
+                com.cbc_more_content.radar.InterceptSettingsStore.get(server).forController(be.controller);
+        if (com.cbc_more_content.compat.RadarCompat.bestContact(level, be.controller, Vec3.atCenterOf(pos), settings)
+                == null) {
             return;
         }
         CruiseMissileBlock.launch(server, pos, state);
@@ -139,8 +138,8 @@ public class CruiseMissileBlockEntity extends BlockEntity {
     private void sync() {
         this.setChanged();
         if (this.level != null) {
-            this.level.sendBlockUpdated(this.worldPosition,
-                    this.getBlockState(), this.getBlockState(), Block.UPDATE_CLIENTS);
+            this.level.sendBlockUpdated(
+                    this.worldPosition, this.getBlockState(), this.getBlockState(), Block.UPDATE_CLIENTS);
         }
     }
 

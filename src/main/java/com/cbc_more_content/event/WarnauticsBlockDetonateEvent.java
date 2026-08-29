@@ -1,10 +1,8 @@
 package com.cbc_more_content.event;
 
+import com.cbc_more_content.bomb.BombSize;
 import java.util.Collection;
 import java.util.List;
-
-import com.cbc_more_content.bomb.BombSize;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Explosion;
@@ -18,11 +16,7 @@ public class WarnauticsBlockDetonateEvent extends Event {
     private final BombSize size;
     private final List<BlockPos> toBlow;
 
-    public WarnauticsBlockDetonateEvent(
-            ServerLevel level,
-            Explosion explosion,
-            Vec3 center,
-            BombSize size) {
+    public WarnauticsBlockDetonateEvent(ServerLevel level, Explosion explosion, Vec3 center, BombSize size) {
         this.level = level;
         this.explosion = explosion;
         this.center = center;

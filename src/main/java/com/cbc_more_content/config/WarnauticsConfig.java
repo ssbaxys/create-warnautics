@@ -25,15 +25,13 @@ public final class WarnauticsConfig {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
 
         builder.comment("Create Warnautics — detonation behaviour").push("detonation");
-        FRIENDLY_CHAIN_DETONATION = builder
-                .comment(
+        FRIENDLY_CHAIN_DETONATION = builder.comment(
                         "Allow a Warnautics bomb blast to cook off other Warnautics bombs.",
                         "false (default): a released bomb can never destroy the payload still",
                         "carried by the aircraft, so tightly packed bomb bays are safe.",
                         "true: pre-1.0.2 behaviour — one hit detonates the whole rack.")
                 .define("friendlyChainDetonation", false);
-        EXTERNAL_CHAIN_DETONATION = builder
-                .comment(
+        EXTERNAL_CHAIN_DETONATION = builder.comment(
                         "Allow non-Warnautics explosions (TNT, cannon shells, creepers), fire",
                         "and lava to cook off placed bombs. This is what makes an ammunition",
                         "hit on a bomber dangerous, and is unrelated to friendly chaining.")
@@ -41,19 +39,16 @@ public final class WarnauticsConfig {
         builder.pop();
 
         builder.comment("Create Warnautics — performance limits").push("performance");
-        MAX_BLOCKS_PER_DETONATION = builder
-                .comment(
+        MAX_BLOCKS_PER_DETONATION = builder.comment(
                         "Maximum blocks a single detonation may change. Carpet bombing with",
                         "unbounded craters is the main cause of client stalls and out-of-memory",
                         "crashes, because every changed block is meshed again by the renderer.")
                 .defineInRange("maxBlocksPerDetonation", 2600, 128, 60000);
-        BLAST_FX_SCALE = builder
-                .comment(
+        BLAST_FX_SCALE = builder.comment(
                         "Multiplier on the amount of blast particles and flash packets sent to",
                         "clients. Lower this on servers where players run heavy shader setups.")
                 .defineInRange("blastFxScale", 1.0D, 0.0D, 1.0D);
-        RELEASE_IMPULSE = builder
-                .comment(
+        RELEASE_IMPULSE = builder.comment(
                         "Multiplier on the release impulse that throws a bomb onto its arc.",
                         "The impulse is forward along the bomb's nose plus a slight downward",
                         "bias, and never has an upward component at any value.",
@@ -64,8 +59,7 @@ public final class WarnauticsConfig {
         SPEC = builder.build();
     }
 
-    private WarnauticsConfig() {
-    }
+    private WarnauticsConfig() {}
 
     public static boolean friendlyChainDetonation() {
         return SPEC.isLoaded() && FRIENDLY_CHAIN_DETONATION.get();
