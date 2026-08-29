@@ -27,9 +27,9 @@ Small bombs can be combined into bundles containing 2, 3, or 4 bombs.
 
 # Optional Compatibility  
 
- - **Sable** - Bombs damage, launch from, and such on physics objects. Physics objects also activate large mines. 
- - **Sable Player Ragdoll / Ragdoll Reactions** — blast reactions.
- - **Veil** — enhanced physical blast lights and post-processing.
+ - **Sable** - Very much recommended as this mod is mostly useless without it. Bombs damage and launch from physics objects. Physics objects also activate large mines. 
+ - **Sable Player Ragdoll / Ragdoll Reactions** — Ragdoll when near an explosion.
+ - **Veil** — Recommended as it enhanced the explosions effects.
 
 # Requirements
 
