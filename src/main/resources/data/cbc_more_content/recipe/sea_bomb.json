@@ -9,22 +9,22 @@
     "I": {
       "tag": "c:plates/iron"
     },
-    "K": {
-      "item": "minecraft:kelp"
+    "F": {
+      "item": "createbigcannons:impact_fuze"
     },
-    "S": {
-      "tag": "minecraft:wooden_slabs"
+    "P": {
+      "item": "create:propeller"
     },
     "X": {
       "tag": "createbigcannons:high_explosive_materials"
     }
   },
   "pattern": [
-    " K ",
+    " F ",
     "ICI",
     "IXI",
     "IXI",
-    " S "
+    " P "
   ],
   "result": {
     "count": 1,
