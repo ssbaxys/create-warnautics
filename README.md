@@ -9,7 +9,7 @@ Aerial bombs
  - Small Bomb 
  - Medium Bomb 
  - Large Bomb
- - Sea Bomb
+ - Sea Torpedo
 
 Bombs are activated with a redstone pulse, at which point they fall and explode upon impact. Wrenches are also able to rotate them.
 
