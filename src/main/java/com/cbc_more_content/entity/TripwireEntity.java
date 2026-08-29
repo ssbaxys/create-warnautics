@@ -53,6 +53,8 @@ public class TripwireEntity extends Entity {
     private static final int RELAX_TICKS = 6;
     /** How often the hull check runs; a plot is not going to sneak past between ticks. */
     private static final int HULL_INTERVAL = 4;
+    /** Maximum distance from the wire that a physics hull can trigger it. */
+    private static final double HULL_REACH = 0.6D;
 
     /** How much a snagged walker is held up, so the wire is felt before it parts. */
     private static final double CLING = 0.82D;
@@ -291,8 +293,7 @@ public class TripwireEntity extends Entity {
         if (!ModList.get().isLoaded("sable")) {
             return false;
         }
-        double reach = this.endA().distanceTo(this.endB()) * 0.5D + 1.0D;
-        return SableDropCompat.overlapsAnySubLevel(server, this.position(), reach);
+        return SableDropCompat.overlapsAnySubLevel(server, this.position(), HULL_REACH);
     }
 
     private static boolean isPost(Level level, BlockPos pos) {
