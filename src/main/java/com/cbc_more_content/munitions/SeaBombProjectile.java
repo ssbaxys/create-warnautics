@@ -87,7 +87,10 @@ public class SeaBombProjectile extends DropBombProjectile {
     }
 
     private boolean touchingWater() {
-        return this.isInWater() || this.isWaterFluid(this.level().getFluidState(this.blockPosition()));
+        return this.isInWater()
+                || this.isWaterFluid(this.level().getFluidState(this.blockPosition()))
+                || this.isWaterFluid(this.level().getFluidState(this.blockPosition().above()))
+                || this.isWaterFluid(this.level().getFluidState(this.blockPosition().below()));
     }
 
     private boolean isSolidObstacle(BlockPos pos, BlockState state) {
@@ -330,6 +333,9 @@ public class SeaBombProjectile extends DropBombProjectile {
             return;
         }
 
+        // A torpedo launched from a submerged rack starts directly in the swim
+        // phase; do not hand it back to CBC's normal impact physics merely because
+        // its hitbox straddles a water boundary for one tick.
         if (!this.touchingWater()) {
             this.setPhase(PHASE_AIR);
             this.setDeltaMovement(this.swimHeading.scale(0.35D).add(0.0D, -0.15D, 0.0D));

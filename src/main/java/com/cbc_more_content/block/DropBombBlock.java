@@ -80,6 +80,7 @@ public class DropBombBlock extends Block implements IWrenchable {
     private static final int[] LEGACY_RELEASE_DELAY_TICKS = {4, 8, 12, 20, 26, 40};
     public static final IntegerProperty RELEASE_DELAY = IntegerProperty.create(
             "release_delay", 0, MAX_RELEASE_DELAY_TICKS);
+    public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
     private static final Map<ProjectileHitKey, ProjectileHitState> PROJECTILE_HITS = new ConcurrentHashMap<>();
     /** A tally that has not been added to in ten seconds is not part of the same attack. */
     private static final int PROJECTILE_HIT_EXPIRY_TICKS = 200;
@@ -100,7 +101,8 @@ public class DropBombBlock extends Block implements IWrenchable {
                 .setValue(FACING, Direction.DOWN)
                 .setValue(POWERED, false)
                 .setValue(CASSETTE, 1)
-                .setValue(RELEASE_DELAY, DEFAULT_RELEASE_DELAY));
+                .setValue(RELEASE_DELAY, DEFAULT_RELEASE_DELAY)
+                .setValue(WATERLOGGED, false));
     }
 
     public BombSize getBombSize() {
@@ -135,7 +137,7 @@ public class DropBombBlock extends Block implements IWrenchable {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, POWERED, CASSETTE, RELEASE_DELAY);
+        builder.add(FACING, POWERED, CASSETTE, RELEASE_DELAY, WATERLOGGED);
     }
 
     @Nullable
@@ -153,7 +155,8 @@ public class DropBombBlock extends Block implements IWrenchable {
                 .setValue(FACING, context.getClickedFace())
                 .setValue(POWERED, alreadyPowered)
                 .setValue(CASSETTE, clampCassette(cassette))
-                .setValue(RELEASE_DELAY, normalizeReleaseDelayTicks(releaseDelay));
+                .setValue(RELEASE_DELAY, normalizeReleaseDelayTicks(releaseDelay))
+                .setValue(WATERLOGGED, level.getFluidState(pos).is(FluidTags.WATER));
     }
 
     @Override
@@ -176,6 +179,39 @@ public class DropBombBlock extends Block implements IWrenchable {
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return this.size.shapeFor(state.getValue(FACING).getAxis());
+    }
+
+    /**
+     * Sea torpedoes are sealed launchers and may be installed in water. The generic
+     * bomb block deliberately keeps the normal support rules, but the sea variant
+     * must not be destroyed by water replacing its placement space.
+     */
+    protected boolean canSurvive(BlockState state, net.minecraft.world.level.LevelReader level, BlockPos pos) {
+        return this.size == BombSize.SEA || super.canSurvive(state, level, pos);
+    }
+
+    @Override
+    protected BlockState updateShape(
+            BlockState state,
+            Direction direction,
+            BlockState neighborState,
+            net.minecraft.world.level.LevelAccessor level,
+            BlockPos pos,
+            BlockPos neighborPos) {
+        // Do not delegate fluid/support updates for sea torpedoes: vanilla's
+        // survival update can replace the block with air when water flows into
+        // the position, even though the torpedo is intentionally water-safe.
+        if (this.size == BombSize.SEA) {
+            return state;
+        }
+        return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
+    }
+
+    @Override
+    protected net.minecraft.world.level.material.FluidState getFluidState(BlockState state) {
+        return state.getValue(WATERLOGGED)
+                ? net.minecraft.world.level.material.Fluids.WATER.getSource(false)
+                : super.getFluidState(state);
     }
 
     @Override
