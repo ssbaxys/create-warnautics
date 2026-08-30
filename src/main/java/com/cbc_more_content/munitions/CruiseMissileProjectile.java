@@ -14,11 +14,14 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Entity.RemovalReason;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
@@ -28,104 +31,49 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.ModList;
 
-/**
- * A cruise missile in flight.
- * <p>
- * Two phases. Under power it holds its heading and altitude at a constant cruise speed,
- * because that is what makes it useful as a delivery weapon rather than a lobbed shell.
- * When the fuel runs out the engine cuts, drag takes over and it noses down under
- * gravity, so a missile that overshoots comes down somewhere rather than flying forever.
- */
 public class CruiseMissileProjectile extends Entity {
-    /**
-     * Powered flight, in ticks. At the cruise speed below this is roughly 265 blocks of
-     * range — a standoff weapon that reaches past what you can see from the rack, without
-     * turning into something you fire at a map reference and forget about.
-     */
     public static final int FUEL_TICKS = 190;
 
     private static final double CRUISE_SPEED = 1.4D;
-    /** Unpowered descent. Steeper than a shell so burnout reads as the engine dying. */
     private static final double GRAVITY = 0.085D;
-    /** Horizontal speed bleeds off quickly once there is no thrust holding it up. */
     private static final double DRAG = 0.95D;
-    /** Ignore the launcher for a moment so it cannot detonate on its own rack. */
     private static final int ARMING_TICKS = 4;
+
+    private static final TicketType<Long> MISSILE_TICKET = TicketType.create("cruise_missile", Long::compareTo);
+    private static final int CHUNK_TICKET_RADIUS = 2;
+    private static final int CLIENT_TRACKING_RADIUS_BLOCKS = 4096;
 
     private static final EntityDataAccessor<Boolean> POWERED =
             SynchedEntityData.defineId(CruiseMissileProjectile.class, EntityDataSerializers.BOOLEAN);
-    /** Ejected from the silo, engine not yet lit. */
     private static final EntityDataAccessor<Boolean> EJECTING =
             SynchedEntityData.defineId(CruiseMissileProjectile.class, EntityDataSerializers.BOOLEAN);
 
-    /** Cold launch: thrown clear of the rack, then lit in the air. */
     public static final int EJECT_TICKS = 14;
-    /** How hard a vertical rack throws the airframe before ignition. */
     public static final double EJECT_SPEED = 0.62D;
-    /** Weight during the coast; the missile is meant to slow, not stop. */
     private static final double EJECT_GRAVITY = 0.03D;
 
-    /**
-     * How sharply the missile may turn, in radians per tick. Deliberately modest: it can
-     * fly a route and lean around a hillside, but a hull that surfaces right in front of
-     * it is inside the turn circle and cannot be avoided.
-     */
     private static final double TURN_RATE = 0.055D;
-    /**
-     * How far ahead it looks for something to lean around.
-     * <p>
-     * Scaled with the cruise speed rather than left where it was. Avoidance is a nudge
-     * held against a turn circle of about twenty-five blocks, and a faster airframe that
-     * looked no further ahead would simply meet the hillside sooner.
-     */
     private static final double LOOKAHEAD = 17.0D;
-    /**
-     * Inside this range the missile is on its terminal run: obstacle avoidance is
-     * dropped and it turns much harder. Avoidance is what used to make it miss — the
-     * ground under a target reads as an obstruction, so the missile climbed over the
-     * very thing it was aimed at and flew on.
-     */
     private static final double TERMINAL_RANGE = 32.0D;
-    /** Terminal turn rate, enough to pull a dive onto a point it is nearly on top of. */
     private static final double TERMINAL_TURN_RATE = 0.2D;
-    /**
-     * Close enough to burst. The warhead is far wider than this.
-     * <p>
-     * Kept above one tick of travel on the terminal run-in, or the ring could be stepped
-     * clean over between two ticks and the burst left to the closest-approach test alone.
-     */
     private static final double FUSE_RANGE = 2.4D;
-    /** Terminal run-in: the last stretch is flown faster than the cruise. */
     private static final double TERMINAL_BOOST = 1.45D;
-    /** Cosine of the sharpest course change a target can make without being noticed. */
     private static final double JINK_DOT = 0.55D;
-    /** Odds that a hard break at close range actually throws the missile off. */
     private static final float JINK_CHANCE = 0.4f;
-    /** How long a thrown-off missile sails past before it can pull round again. */
     private static final int SHAKEN_TICKS = 26;
 
-    /**
-     * Warhead, relative to the heaviest bomb. The crater keeps the large-bomb shape,
-     * which is the interesting one, but a missile is a delivery vehicle for something
-     * bigger than anything a rack carries.
-     */
     private static final float BLOCK_POWER = BombSize.LARGE.blockBlastPower * 1.3f;
 
     private static final float ENTITY_POWER = BombSize.LARGE.entityBlastPower * 1.6f;
-    /** Scorched, churned ground well past the hole itself. */
     private static final double SCUFF_RADIUS = BLOCK_POWER * 2.1D;
 
     private int fuel = FUEL_TICKS;
     private boolean detonated;
-    /** Once submerged, the motor is permanently cut and the missile coasts on momentum. */
     private boolean waterEntered;
-    /** Nearest the missile has come to its aim point on this terminal run. */
     private double closestApproach = Double.MAX_VALUE;
-    /** True once the range has actually started falling, so the fuse can arm. */
     private boolean closing;
 
     private double lastRange = Double.MAX_VALUE;
-    /** Ticks left of being thrown off by a target that broke hard. */
     private int shaken;
 
     @Nullable
@@ -152,25 +100,18 @@ public class CruiseMissileProjectile extends Entity {
         return this.entityData.get(POWERED);
     }
 
-    /** The radar set the missile listens to while intercepting. */
     public void setController(@Nullable BlockPos controller) {
         this.targeting.setController(controller);
     }
 
-    /** Copied off the rack's guidance package as the missile is released. */
     public void setGuidance(Guidance guidance, @Nullable BlockPos target, int lockedSubLevel) {
         this.targeting.setGuidance(guidance, target, lockedSubLevel);
     }
 
-    /** True while the missile is coasting up out of a rack with its engine cold. */
     public boolean isEjecting() {
         return this.entityData.get(EJECTING);
     }
 
-    /**
-     * Cold launch out of a vertical rack: thrown clear on gas alone, engine dark,
-     * and lit only once it is well above whatever it was standing in.
-     */
     public void ejectUpward() {
         this.ejecting = EJECT_TICKS;
         this.entityData.set(EJECTING, true);
@@ -182,7 +123,6 @@ public class CruiseMissileProjectile extends Entity {
         this.xRotO = this.getXRot();
     }
 
-    /** Sets the launch heading and starts the engine. */
     public void launch(Vec3 heading) {
         Vec3 dir = heading.lengthSqr() < 1.0E-6D ? new Vec3(1.0D, 0.0D, 0.0D) : heading.normalize();
         this.setDeltaMovement(dir.scale(CRUISE_SPEED));
@@ -203,6 +143,8 @@ public class CruiseMissileProjectile extends Entity {
             return;
         }
 
+        this.refreshChunkTickets();
+        this.refreshClientTracking();
         if (this.ejecting > 0) {
             this.coastOutOfRack();
             return;
@@ -240,13 +182,11 @@ public class CruiseMissileProjectile extends Entity {
             }
         }
 
-        // Resolve the aim once so steering and fusing use the same target snapshot.
         Vec3 aim = this.aimPoint();
         this.watchForJink(aim);
 
         Vec3 motion = this.getDeltaMovement();
         if (this.isPowered() && !this.waterEntered) {
-            // Powered flight holds speed; the engine cancels drag and weight.
             motion = this.steer(motion.normalize(), aim).scale(this.speedFor(aim));
             if (this.tickCount % 4 == 0) {
                 this.level()
@@ -276,10 +216,6 @@ public class CruiseMissileProjectile extends Entity {
         this.fuseOnTarget(aim);
     }
 
-    /**
-     * The coast out of the rack. No thrust, barely any weight, and a great deal of
-     * gas, then the motor lights and the missile takes over from the launcher.
-     */
     private void coastOutOfRack() {
         this.ejecting--;
         Vec3 motion = this.getDeltaMovement().subtract(0.0D, EJECT_GRAVITY, 0.0D);
@@ -291,7 +227,6 @@ public class CruiseMissileProjectile extends Entity {
             return;
         }
 
-        // Ignition is one distinct event; client effects observe the synced state change.
         this.entityData.set(EJECTING, false);
         this.entityData.set(POWERED, true);
         Vec3 heading = motion.lengthSqr() < 1.0E-4D ? new Vec3(0.0D, 1.0D, 0.0D) : motion.normalize();
@@ -308,7 +243,6 @@ public class CruiseMissileProjectile extends Entity {
                         0.72f);
     }
 
-    /** Cruise speed, or the terminal run-in, which is flown harder. */
     private double speedFor(@Nullable Vec3 aim) {
         if (aim == null) {
             return CRUISE_SPEED;
@@ -318,17 +252,8 @@ public class CruiseMissileProjectile extends Entity {
                 : CRUISE_SPEED;
     }
 
-    /**
-     * Watches the aim point for a hard break.
-     * <p>
-     * A hull that turns sharply while the missile is already committed can throw it:
-     * the seeker holds the old solution for a moment, the missile sails past, and only
-     * then pulls round for another run. It does not always work, which is the point of
-     * the roll, and it costs fuel either way.
-     */
     private void watchForJink(@Nullable Vec3 aim) {
         if (this.shaken > 0 && --this.shaken == 0) {
-            // Coming back round: the fuse has to watch the range fall again first.
             this.resetApproach();
         }
         if (aim == null) {
@@ -359,11 +284,6 @@ public class CruiseMissileProjectile extends Entity {
         this.closing = false;
     }
 
-    /**
-     * One tick of guidance. Beyond the terminal range the heading is turned gently
-     * toward the aim point and leaned around anything solid ahead; inside it, the
-     * missile stops avoiding and pulls onto the target as hard as it can.
-     */
     private Vec3 steer(Vec3 heading, @Nullable Vec3 aim) {
         if (aim == null) {
             return heading;
@@ -377,17 +297,9 @@ public class CruiseMissileProjectile extends Entity {
         if (distance > TERMINAL_RANGE) {
             return turnToward(heading, this.avoid(heading, wanted), TURN_RATE);
         }
-        // Thrown off: it still wants the target, it simply cannot pull the corner in
-        // time, so it goes wide and comes back round.
         return turnToward(heading, wanted, this.shaken > 0 ? TURN_RATE : TERMINAL_TURN_RATE);
     }
 
-    /**
-     * Proximity fuse. A guided missile that sails past its aim point and carries on is
-     * no use, so once inside the terminal envelope it bursts at the nearest point it
-     * actually manages to reach — either close enough outright, or the moment the range
-     * starts opening again, which is the tick after closest approach.
-     */
     private void fuseOnTarget(@Nullable Vec3 aim) {
         if (this.detonated || aim == null || this.tickCount <= ARMING_TICKS) {
             return;
@@ -402,7 +314,6 @@ public class CruiseMissileProjectile extends Entity {
         }
         this.lastRange = distance;
         if (this.shaken > 0) {
-            // Sailing past on a spoiled solution; it is not bursting out here.
             return;
         }
         if (distance <= FUSE_RANGE || (this.closing && distance > this.closestApproach + 0.05D)) {
@@ -412,7 +323,6 @@ public class CruiseMissileProjectile extends Entity {
         this.closestApproach = Math.min(this.closestApproach, distance);
     }
 
-    /** Where the missile is trying to get to this tick, or null if it was never told. */
     @Nullable
     private Vec3 aimPoint() {
         if (this.targeting.guidance() == Guidance.INTERCEPT) {
@@ -426,20 +336,12 @@ public class CruiseMissileProjectile extends Entity {
             if (tracked != null) {
                 return tracked;
             }
-            // Lost the hull mid-flight; carry on to where it last was.
         }
         return this.targeting.target() == null || this.targeting.guidance() == Guidance.NONE
                 ? null
                 : Vec3.atCenterOf(this.targeting.target());
     }
 
-    /**
-     * Where the bound radar set says to go.
-     * <p>
-     * A track is held by id once taken, so the missile commits to one contact rather
-     * than jumping between whatever happens to be nearest that tick; it only reacquires
-     * when its own track drops off the picture.
-     */
     @Nullable
     private Vec3 radarAim() {
         if (this.targeting.controller() == null || !com.cbc_more_content.compat.RadarCompat.loaded()) {
@@ -453,8 +355,6 @@ public class CruiseMissileProjectile extends Entity {
             }
             this.targeting.setContact(null);
         }
-        // Conditions come off the network rather than off the missile: retuning the
-        // controller has to change what the next launch will chase.
         var settings = this.level() instanceof ServerLevel server
                 ? com.cbc_more_content.radar.InterceptSettingsStore.get(server)
                         .forController(this.targeting.controller())
@@ -468,10 +368,6 @@ public class CruiseMissileProjectile extends Entity {
         return fresh.position();
     }
 
-    /**
-     * Leans the wanted heading away from terrain dead ahead. Only ever a nudge: enough to
-     * skim a ridge on the way to a target, nowhere near enough to dodge.
-     */
     private Vec3 avoid(Vec3 heading, Vec3 wanted) {
         Vec3 from = this.position();
         BlockHitResult hit = this.level()
@@ -485,8 +381,6 @@ public class CruiseMissileProjectile extends Entity {
             return wanted;
         }
 
-        // Climb over rather than around: the ground is the usual obstruction, and a
-        // missile that sidesteps a hill just flies into its shoulder instead.
         double closeness = 1.0D - Math.sqrt(hit.getLocation().distanceToSqr(from)) / LOOKAHEAD;
         Vec3 lift = new Vec3(
                 hit.getDirection().getStepX(),
@@ -495,7 +389,6 @@ public class CruiseMissileProjectile extends Entity {
         return wanted.add(lift.scale(Mth.clamp(closeness, 0.0D, 1.0D) * 1.4D)).normalize();
     }
 
-    /** Rotates {@code from} toward {@code to} by at most {@code maxRadians}. */
     private static Vec3 turnToward(Vec3 from, Vec3 to, double maxRadians) {
         double angle = Math.acos(Mth.clamp(from.dot(to), -1.0D, 1.0D));
         if (angle <= maxRadians || angle < 1.0E-4D) {
@@ -508,15 +401,11 @@ public class CruiseMissileProjectile extends Entity {
                 .normalize();
     }
 
-    /** Detonates on the first block or entity in the path this tick. */
     private boolean checkImpact(Vec3 from, Vec3 to) {
         BlockHitResult block =
                 this.level().clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
         Vec3 stop = block.getType() == HitResult.Type.BLOCK ? block.getLocation() : null;
 
-        // A physics hull is not made of blocks that stand where the hull looks like it
-        // stands, so the sweep above passes clean through one. Sable is asked separately,
-        // in the hull's own space, and answers in world space.
         if (ModList.get().isLoaded("sable") && this.level() instanceof ServerLevel server) {
             Vec3 hull = SableDropCompat.clipSubLevels(server, from, to);
             if (hull != null && (stop == null || from.distanceToSqr(hull) < from.distanceToSqr(stop))) {
@@ -544,10 +433,49 @@ public class CruiseMissileProjectile extends Entity {
         return entity.isAlive() && entity.isPickable() && !entity.isSpectator();
     }
 
-    /**
-     * The missile always leaves the world, even if the blast itself fails: an escaping
-     * exception would be rethrown every tick while it is still alive and colliding.
-     */
+    private void refreshClientTracking() {
+        if (!(this.level() instanceof ServerLevel server)) {
+            return;
+        }
+        this.entityData.set(EJECTING, this.isEjecting());
+        this.setCustomNameVisible(false);
+    }
+
+    private void refreshChunkTickets() {
+        if (!(this.level() instanceof ServerLevel server)) {
+            return;
+        }
+        ChunkPos center = new ChunkPos(this.blockPosition());
+        for (int x = -CHUNK_TICKET_RADIUS; x <= CHUNK_TICKET_RADIUS; x++) {
+            for (int z = -CHUNK_TICKET_RADIUS; z <= CHUNK_TICKET_RADIUS; z++) {
+                server.getChunkSource()
+                        .addRegionTicket(
+                                MISSILE_TICKET,
+                                new ChunkPos(center.x + x, center.z + z),
+                                2,
+                                this.getUUID().getLeastSignificantBits());
+            }
+        }
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        if (this.level() instanceof ServerLevel server) {
+            ChunkPos center = new ChunkPos(this.blockPosition());
+            for (int x = -CHUNK_TICKET_RADIUS; x <= CHUNK_TICKET_RADIUS; x++) {
+                for (int z = -CHUNK_TICKET_RADIUS; z <= CHUNK_TICKET_RADIUS; z++) {
+                    server.getChunkSource()
+                            .removeRegionTicket(
+                                    MISSILE_TICKET,
+                                    new ChunkPos(center.x + x, center.z + z),
+                                    2,
+                                    this.getUUID().getLeastSignificantBits());
+                }
+            }
+        }
+        super.remove(reason);
+    }
+
     private void detonate(Vec3 at) {
         if (this.detonated || !(this.level() instanceof ServerLevel server)) {
             return;
@@ -556,8 +484,6 @@ public class CruiseMissileProjectile extends Entity {
         try {
             BombExplosionHandler.detonate(
                     server, this, BombDamageSource.create(server), at, BLOCK_POWER, ENTITY_POWER, BombSize.LARGE);
-            // The crater alone reads as a big hole in a field. Tearing up the ground
-            // around it is what makes it read as a strike.
             com.cbc_more_content.effects.BlastScorch.scuff(server, at, SCUFF_RADIUS, 1.0f);
         } catch (Throwable t) {
             com.cbc_more_content.CBCMoreContent.LOGGER.error("Cruise missile detonation failed at {}", at, t);
@@ -577,11 +503,6 @@ public class CruiseMissileProjectile extends Entity {
         this.setXRot((float) (-Math.asin(dir.y) * 180.0D / Math.PI));
     }
 
-    /**
-     * Exhaust plume, anchored at the nozzle. The direction comes from the synced
-     * rotation rather than {@code getDeltaMovement}, which is only replicated on its
-     * own schedule and reads as zero in between.
-     */
     private void spawnExhaust() {
         float yaw = (this.getYRot() + 90.0f) * Mth.DEG_TO_RAD;
         float pitch = -this.getXRot() * Mth.DEG_TO_RAD;
@@ -594,7 +515,6 @@ public class CruiseMissileProjectile extends Entity {
         Vec3 nozzle = this.position().add(back);
 
         if (this.isEjecting()) {
-            // Cold-gas particles distinguish ejection from the later motor ignition.
             for (int i = 0; i < 10; i++) {
                 double ox = (this.random.nextDouble() - 0.5D) * 0.9D;
                 double oy = (this.random.nextDouble() - 0.5D) * 0.5D;
@@ -622,7 +542,6 @@ public class CruiseMissileProjectile extends Entity {
             double oy = (this.random.nextDouble() - 0.5D) * jitter;
             double oz = (this.random.nextDouble() - 0.5D) * jitter;
             if (powered) {
-                // Use the mod plume so the trail remains visible under shaders and at night.
                 this.level()
                         .addParticle(
                                 ModParticles.MISSILE_EXHAUST.get(),
@@ -661,12 +580,7 @@ public class CruiseMissileProjectile extends Entity {
     public boolean isPickable() {
         return !this.detonated;
     }
-
-    /**
-     * Snap to the server position instead of easing toward it. At better than a block
-     * per tick vanilla smoothing leaves the rendered missile well behind the server,
-     * so the blast reads as arriving late and displaced.
-     */
+    
     @Override
     public void lerpTo(double x, double y, double z, float yaw, float pitch, int steps) {
         this.setPos(x, y, z);
