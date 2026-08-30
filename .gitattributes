@@ -1,7 +1,13 @@
-# Spotless runs palantir-java-format over the sources and wants LF, so the working tree
-# has to hold LF whatever the checkout platform would otherwise do. Without this the
-# build fails on Windows the moment git hands the files back with CRLF, and every commit
-# carries a warning about it.
+# Disable autocrlf on generated files, they always generate with LF
+# Add any extra files or paths here to make git stop saying they
+# are changed when only line endings change.
+src/generated/**/.cache/* text eol=lf
+src/generated/**/*.json text eol=lf
+
+# The same, for everything else. Spotless runs palantir-java-format over the sources and
+# wants LF, so the working tree has to hold LF whatever the checkout platform would
+# otherwise do — on Windows git hands the tree back as CRLF and the build fails on every
+# source file while the code itself is fine.
 * text=auto eol=lf
 
 # Binary, and must never be touched.
