@@ -5,6 +5,7 @@ import com.mojang.serialization.MapCodec;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
@@ -23,6 +24,8 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -39,6 +42,8 @@ public class CruiseMissileBlock extends BaseEntityBlock {
     public static final MapCodec<CruiseMissileBlock> CODEC = simpleCodec(CruiseMissileBlock::new);
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
     public static final EnumProperty<Part> PART = EnumProperty.create("part", Part.class);
+    public static final net.minecraft.world.level.block.state.properties.BooleanProperty WATERLOGGED =
+            BlockStateProperties.WATERLOGGED;
 
     /**
      * Slices of the model, measured from it, for a missile whose nose points WEST.
@@ -54,8 +59,11 @@ public class CruiseMissileBlock extends BaseEntityBlock {
 
     public CruiseMissileBlock(Properties properties) {
         super(properties);
-        this.registerDefaultState(
-                this.stateDefinition.any().setValue(FACING, Direction.WEST).setValue(PART, Part.BODY));
+        this.registerDefaultState(this.stateDefinition
+                .any()
+                .setValue(FACING, Direction.WEST)
+                .setValue(PART, Part.BODY)
+                .setValue(WATERLOGGED, false));
     }
 
     @Override
@@ -65,7 +73,7 @@ public class CruiseMissileBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, PART);
+        builder.add(FACING, PART, WATERLOGGED);
     }
 
     /**
@@ -117,16 +125,40 @@ public class CruiseMissileBlock extends BaseEntityBlock {
     }
 
     @Override
+    protected FluidState getFluidState(BlockState state) {
+        return state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : super.getFluidState(state);
+    }
+
+    @Override
+    protected BlockState updateShape(
+            BlockState state,
+            Direction direction,
+            BlockState neighborState,
+            LevelAccessor level,
+            BlockPos pos,
+            BlockPos neighborPos) {
+        if (state.getValue(WATERLOGGED)) {
+            level.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
+        }
+        if (state.getValue(PART) != Part.BODY && bodyPos(pos, state).equals(neighborPos) && !neighborState.is(this)) {
+            return Blocks.AIR.defaultBlockState();
+        }
+        return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
+    }
+
+    @Override
     public void setPlacedBy(
             Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
         Direction nose = state.getValue(FACING);
         BlockPos body = bodyPos(pos, state);
+        boolean waterlogged = level.getFluidState(body).is(FluidTags.WATER);
         // The middle goes down first. Every other cell deletes itself the moment it finds
         // no body beside it, so writing an end before the middle exists would wipe it out
         // on the very update that placed it.
-        level.setBlock(body, state.setValue(PART, Part.BODY), Block.UPDATE_ALL);
-        level.setBlock(body.relative(nose), state.setValue(PART, Part.NOSE), Block.UPDATE_ALL);
-        level.setBlock(body.relative(nose.getOpposite()), state.setValue(PART, Part.TAIL), Block.UPDATE_ALL);
+        BlockState placed = state.setValue(WATERLOGGED, waterlogged);
+        level.setBlock(body, placed.setValue(PART, Part.BODY), Block.UPDATE_ALL);
+        level.setBlock(body.relative(nose), placed.setValue(PART, Part.NOSE), Block.UPDATE_ALL);
+        level.setBlock(body.relative(nose.getOpposite()), placed.setValue(PART, Part.TAIL), Block.UPDATE_ALL);
     }
 
     /** Position of the middle segment, whichever part was clicked. */
@@ -148,20 +180,6 @@ public class CruiseMissileBlock extends BaseEntityBlock {
      * Any segment losing its middle takes the whole airframe with it, so breaking one
      * cell cannot leave floating fragments behind.
      */
-    @Override
-    protected BlockState updateShape(
-            BlockState state,
-            Direction direction,
-            BlockState neighborState,
-            LevelAccessor level,
-            BlockPos pos,
-            BlockPos neighborPos) {
-        if (state.getValue(PART) != Part.BODY && bodyPos(pos, state).equals(neighborPos) && !neighborState.is(this)) {
-            return Blocks.AIR.defaultBlockState();
-        }
-        return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
-    }
-
     /**
      * Breaking any segment yields exactly one missile.
      * <p>
@@ -261,6 +279,9 @@ public class CruiseMissileBlock extends BaseEntityBlock {
     /** Clears all three cells and puts a missile entity in their place. */
     public static void launch(net.minecraft.server.level.ServerLevel level, BlockPos pos, BlockState state) {
         BlockPos body = bodyPos(pos, state);
+        if (level.getFluidState(body).is(FluidTags.WATER)) {
+            return;
+        }
         BlockState bodyState = level.getBlockState(body);
         if (!bodyState.is(state.getBlock())) {
             return;

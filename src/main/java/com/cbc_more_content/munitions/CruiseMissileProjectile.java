@@ -117,6 +117,8 @@ public class CruiseMissileProjectile extends Entity {
 
     private int fuel = FUEL_TICKS;
     private boolean detonated;
+    /** Once submerged, the motor is permanently cut and the missile coasts on momentum. */
+    private boolean waterEntered;
     /** Nearest the missile has come to its aim point on this terminal run. */
     private double closestApproach = Double.MAX_VALUE;
     /** True once the range has actually started falling, so the fuse can arm. */
@@ -206,7 +208,22 @@ public class CruiseMissileProjectile extends Entity {
             return;
         }
 
-        if (this.fuel > 0) {
+        if (!this.waterEntered && this.isInWater()) {
+            this.waterEntered = true;
+            this.entityData.set(POWERED, false);
+            this.level()
+                    .playSound(
+                            null,
+                            this.getX(),
+                            this.getY(),
+                            this.getZ(),
+                            SoundEvents.FIRE_EXTINGUISH,
+                            SoundSource.HOSTILE,
+                            2.0f,
+                            0.55f);
+        }
+
+        if (this.fuel > 0 && !this.waterEntered) {
             this.fuel--;
             if (this.fuel == 0) {
                 this.entityData.set(POWERED, false);
@@ -228,7 +245,7 @@ public class CruiseMissileProjectile extends Entity {
         this.watchForJink(aim);
 
         Vec3 motion = this.getDeltaMovement();
-        if (this.isPowered()) {
+        if (this.isPowered() && !this.waterEntered) {
             // Powered flight holds speed; the engine cancels drag and weight.
             motion = this.steer(motion.normalize(), aim).scale(this.speedFor(aim));
             if (this.tickCount % 4 == 0) {
@@ -665,6 +682,7 @@ public class CruiseMissileProjectile extends Entity {
     protected void readAdditionalSaveData(CompoundTag tag) {
         this.fuel = tag.getInt("Fuel");
         this.entityData.set(POWERED, tag.getBoolean("Powered"));
+        this.waterEntered = tag.getBoolean("WaterEntered");
         this.targeting.readFrom(tag);
     }
 
@@ -672,6 +690,7 @@ public class CruiseMissileProjectile extends Entity {
     protected void addAdditionalSaveData(CompoundTag tag) {
         tag.putInt("Fuel", this.fuel);
         tag.putBoolean("Powered", this.isPowered());
+        tag.putBoolean("WaterEntered", this.waterEntered);
         this.targeting.writeTo(tag);
     }
 }
