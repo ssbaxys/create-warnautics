@@ -20,6 +20,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.DirtPathBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -159,13 +160,23 @@ public class C4Projectile extends ThrowableItemProjectile {
         Direction face = hit.getDirection();
         BlockPos target = hit.getBlockPos().relative(face);
         BlockState existing = this.level().getBlockState(target);
+        boolean waterlogged = this.level().getFluidState(target).is(net.minecraft.tags.FluidTags.WATER);
+        // Dirt paths are not replaceable, but placing a charge on one should behave like
+        // placing any other block: flatten the path back into dirt, then occupy the cell.
+        if (existing.getBlock() instanceof DirtPathBlock) {
+            this.level()
+                    .setBlock(target, Blocks.DIRT.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+            existing = this.level().getBlockState(target);
+        }
         BlockState charge = ModBlocks.C4
                 .get()
                 .defaultBlockState()
                 .setValue(C4Block.FACING, face)
+                .setValue(C4Block.WATERLOGGED, waterlogged)
                 .setValue(C4Block.ROTATION, C4Block.usableRotation(face, this.rotation));
 
-        if (!existing.canBeReplaced() || !charge.canSurvive(this.level(), target)) {
+        if (!(existing.getBlock() instanceof DirtPathBlock)
+                && (!existing.canBeReplaced() || !charge.canSurvive(this.level(), target))) {
             if (this.armed) {
                 C4BlockEntity.explode((ServerLevel) this.level(), this.position());
             } else {

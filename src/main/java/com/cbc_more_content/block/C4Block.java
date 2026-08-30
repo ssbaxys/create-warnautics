@@ -32,6 +32,8 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
@@ -57,6 +59,8 @@ public class C4Block extends BaseEntityBlock {
      * state rather than only in the block entity because it is what picks the model.
      */
     public static final BooleanProperty RECEIVER = BooleanProperty.create("receiver");
+
+    public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 
     /**
      * The charge as it sits on a floor, taken from the authored model: casing slab,
@@ -88,6 +92,7 @@ public class C4Block extends BaseEntityBlock {
                 .setValue(FACING, Direction.UP)
                 .setValue(STATE, Fuse.IDLE)
                 .setValue(RECEIVER, false)
+                .setValue(WATERLOGGED, false)
                 .setValue(ROTATION, 0));
     }
 
@@ -103,7 +108,7 @@ public class C4Block extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, STATE, RECEIVER, ROTATION);
+        builder.add(FACING, STATE, RECEIVER, WATERLOGGED, ROTATION);
     }
 
     @Nullable
@@ -120,6 +125,28 @@ public class C4Block extends BaseEntityBlock {
             return null;
         }
         return createTickerHelper(type, ModBlockEntities.C4.get(), C4BlockEntity::serverTick);
+    }
+
+    @Override
+    protected FluidState getFluidState(BlockState state) {
+        return state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : super.getFluidState(state);
+    }
+
+    @Override
+    protected BlockState updateShape(
+            BlockState state,
+            Direction direction,
+            BlockState neighborState,
+            LevelAccessor level,
+            BlockPos pos,
+            BlockPos neighborPos) {
+        if (state.getValue(WATERLOGGED)) {
+            level.scheduleTick(pos, Fluids.WATER, Fluids.WATER.getTickDelay(level));
+        }
+        if (direction == state.getValue(FACING).getOpposite() && !state.canSurvive(level, pos)) {
+            level.scheduleTick(pos, this, 1);
+        }
+        return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
     }
 
     @Override
@@ -204,24 +231,6 @@ public class C4Block extends BaseEntityBlock {
         return !behind.isAir()
                 && !behind.canBeReplaced()
                 && !behind.getCollisionShape(level, support).isEmpty();
-    }
-
-    /**
-     * Scheduled rather than turned straight to air: the charge becomes a falling one in
-     * {@link #tick}, which is the only place an entity can be spawned for it.
-     */
-    @Override
-    protected BlockState updateShape(
-            BlockState state,
-            Direction direction,
-            BlockState neighborState,
-            LevelAccessor level,
-            BlockPos pos,
-            BlockPos neighborPos) {
-        if (direction == state.getValue(FACING).getOpposite() && !state.canSurvive(level, pos)) {
-            level.scheduleTick(pos, this, 1);
-        }
-        return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
     }
 
     @Override
