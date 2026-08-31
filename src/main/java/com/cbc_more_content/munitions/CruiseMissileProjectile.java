@@ -580,7 +580,7 @@ public class CruiseMissileProjectile extends Entity {
     public boolean isPickable() {
         return !this.detonated;
     }
-    
+
     @Override
     public void lerpTo(double x, double y, double z, float yaw, float pitch, int steps) {
         this.setPos(x, y, z);

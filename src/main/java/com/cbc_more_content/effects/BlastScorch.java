@@ -117,6 +117,10 @@ public final class BlastScorch {
             return;
         }
 
+        if (!state.getFluidState().isEmpty()) {
+            return;
+        }
+
         // Ground cover is simply blown off; it has nothing left to degrade into.
         if (state.is(BlockTags.REPLACEABLE) || state.is(BlockTags.FLOWERS) || state.is(BlockTags.LEAVES)) {
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), FLAGS);
