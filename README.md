@@ -58,4 +58,4 @@ All content is reviewed and approved by the project maintainers before release.
 
 # License
 
-Create Warnautics is distributed under the MIT License.
+Create Warnautics is distributed under the GPLv3 License.
