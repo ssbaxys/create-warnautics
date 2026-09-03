@@ -144,6 +144,8 @@ public final class BombExplosionHandler {
             BombBlastFx.play(level, pos, size, blockPower, budget);
         }
 
+        LongSet craterBlocks = new LongOpenHashSet();
+
         BombSympatheticDetonation.runBombBlast(() -> {
             CannonBlastFx.own(explosion::explode);
 
@@ -156,6 +158,11 @@ public final class BombExplosionHandler {
 
             if (canDamageTerrain && !volume.isSphere()) {
                 clampToBlastVolume(explosion, pos, volume);
+            }
+
+            craterBlocks.clear();
+            for (BlockPos craterPos : explosion.getToBlow()) {
+                craterBlocks.add(craterPos.asLong());
             }
 
             NeoForge.EVENT_BUS.post(new WarnauticsBlockDetonateEvent(level, explosion, pos, size));
@@ -189,6 +196,11 @@ public final class BombExplosionHandler {
         });
 
         sendBlastToNearbyPlayers(level, explosion, pos, size);
+
+        if (canDamageTerrain) {
+            BlastGlassShatter.scheduleFor(
+                    level, pos, (float) volume.horizontal(explosion.radius()), budget.lod(), craterBlocks);
+        }
     }
 
     private static void capToBlow(ServerLevel level, ShellExplosion explosion, BombSize.BlastVolume volume) {

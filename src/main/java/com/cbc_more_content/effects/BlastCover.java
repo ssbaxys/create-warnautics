@@ -19,9 +19,11 @@ import net.minecraft.world.phys.Vec3;
  * <p>
  * Blocks the same blast is about to destroy are excluded: the wall that fails absorbs
  * its share, breaks, and the rest carries through.
+ */
 public final class BlastCover {
     /** Ray step in blocks — fine enough to catch a single pane. */
     private static final double STEP = 0.5D;
+
     private static final double HALF_ABSORB = 12.0D;
     private static final int FULL_SAMPLES = 3;
     private static final double MAX_BLOCK_RESISTANCE = 1800.0D;

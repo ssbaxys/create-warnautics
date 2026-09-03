@@ -708,7 +708,7 @@ public class DropBombBlock extends Block implements IWrenchable {
         BlockPos anchor = bomb.detonationAnchor(level, pos, state);
         detonateDetached(level, anchor, size);
     }
-    
+
     protected BlockPos detonationAnchor(ServerLevel level, BlockPos pos, BlockState state) {
         level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
         return pos;

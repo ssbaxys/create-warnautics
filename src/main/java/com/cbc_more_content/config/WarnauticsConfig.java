@@ -16,6 +16,7 @@ public final class WarnauticsConfig {
     public static final ModConfigSpec.BooleanValue EXTERNAL_CHAIN_DETONATION;
     /** Hard ceiling on blocks a single detonation may change, per detonation. */
     public static final ModConfigSpec.IntValue MAX_BLOCKS_PER_DETONATION;
+    public static final ModConfigSpec.DoubleValue GLASS_SHATTER_RADIUS_MULTIPLIER;
     /** Global multiplier on particle/flash volume sent to clients. */
     public static final ModConfigSpec.DoubleValue BLAST_FX_SCALE;
     /** Multiplier on the arc a bomb is pushed onto when it leaves the rack. */
@@ -39,6 +40,12 @@ public final class WarnauticsConfig {
         builder.pop();
 
         builder.comment("Create Warnautics — performance limits").push("performance");
+        GLASS_SHATTER_RADIUS_MULTIPLIER = builder.comment(
+                        "Radius in which a bomb blast shatters exposed glass, as a multiple of",
+                        "the blast's own crater radius. Glass too far below the surface or too",
+                        "deep behind solid cover survives; anything in the open breaks even far",
+                        "outside the crater itself.")
+                .defineInRange("glassShatterRadiusMultiplier", 6.0D, 1.0D, 16.0D);
         MAX_BLOCKS_PER_DETONATION = builder.comment(
                         "Maximum blocks a single detonation may change. Carpet bombing with",
                         "unbounded craters is the main cause of client stalls and out-of-memory",
@@ -75,6 +82,10 @@ public final class WarnauticsConfig {
 
     public static float blastFxScale() {
         return SPEC.isLoaded() ? BLAST_FX_SCALE.get().floatValue() : 1.0f;
+    }
+
+    public static double glassShatterRadiusMultiplier() {
+        return SPEC.isLoaded() ? GLASS_SHATTER_RADIUS_MULTIPLIER.get().doubleValue() : 6.0D;
     }
 
     public static double releaseImpulse() {
