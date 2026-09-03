@@ -162,6 +162,7 @@ public final class BombFlashOverlay {
             case SEA -> 160.0D;
             case MEDIUM -> 240.0D;
             case LARGE -> 280.0D;
+            case MOAB -> 420.0D;
         };
     }
 
@@ -172,6 +173,7 @@ public final class BombFlashOverlay {
             case SEA -> 0.3f;
             case MEDIUM -> 0.55f;
             case LARGE -> 0.8f;
+            case MOAB -> 1.0f;
         };
     }
 

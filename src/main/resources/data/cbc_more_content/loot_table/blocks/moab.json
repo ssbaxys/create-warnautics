@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:block",
+  "pools": [{
+    "rolls": 1,
+    "entries": [{"type":"minecraft:item","name":"cbc_more_content:moab"}],
+    "conditions": [
+      {
+        "condition": "minecraft:block_state_property",
+        "block": "cbc_more_content:moab",
+        "properties": { "part": "body" }
+      },
+      { "condition": "minecraft:survives_explosion" }
+    ]
+  }]
+}

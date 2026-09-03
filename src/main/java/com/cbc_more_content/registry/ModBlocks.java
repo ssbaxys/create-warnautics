@@ -5,6 +5,7 @@ import com.cbc_more_content.block.C4Block;
 import com.cbc_more_content.block.CruiseMissileBlock;
 import com.cbc_more_content.block.DropBombBlock;
 import com.cbc_more_content.block.LandMineBlock;
+import com.cbc_more_content.block.MoabBlock;
 import com.cbc_more_content.block.SirenBlock;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.mine.MineType;
@@ -29,6 +30,9 @@ public final class ModBlocks {
 
     public static final DeferredBlock<DropBombBlock> LARGE_BOMB = BLOCKS.register(
             "large_bomb", () -> new DropBombBlock(bombProps(MapColor.COLOR_BLACK, 1.2f), BombSize.LARGE));
+
+    public static final DeferredBlock<MoabBlock> MOAB =
+            BLOCKS.register("moab", () -> new MoabBlock(bombProps(MapColor.COLOR_BLACK, 2.0f), BombSize.MOAB));
 
     public static final DeferredBlock<LandMineBlock> SMALL_MINE = BLOCKS.register(
             "small_mine", () -> new LandMineBlock(mineProps(MapColor.TERRACOTTA_GREEN, 0.4f), MineType.SMALL));

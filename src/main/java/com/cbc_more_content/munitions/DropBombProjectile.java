@@ -89,6 +89,7 @@ public class DropBombProjectile extends FuzedBigCannonProjectile {
                     case SEA -> 0.24D;
                     case MEDIUM -> 0.42D;
                     case LARGE -> 0.62D;
+                    case MOAB -> -0.45D;
                 };
         double speedScale = Math.max(0.35D, Math.min(1.0D, speed / 1.25D));
         return hit.add(velocity.scale((baseDepth * speedScale) / speed));
@@ -207,6 +208,9 @@ public class DropBombProjectile extends FuzedBigCannonProjectile {
         if (type == ModEntityTypes.LARGE_BOMB.get()) {
             return ModBlocks.LARGE_BOMB.get();
         }
+        if (type == ModEntityTypes.MOAB.get()) {
+            return ModBlocks.MOAB.get();
+        }
         return ModBlocks.SMALL_BOMB.get();
     }
 
@@ -220,6 +224,9 @@ public class DropBombProjectile extends FuzedBigCannonProjectile {
         }
         if (type == ModEntityTypes.LARGE_BOMB.get()) {
             return BombSize.LARGE;
+        }
+        if (type == ModEntityTypes.MOAB.get()) {
+            return BombSize.MOAB;
         }
         return BombSize.SMALL;
     }

@@ -23,6 +23,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.SMALL_BOMB_4.get());
                         output.accept(ModItems.MEDIUM_BOMB.get());
                         output.accept(ModItems.LARGE_BOMB.get());
+                        output.accept(ModItems.MOAB.get());
                         output.accept(ModItems.SEA_BOMB.get());
                         output.accept(ModItems.SMALL_MINE.get());
                         output.accept(ModItems.BOUNDING_MINE.get());

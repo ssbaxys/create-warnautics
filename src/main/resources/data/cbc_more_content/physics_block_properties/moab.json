@@ -1,0 +1,8 @@
+{
+  "selector": "cbc_more_content:moab",
+  "mass": 10.5,
+  "gravity": 1.0,
+  "drag": 0.015,
+  "friction": 0.8,
+  "restitution": 0.1
+}

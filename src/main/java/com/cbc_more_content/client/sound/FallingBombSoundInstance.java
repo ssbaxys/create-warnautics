@@ -143,6 +143,7 @@ public final class FallingBombSoundInstance extends AbstractTickableSoundInstanc
             case SEA -> 170.0D;
             case MEDIUM -> 225.0D;
             case LARGE -> 290.0D;
+            case MOAB -> 440.0D;
         };
     }
 
@@ -152,6 +153,7 @@ public final class FallingBombSoundInstance extends AbstractTickableSoundInstanc
             case SEA -> 0.46f;
             case MEDIUM -> 0.61f;
             case LARGE -> 0.78f;
+            case MOAB -> 0.95f;
         };
     }
 
@@ -161,6 +163,7 @@ public final class FallingBombSoundInstance extends AbstractTickableSoundInstanc
             case SEA -> 1.0f;
             case MEDIUM -> 0.89f;
             case LARGE -> 0.78f;
+            case MOAB -> 0.62f;
         };
     }
 }

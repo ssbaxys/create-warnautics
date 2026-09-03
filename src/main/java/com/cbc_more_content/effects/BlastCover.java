@@ -19,26 +19,39 @@ import net.minecraft.world.phys.Vec3;
  * <p>
  * Blocks the same blast is about to destroy are excluded: the wall that fails absorbs
  * its share, breaks, and the rest carries through.
- */
 public final class BlastCover {
     /** Ray step in blocks — fine enough to catch a single pane. */
     private static final double STEP = 0.5D;
-    /** Resistance that roughly halves the blast. Stone is 6, so about two blocks of it. */
     private static final double HALF_ABSORB = 12.0D;
-    /** Samples per body axis at full quality: 3 gives 27 rays. */
     private static final int FULL_SAMPLES = 3;
-    /** No single block may count for more, so bedrock cannot go infinite. */
     private static final double MAX_BLOCK_RESISTANCE = 1800.0D;
+    private static final int MAX_STEPS_PER_DETONATION = 60_000;
+    private static final int MAX_STEPS_PER_RAY = 160;
 
-    /** Fully exposed, used when the raycast budget is spent. */
+    private static final ThreadLocal<int[]> STEP_BUDGET = new ThreadLocal<>();
+
     public static final Result OPEN = new Result(1.0D, 1.0D);
 
     private BlastCover() {}
 
-    /**
-     * @param transmission share of blast energy that arrives, 0 shielded to 1 in the open
-     * @param openFraction share of sample rays with a completely clear path
-     */
+    public static void beginDetonation() {
+        STEP_BUDGET.set(new int[] {MAX_STEPS_PER_DETONATION});
+    }
+
+    public static void endDetonation() {
+        STEP_BUDGET.remove();
+    }
+
+    public static int samplesForDistance(double distance, double entityRadius) {
+        if (distance < entityRadius * 0.45D) {
+            return FULL_SAMPLES;
+        }
+        if (distance < entityRadius * 0.75D) {
+            return 2;
+        }
+        return 1;
+    }
+
     public record Result(double transmission, double openFraction) {
         public boolean hasLineOfSight() {
             return this.openFraction > 0.0D;
@@ -49,35 +62,34 @@ public final class BlastCover {
         return evaluate(level, center, entity, LongSets.emptySet());
     }
 
-    /**
-     * @param destroyed packed positions this blast is removing; treated as already gone
-     */
     public static Result evaluate(Level level, Vec3 center, Entity entity, LongSet destroyed) {
         return evaluate(level, center, entity, destroyed, FULL_SAMPLES);
     }
 
-    /**
-     * Cover at a chosen number of samples per body axis. Full quality takes three (27
-     * rays); a burst running at reduced detail takes two (8 rays), which is coarser
-     * without letting one point decide whether a target is in the open.
-     */
     public static Result evaluate(Level level, Vec3 center, Entity entity, LongSet destroyed, int samplesPerAxis) {
         AABB box = entity.getBoundingBox();
         int perAxis = Mth.clamp(samplesPerAxis, 1, FULL_SAMPLES);
+        int[] budget = STEP_BUDGET.get();
+        if (budget != null && budget[0] <= 0) {
+            return OPEN;
+        }
+        int rays = perAxis * perAxis * perAxis;
+        int slice = budget == null ? Integer.MAX_VALUE : Math.min(budget[0], rays * MAX_STEPS_PER_RAY);
+        if (budget != null) {
+            budget[0] -= slice;
+        }
 
         double transmissionSum = 0.0D;
         int open = 0;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
 
-        // Sample the body rather than one point: partial cover behind a low wall should
-        // protect the legs and leave the head exposed.
         for (int xi = 0; xi < perAxis; xi++) {
             double x = sampleAxis(box.minX, box.maxX, xi, perAxis);
             for (int yi = 0; yi < perAxis; yi++) {
                 double y = sampleAxis(box.minY, box.maxY, yi, perAxis);
                 for (int zi = 0; zi < perAxis; zi++) {
                     double z = sampleAxis(box.minZ, box.maxZ, zi, perAxis);
-                    double absorbed = absorbAlong(level, center, x, y, z, destroyed, cursor);
+                    double absorbed = absorbAlong(level, center, x, y, z, destroyed, cursor, slice);
                     if (absorbed <= 0.0D) {
                         open++;
                     }
@@ -86,11 +98,10 @@ public final class BlastCover {
             }
         }
 
-        int samples = perAxis * perAxis * perAxis;
+        int samples = rays;
         return new Result(Mth.clamp(transmissionSum / samples, 0.0D, 1.0D), open / (double) samples);
     }
 
-    /** Spreads the samples across the body, keeping clear of its very edges. */
     private static double sampleAxis(double min, double max, int index, int count) {
         if (count == 1) {
             return (min + max) * 0.5D;
@@ -98,7 +109,6 @@ public final class BlastCover {
         return min + 0.1D + (max - min - 0.2D) * index / (count - 1.0D);
     }
 
-    /** Total explosion resistance standing between two points. */
     private static double absorbAlong(
             Level level,
             Vec3 from,
@@ -106,7 +116,8 @@ public final class BlastCover {
             double toY,
             double toZ,
             LongSet destroyed,
-            BlockPos.MutableBlockPos cursor) {
+            BlockPos.MutableBlockPos cursor,
+            int stepBudget) {
         double dx = toX - from.x;
         double dy = toY - from.y;
         double dz = toZ - from.z;
@@ -114,7 +125,11 @@ public final class BlastCover {
         if (distance < 1.0E-4D) {
             return 0.0D;
         }
-        int steps = Mth.ceil(distance / STEP);
+        int steps = Math.min(Mth.ceil(distance / STEP), MAX_STEPS_PER_RAY);
+        if (stepBudget <= 0) {
+            return 0.0D;
+        }
+        steps = Math.min(steps, stepBudget);
         double sx = dx / steps;
         double sy = dy / steps;
         double sz = dz / steps;
@@ -124,8 +139,6 @@ public final class BlastCover {
         int lastY = Integer.MIN_VALUE;
         int lastZ = Integer.MIN_VALUE;
 
-        // Skip the endpoints: the block the blast is inside and the block the entity
-        // stands in are not cover.
         for (int i = 1; i < steps; i++) {
             int x = Mth.floor(from.x + sx * i);
             int y = Mth.floor(from.y + sy * i);

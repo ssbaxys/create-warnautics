@@ -350,6 +350,7 @@ public final class BombBlastFx {
                     case SEA -> 1.05f;
                     case MEDIUM -> 1.8f;
                     case LARGE -> 1.55f;
+                    case MOAB -> 2.4f;
                 })
                 * budget.lod().flashScale();
 
@@ -359,6 +360,7 @@ public final class BombBlastFx {
                     case SEA -> 160.0D;
                     case MEDIUM -> 240.0D;
                     case LARGE -> 280.0D;
+                    case MOAB -> 420.0D;
                 };
         double reachSqr = reach * reach;
         BombFlashPayload payload = new BombFlashPayload(pos.x, pos.y, pos.z, intensity, (byte) size.ordinal());
@@ -385,6 +387,7 @@ public final class BombBlastFx {
                     case SEA -> 7;
                     case MEDIUM -> 32;
                     case LARGE -> 16;
+                    case MOAB -> 64;
                 });
         int sparks =
                 switch (lod) {
@@ -399,6 +402,7 @@ public final class BombBlastFx {
                     case SEA -> 0.7D;
                     case MEDIUM -> 0.9D;
                     case LARGE -> 1.4D;
+                    case MOAB -> 2.6D;
                 };
         emitFar(level, hot, pos.x, pos.y + 0.35D, pos.z, sparks, spread, spread * 0.4D, spread, 0.01D);
         emitFar(
@@ -592,6 +596,7 @@ public final class BombBlastFx {
                     case SMALL -> 2.0f;
                     case MEDIUM -> 3.0f;
                     case SEA, LARGE -> 1.0f;
+                    case MOAB -> 1.0f;
                 };
         return Math.max(1, Math.round(base * factor));
     }
@@ -689,6 +694,24 @@ public final class BombBlastFx {
                         0.52f,
                         7.5f,
                         72.0D);
+                case MOAB -> new FxProfile(
+                        ModSounds.BOMB_EXPLOSION_LARGE.get(),
+                        Math.max(12.0f, blockPower * 0.65f),
+                        true,
+                        Math.max(70.0D, blockPower * 12.0D),
+                        Math.max(24.0f, blockPower * 2.3f),
+                        0.62f + random.nextFloat() * 0.06f,
+                        1.25f,
+                        Math.max(40.0f, blockPower * 5.0f),
+                        60.0f,
+                        260.0D,
+                        180.0D,
+                        760.0D,
+                        760.0D * 760.0D,
+                        48.0f,
+                        0.48f,
+                        9.0f,
+                        110.0D);
             };
         }
     }

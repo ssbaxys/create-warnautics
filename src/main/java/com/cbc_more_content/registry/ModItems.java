@@ -42,6 +42,9 @@ public final class ModItems {
     public static final DeferredItem<DropBombItem> LARGE_BOMB = ITEMS.register(
             "large_bomb", () -> new DropBombItem(ModBlocks.LARGE_BOMB.get(), new Item.Properties().stacksTo(16)));
 
+    public static final DeferredItem<DropBombItem> MOAB =
+            ITEMS.register("moab", () -> new DropBombItem(ModBlocks.MOAB.get(), new Item.Properties().stacksTo(4)));
+
     public static final DeferredItem<BlockItem> SMALL_MINE = ITEMS.register(
             "small_mine", () -> new BlockItem(ModBlocks.SMALL_MINE.get(), new Item.Properties().stacksTo(64)));
 

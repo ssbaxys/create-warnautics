@@ -92,6 +92,7 @@ public final class BombFlashClient {
                     case SEA -> 6.0D;
                     case MEDIUM -> 8.0D;
                     case LARGE -> 12.0D;
+                    case MOAB -> 20.0D;
                 };
         double mergeRadiusSqr = mergeRadius * mergeRadius;
         Flash best = null;
@@ -131,6 +132,7 @@ public final class BombFlashClient {
             case SEA -> 48;
             case MEDIUM -> 58;
             case LARGE -> 72;
+            case MOAB -> 110;
         };
     }
 
@@ -158,6 +160,7 @@ public final class BombFlashClient {
                         case SEA -> 20;
                         case MEDIUM -> 24;
                         case LARGE -> 30;
+                        case MOAB -> 46;
                     };
             float t = Mth.clamp((age + partialTick) / (float) screenLife, 0.0f, 1.0f);
             // Explosion light peaks immediately, then leaves a short warm afterglow.

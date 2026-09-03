@@ -66,6 +66,7 @@ public final class RagdollBlastCompat {
                     case SEA -> 14.0f;
                     case MEDIUM -> 15.0f;
                     case LARGE -> 18.0f;
+                    case MOAB -> 26.0f;
                 };
 
         AABB area = new AABB(center, center).inflate(radius);

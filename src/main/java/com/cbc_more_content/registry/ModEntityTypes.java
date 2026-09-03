@@ -37,6 +37,9 @@ public final class ModEntityTypes {
     public static final DeferredHolder<EntityType<?>, EntityType<DropBombProjectile>> LARGE_BOMB =
             dropBomb("large_bomb", BombSize.LARGE);
 
+    public static final DeferredHolder<EntityType<?>, EntityType<DropBombProjectile>> MOAB =
+            dropBomb("moab", BombSize.MOAB);
+
     public static final DeferredHolder<EntityType<?>, EntityType<CruiseMissileProjectile>> CRUISE_MISSILE =
             ENTITY_TYPES.register("cruise_missile", () -> EntityType.Builder.<CruiseMissileProjectile>of(
                             CruiseMissileProjectile::new, MobCategory.MISC)
@@ -89,14 +92,14 @@ public final class ModEntityTypes {
                             .build("blast_debris"));
 
     private static DeferredHolder<EntityType<?>, EntityType<DropBombProjectile>> dropBomb(String id, BombSize size) {
-        return ENTITY_TYPES.register(
-                id, () -> EntityType.Builder.<DropBombProjectile>of(DropBombProjectile::new, MobCategory.MISC)
-                        .sized(size.entitySize, size.entitySize)
-                        .fireImmune()
-                        .clientTrackingRange(16)
-                        .updateInterval(1)
-                        .setShouldReceiveVelocityUpdates(false)
-                        .build(id));
+        return ENTITY_TYPES.register(id, () -> EntityType.Builder.<DropBombProjectile>of(
+                        DropBombProjectile::new, MobCategory.MISC)
+                .sized(size == BombSize.MOAB ? 1.6f : size.entitySize, size == BombSize.MOAB ? 2.4f : size.entitySize)
+                .fireImmune()
+                .clientTrackingRange(16)
+                .updateInterval(1)
+                .setShouldReceiveVelocityUpdates(false)
+                .build(id));
     }
 
     private ModEntityTypes() {}
@@ -110,5 +113,7 @@ public final class ModEntityTypes {
                 MEDIUM_BOMB.get(), CBCMunitionPropertiesHandlers.COMMON_SHELL_BIG_CANNON_PROJECTILE);
         MunitionPropertiesHandler.registerProjectileHandler(
                 LARGE_BOMB.get(), CBCMunitionPropertiesHandlers.COMMON_SHELL_BIG_CANNON_PROJECTILE);
+        MunitionPropertiesHandler.registerProjectileHandler(
+                MOAB.get(), CBCMunitionPropertiesHandlers.COMMON_SHELL_BIG_CANNON_PROJECTILE);
     }
 }

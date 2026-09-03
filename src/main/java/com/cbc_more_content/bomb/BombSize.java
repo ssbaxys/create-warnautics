@@ -51,7 +51,16 @@ public enum BombSize {
             // Warnautics heavy payload pass: 1.5x block/entity blast power.
             0.90f,
             15.6f,
-            21.45f);
+            21.45f),
+    MOAB(
+            Block.box(4.5D, -16.0D, -2.0D, 11.5D, 32.0D, 18.0D),
+            Block.box(4.5D, -2.0D, -16.0D, 11.5D, 18.0D, 32.0D),
+            Block.box(-16.0D, -2.0D, 4.5D, 32.0D, 18.0D, 11.5D),
+            0.24D,
+            0.06D,
+            1.5f,
+            33.0f,
+            56.0f);
 
     public final VoxelShape shapeUd;
     public final VoxelShape shapeNs;
@@ -92,7 +101,41 @@ public enum BombSize {
         };
     }
 
+    public BlastVolume blastVolume() {
+        return this == MOAB ? new BlastVolume(3.4D, 0.55D) : BlastVolume.SPHERE;
+    }
+
     public boolean isSeaBomb() {
         return this == SEA;
+    }
+
+    public record BlastVolume(double h, double v) {
+        public static final BlastVolume SPHERE = new BlastVolume(1.0D, 1.0D);
+
+        public boolean isSphere() {
+            return this.h == 1.0D && this.v == 1.0D;
+        }
+
+        public double horizontal(double radius) {
+            return radius * this.h;
+        }
+
+        public double vertical(double radius) {
+            return radius * this.v;
+        }
+
+        public boolean contains(double dx, double dy, double dz, double radius) {
+            double nx = dx / (radius * this.h);
+            double ny = dy / (radius * this.v);
+            double nz = dz / (radius * this.h);
+            return nx * nx + ny * ny + nz * nz <= 1.0D;
+        }
+
+        public float shellPowerForSameVolume(float power) {
+            if (this.isSphere()) {
+                return power;
+            }
+            return (float) (power / Math.cbrt(this.h * this.h * this.v));
+        }
     }
 }

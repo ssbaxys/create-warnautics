@@ -2,6 +2,7 @@ package com.cbc_more_content.effects;
 
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.block.DropBombBlock;
+import com.cbc_more_content.block.MoabBlock;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.config.WarnauticsConfig;
 import com.cbc_more_content.munitions.DropBombProjectile;
@@ -79,7 +80,7 @@ public final class BombSympatheticDetonation {
                 return true;
             }
             if (pos.distToCenterSqr(center.x, center.y, center.z) <= chainRadiusSqr) {
-                bombsToCook.add(pos.immutable());
+                bombsToCook.add(airframeAnchor(state, pos).immutable());
             }
             return true;
         });
@@ -95,7 +96,7 @@ public final class BombSympatheticDetonation {
             if (state.getBlock() instanceof DropBombBlock
                     && !isActiveCassette(state)
                     && hasDirectBlastPath(level, center, pos, explosion)) {
-                bombsToCook.add(pos.immutable());
+                bombsToCook.add(airframeAnchor(state, pos).immutable());
             }
         }
 
@@ -184,6 +185,10 @@ public final class BombSympatheticDetonation {
                 PENDING.remove(pending);
             }
         }));
+    }
+
+    private static BlockPos airframeAnchor(BlockState state, BlockPos pos) {
+        return state.getBlock() instanceof MoabBlock ? MoabBlock.bodyOf(state, pos) : pos;
     }
 
     private static boolean isActiveCassette(BlockState state) {

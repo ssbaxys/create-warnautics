@@ -151,7 +151,7 @@ public class DropBombBlock extends Block implements IWrenchable {
             cassette = 1;
         }
         return this.defaultBlockState()
-                .setValue(FACING, context.getClickedFace())
+                .setValue(FACING, placementFacing(context))
                 .setValue(POWERED, alreadyPowered)
                 .setValue(CASSETTE, clampCassette(cassette))
                 .setValue(RELEASE_DELAY, normalizeReleaseDelayTicks(releaseDelay))
@@ -173,6 +173,14 @@ public class DropBombBlock extends Block implements IWrenchable {
             level.scheduleTick(pos, this, 1);
         }
         checkHotHazard((ServerLevel) level, pos);
+    }
+
+    protected Direction placementFacing(BlockPlaceContext context) {
+        if (this.size != BombSize.MOAB) {
+            return context.getClickedFace();
+        }
+        Direction look = context.getNearestLookingDirection();
+        return look.getAxis().isVertical() ? look : look.getOpposite();
     }
 
     @Override
@@ -335,6 +343,7 @@ public class DropBombBlock extends Block implements IWrenchable {
                     case SEA -> 4;
                     case MEDIUM -> 5;
                     case LARGE -> 7;
+                    case MOAB -> 10;
                 };
 
         serverLevel.playSound(
@@ -447,7 +456,7 @@ public class DropBombBlock extends Block implements IWrenchable {
      * The powered bomb is the rack controller. The lowest contiguous bomb is
      * released first, so one signal can feed a tall rack from bottom to top.
      */
-    private void performRackEject(ServerLevel level, BlockPos controllerPos) {
+    protected void performRackEject(ServerLevel level, BlockPos controllerPos) {
         BlockPos releasePos = findLowestRackBomb(level, controllerPos);
         BlockState releaseState = level.getBlockState(releasePos);
         if (!(releaseState.getBlock() instanceof DropBombBlock releaseBomb)) {
@@ -507,7 +516,7 @@ public class DropBombBlock extends Block implements IWrenchable {
         return lowest;
     }
 
-    private void ejectOne(ServerLevel level, BlockPos pos, BlockState state) {
+    protected void ejectOne(ServerLevel level, BlockPos pos, BlockState state) {
         Direction nose = state.getValue(FACING);
         int cassette = state.getValue(CASSETTE);
 
@@ -546,7 +555,7 @@ public class DropBombBlock extends Block implements IWrenchable {
      * Releases the bomb into free space and lets gravity do the rest. UP is never a
      * release direction — nothing here may push a live bomb into the airframe above.
      */
-    private static void launchAlongNose(ServerLevel level, BlockPos pos, Direction nose, BombSize size) {
+    protected void launchAlongNose(ServerLevel level, BlockPos pos, Direction nose, BombSize size) {
         Vec3 noseVec = new Vec3(nose.getStepX(), nose.getStepY(), nose.getStepZ());
         Vec3 spawn = resolveReleasePoint(level, pos, nose, size);
 
@@ -696,8 +705,13 @@ public class DropBombBlock extends Block implements IWrenchable {
             return;
         }
         BombSize size = bomb.getBombSize();
+        BlockPos anchor = bomb.detonationAnchor(level, pos, state);
+        detonateDetached(level, anchor, size);
+    }
+    
+    protected BlockPos detonationAnchor(ServerLevel level, BlockPos pos, BlockState state) {
         level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-        detonateDetached(level, pos, size);
+        return pos;
     }
 
     public static void detonateDetached(ServerLevel level, BlockPos pos, BombSize size) {

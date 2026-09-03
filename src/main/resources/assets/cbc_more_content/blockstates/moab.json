@@ -1,0 +1,22 @@
+{
+  "variants": {
+    "facing=up,part=body": { "model": "cbc_more_content:block/moab" },
+    "facing=down,part=body": { "model": "cbc_more_content:block/moab", "x": 180 },
+    "facing=north,part=body": { "model": "cbc_more_content:block/moab", "x": 90 },
+    "facing=south,part=body": { "model": "cbc_more_content:block/moab", "x": 90, "y": 180 },
+    "facing=east,part=body": { "model": "cbc_more_content:block/moab", "x": 90, "y": 90 },
+    "facing=west,part=body": { "model": "cbc_more_content:block/moab", "x": 90, "y": 270 },
+    "facing=up,part=nose": { "model": "cbc_more_content:block/moab_empty" },
+    "facing=down,part=nose": { "model": "cbc_more_content:block/moab_empty", "x": 180 },
+    "facing=north,part=nose": { "model": "cbc_more_content:block/moab_empty", "x": 90 },
+    "facing=south,part=nose": { "model": "cbc_more_content:block/moab_empty", "x": 90, "y": 180 },
+    "facing=east,part=nose": { "model": "cbc_more_content:block/moab_empty", "x": 90, "y": 90 },
+    "facing=west,part=nose": { "model": "cbc_more_content:block/moab_empty", "x": 90, "y": 270 },
+    "facing=up,part=tail": { "model": "cbc_more_content:block/moab_empty" },
+    "facing=down,part=tail": { "model": "cbc_more_content:block/moab_empty", "x": 180 },
+    "facing=north,part=tail": { "model": "cbc_more_content:block/moab_empty", "x": 90 },
+    "facing=south,part=tail": { "model": "cbc_more_content:block/moab_empty", "x": 90, "y": 180 },
+    "facing=east,part=tail": { "model": "cbc_more_content:block/moab_empty", "x": 90, "y": 90 },
+    "facing=west,part=tail": { "model": "cbc_more_content:block/moab_empty", "x": 90, "y": 270 }
+  }
+}

@@ -4,6 +4,7 @@ import com.cbc_more_content.client.C4ProjectileRenderer;
 import com.cbc_more_content.client.C4Renderer;
 import com.cbc_more_content.client.ClientSetup;
 import com.cbc_more_content.client.CruiseMissileBlockRenderer;
+import com.cbc_more_content.client.MoabRenderer;
 import com.cbc_more_content.client.SeaBombRenderer;
 import com.cbc_more_content.client.TripwireRenderer;
 import com.cbc_more_content.client.WireCutterRenderer;
@@ -72,6 +73,7 @@ public class CBCMoreContentClient {
         event.registerEntityRenderer(ModEntityTypes.SEA_BOMB.get(), SeaBombRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.MEDIUM_BOMB.get(), BigCannonProjectileRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.LARGE_BOMB.get(), BigCannonProjectileRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.MOAB.get(), MoabRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.C4.get(), C4ProjectileRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.TRIPWIRE.get(), TripwireRenderer::new);
         event.registerEntityRenderer(

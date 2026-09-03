@@ -112,6 +112,9 @@ public final class BombExplosionHandler {
         com.cbc_more_content.siren.BlastLog.record(level, pos);
         BombBurstBudget.Snapshot budget = BombBurstBudget.begin(level);
         float terrainPower = blockPower * budget.lod().terrainPowerScale();
+        BombSize.BlastVolume volume = size.blastVolume();
+        float shellPower = volume.shellPowerForSameVolume(terrainPower);
+        float fracturePower = Math.min(shellPower * 1.25f, blockPower);
 
         ShellExplosion explosion = new TerrainShellExplosion(
                 level,
@@ -120,7 +123,7 @@ public final class BombExplosionHandler {
                 pos.x,
                 pos.y,
                 pos.z,
-                terrainPower,
+                shellPower,
                 entityPower,
                 false,
                 CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction(),
@@ -141,43 +144,29 @@ public final class BombExplosionHandler {
             BombBlastFx.play(level, pos, size, blockPower, budget);
         }
 
-        // The whole detonation runs inside one guard, not just explode(). Entity
-        // damage and Block#wasExploded are dispatched from finalizeExplosion, so a
-        // guard that ended at explode() left every flying bomb and every placed bomb
-        // in the crater free to cook off — that is the rack chain reaction that made
-        // multi-bomb aircraft unusable.
         BombSympatheticDetonation.runBombBlast(() -> {
-            // Marked as ours while it runs. This is a Big Cannons ShellExplosion, and
-            // CannonBlastFx watches for exactly those — without this every bomb in the
-            // mod would be dressed twice, once here and once by that listener.
             CannonBlastFx.own(explosion::explode);
 
-            // Second pass over what the first one refused. The ordinary model charges
-            // resistance linearly, which is built so that TNT can never touch obsidian
-            // and has the side effect that nothing else can either — a warhead sized to
-            // breach a bunker took the dirt around it and left the bunker unmarked. This
-            // charges a sub-linear curve, so soft ground is unaffected (it is already
-            // gone) and payload size decides how far into hard material a blast reaches.
             if (canDamageTerrain) {
-                List<BlockPos> fractured = BlastFracture.gather(level, pos, blockPower, explosion.getToBlow());
+                List<BlockPos> fractured = BlastFracture.gather(level, pos, fracturePower, explosion.getToBlow());
                 if (!fractured.isEmpty()) {
-                    // Through the same protection gate as everything else: a claim that
-                    // stops a bomb has to stop the heavy end of one too.
                     explosion.getToBlow().addAll(BlastProtection.filter(level, pos, blockPower, fractured));
                 }
             }
 
-            // Fired while getToBlow() is still intact so add-ons can veto individual
-            // positions before the cap, the core vaporization and finalizeExplosion
-            // consume it. It runs ahead of the entity pass because that pass treats
-            // doomed blocks as no cover — a vetoed block has to keep shielding.
+            if (canDamageTerrain && !volume.isSphere()) {
+                clampToBlastVolume(explosion, pos, volume);
+            }
+
             NeoForge.EVENT_BUS.post(new WarnauticsBlockDetonateEvent(level, explosion, pos, size));
-            applyBlastToEntities(level, explosion, damageSource, pos, entityPower, size, budget.lod());
+            BlastCover.beginDetonation();
+            try {
+                applyBlastToEntities(level, explosion, damageSource, pos, entityPower, size, budget.lod());
+            } finally {
+                BlastCover.endDetonation();
+            }
             RagdollBlastCompat.onBombBlast(level, pos, entityPower, size);
 
-            // Read while the crater is still standing: capToBlow and vaporizeBlastCore
-            // are about to break or replace these positions, and the debris has to see
-            // the real block that was there, not what it turned into.
             if (canDamageTerrain) {
                 BlastDebris.fling(level, pos, explosion.getToBlow());
             }
@@ -185,11 +174,14 @@ public final class BombExplosionHandler {
             if (!canDamageTerrain) {
                 explosion.clearToBlow();
             } else {
-                capToBlow(level, explosion);
-                vaporizeBlastCore(level, explosion, size, budget.lod().vaporizeChance());
-                // Past the crater rim the ground is churned rather than removed, so a
-                // bomb leaves a scar rather than a clean hole in an untouched field.
-                BlastScorch.scuff(level, pos, Math.max(5.0D, blockPower * 1.9D), 0.85f);
+                capToBlow(level, explosion, volume);
+                vaporizeBlastCore(level, explosion, size, budget.lod().vaporizeChance(), volume);
+                double scuffRadius = Math.max(5.0D, volume.horizontal(blockPower) * (volume.isSphere() ? 1.9D : 0.55D));
+                if (volume.isSphere()) {
+                    BlastScorch.scuff(level, pos, scuffRadius, 0.85f);
+                } else {
+                    BlastScorch.scuffDeferred(level, pos, scuffRadius, 0.85f, 8);
+                }
             }
 
             explosion.finalizeExplosion(false);
@@ -199,15 +191,8 @@ public final class BombExplosionHandler {
         sendBlastToNearbyPlayers(level, explosion, pos, size);
     }
 
-    /**
-     * Every changed block is a client section re-mesh, and an unbounded large-bomb
-     * crater can hand a client tens of thousands in one tick. Keep the nearest so the
-     * crater still reads as one and only the thin outer rim is dropped.
-     */
-    private static void capToBlow(ServerLevel level, ShellExplosion explosion) {
+    private static void capToBlow(ServerLevel level, ShellExplosion explosion, BombSize.BlastVolume volume) {
         List<BlockPos> toBlow = explosion.getToBlow();
-        // Vanilla rays also collect air positions. Letting those consume the cap can
-        // discard real blocks and leave a large visual blast with no crater.
         toBlow.removeIf(pos -> {
             try {
                 BlockState state = level.getBlockState(pos);
@@ -221,10 +206,12 @@ public final class BombExplosionHandler {
             return;
         }
         Vec3 center = explosion.center();
-        // Sorting the whole crater to throw most of it away is wasted work when several
-        // bombs go off at once; keep the nearest cap as the list is walked instead.
+        double horizontalRadius = volume.horizontal(explosion.radius());
+        double verticalRadius = volume.vertical(explosion.radius());
         PriorityQueue<BlockPos> nearest = new PriorityQueue<>(
-                cap + 1, Comparator.comparingDouble(p -> -p.distToCenterSqr(center.x, center.y, center.z)));
+                cap + 1,
+                Comparator.comparingDouble(
+                        (BlockPos p) -> -normalizedDistSqr(p, center, horizontalRadius, verticalRadius)));
         for (BlockPos pos : toBlow) {
             if (nearest.size() < cap) {
                 nearest.add(pos);
@@ -232,16 +219,24 @@ public final class BombExplosionHandler {
             }
             BlockPos farthest = nearest.peek();
             if (farthest != null
-                    && pos.distToCenterSqr(center.x, center.y, center.z)
-                            < farthest.distToCenterSqr(center.x, center.y, center.z)) {
+                    && normalizedDistSqr(pos, center, horizontalRadius, verticalRadius)
+                            < normalizedDistSqr(farthest, center, horizontalRadius, verticalRadius)) {
                 nearest.poll();
                 nearest.add(pos);
             }
         }
         List<BlockPos> kept = new ArrayList<>(nearest);
-        kept.sort(Comparator.comparingDouble(p -> p.distToCenterSqr(center.x, center.y, center.z)));
+        kept.sort(Comparator.comparingDouble(p -> normalizedDistSqr(p, center, horizontalRadius, verticalRadius)));
         toBlow.clear();
         toBlow.addAll(kept);
+    }
+
+    /** Distance squared in volume-normalized coordinates: 1.0 at the volume's surface. */
+    private static double normalizedDistSqr(BlockPos pos, Vec3 center, double horizontalRadius, double verticalRadius) {
+        double nx = (pos.getX() + 0.5D - center.x) / horizontalRadius;
+        double ny = (pos.getY() + 0.5D - center.y) / verticalRadius;
+        double nz = (pos.getZ() + 0.5D - center.z) / horizontalRadius;
+        return nx * nx + ny * ny + nz * nz;
     }
 
     /**
@@ -264,12 +259,25 @@ public final class BombExplosionHandler {
         if (normalized >= 1.0D) {
             return 0.0f;
         }
-        // Cover is sampled separately by BlastCover and applied exactly once by the
-        // caller. Calling Explosion#getSeenPercent here as well made an impact point
-        // just inside a surface report zero exposure for every body sample, which
-        // reduced even a point-blank large bomb to zero damage.
         double pressure = 1.0D - normalized;
         return (float) ((pressure * pressure + pressure) / 2.0D * 7.0D * reach + 1.0D);
+    }
+
+    /**
+     * Reshapes the gathered crater onto a non-spherical blast volume. The vanilla shell
+     * cut a sphere at the volume-shrunk power and the fracture pass walked rays widened
+     * to the saucer footprint, so positions outside the volume — deep spurs below the
+     * flattened bottom edge and the fracture rim above it — are dropped here, once,
+     * after all gathering. A saucer blast carves a saucer.
+     */
+    private static void clampToBlastVolume(ShellExplosion explosion, Vec3 pos, BombSize.BlastVolume volume) {
+        explosion
+                .getToBlow()
+                .removeIf(blockPos -> !volume.contains(
+                        blockPos.getX() + 0.5D - pos.x,
+                        blockPos.getY() + 0.5D - pos.y,
+                        blockPos.getZ() + 0.5D - pos.z,
+                        explosion.radius()));
     }
 
     private static void sendBlastToNearbyPlayers(ServerLevel level, ShellExplosion explosion, Vec3 pos, BombSize size) {
@@ -279,6 +287,7 @@ public final class BombExplosionHandler {
                     case SEA -> 210.0D * 210.0D;
                     case MEDIUM -> 260.0D * 260.0D;
                     case LARGE -> 360.0D * 360.0D;
+                    case MOAB -> 540.0D * 540.0D;
                 };
         for (ServerPlayer player : level.players()) {
             if (player.distanceToSqr(pos) <= syncDistSqr) {
@@ -309,12 +318,9 @@ public final class BombExplosionHandler {
                     case SEA -> 2.85f;
                     case MEDIUM -> 2.9f;
                     case LARGE -> 4.2f;
+                    case MOAB -> 6.2f;
                 };
         boolean raycast = lod.useExplosionExposureRays();
-        // Blocks this blast is about to remove must not shield anyone: the cover that
-        // fails absorbs its share and lets the rest through. applyBlastToEntities runs
-        // before finalizeExplosion, so they are still standing at this point and have to
-        // be excluded explicitly.
         LongSet destroyed = new LongOpenHashSet(explosion.getToBlow().size());
         for (BlockPos pos : explosion.getToBlow()) {
             destroyed.add(pos.asLong());
@@ -345,22 +351,13 @@ public final class BombExplosionHandler {
                 continue;
             }
 
-            // Cover now attenuates by what it is made of, not merely by whether a line
-            // is clear. A dirt berm barely helps; a reinforced wall that survives the
-            // blast stops it outright.
-            BlastCover.Result cover = raycast
-                    ? BlastCover.evaluate(level, center, entity, destroyed, coverSamples(lod))
-                    : BlastCover.OPEN;
+            int samples = raycast ? Math.min(coverSamples(lod), BlastCover.samplesForDistance(dist, radius)) : 1;
+            BlastCover.Result cover =
+                    raycast ? BlastCover.evaluate(level, center, entity, destroyed, samples) : BlastCover.OPEN;
             double exposure = cover.transmission();
             double falloff = 1.0D - (dist / radius);
 
-            // Offered before the damage is applied, and gated on the entity being alive
-            // beforehand. Checking afterwards meant a point-blank hit killed the player
-            // first, so the one blast that should have rung hardest sent nothing at all.
             if (entity instanceof ServerPlayer player && player.isAlive()) {
-                // Pressure finds its way around cover even when the blast is not in
-                // sight, so the ringing is keyed to distance alone while the visual
-                // shock needs an actual line to the fireball.
                 ConcussionHandler.offer(player, entityPower, falloff, exposure, cover.hasLineOfSight());
             }
 
@@ -393,7 +390,11 @@ public final class BombExplosionHandler {
     }
 
     private static void vaporizeBlastCore(
-            ServerLevel level, ShellExplosion explosion, BombSize size, float vaporizeChance) {
+            ServerLevel level,
+            ShellExplosion explosion,
+            BombSize size,
+            float vaporizeChance,
+            BombSize.BlastVolume volume) {
         List<BlockPos> toBlow = explosion.getToBlow();
         if (toBlow.isEmpty()) {
             return;
@@ -410,26 +411,29 @@ public final class BombExplosionHandler {
                     case SEA -> 0.31D;
                     case MEDIUM -> 0.37D;
                     case LARGE -> 0.43D;
+                    case MOAB -> 0.50D;
                 };
         double coreRadius = Math.max(1.35D, explosion.radius() * coreScale);
-        double coreRadiusSqr = coreRadius * coreRadius;
+        double coreH = coreRadius * volume.h();
+        double coreV = coreRadius * volume.v();
         Vec3 center = explosion.center();
 
-        // Keep the ray-shaped outer crater for CBC/vanilla destruction and drops.
-        // Only the superheated inner core is vaporized without drops.
         List<BlockPos> remaining = new ArrayList<>(Math.max(4, toBlow.size() / 2));
         for (BlockPos blockPos : toBlow) {
             if (sable && SableDropCompat.isInsideSubLevel(level, blockPos)) {
                 remaining.add(blockPos.immutable());
                 continue;
             }
-            double distanceSqr = blockPos.distToCenterSqr(center.x, center.y, center.z);
-            if (distanceSqr > coreRadiusSqr) {
+            double nx = (blockPos.getX() + 0.5D - center.x) / coreH;
+            double ny = (blockPos.getY() + 0.5D - center.y) / coreV;
+            double nz = (blockPos.getZ() + 0.5D - center.z) / coreH;
+            double normalized = Math.sqrt(nx * nx + ny * ny + nz * nz);
+            if (normalized > 1.0D) {
                 remaining.add(blockPos.immutable());
                 continue;
             }
 
-            double heat = 1.0D - Math.sqrt(distanceSqr) / coreRadius;
+            double heat = 1.0D - normalized;
             float localChance = vaporizeChance * (0.35f + 0.65f * (float) heat);
             if (level.random.nextFloat() < localChance) {
                 BlockState state = level.getBlockState(blockPos);

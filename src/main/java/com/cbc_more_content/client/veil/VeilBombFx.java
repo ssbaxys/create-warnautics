@@ -388,6 +388,7 @@ public final class VeilBombFx {
             case SEA -> 160.0f;
             case MEDIUM -> 240.0f;
             case LARGE -> 280.0f;
+            case MOAB -> 420.0f;
         };
     }
 
@@ -398,6 +399,7 @@ public final class VeilBombFx {
                     case SEA -> 20.0f;
                     case MEDIUM -> 28.0f;
                     case LARGE -> 38.0f;
+                    case MOAB -> 58.0f;
                 };
         return radius * Mth.clamp(flash.intensity, 0.55f, 1.35f);
     }
@@ -409,6 +411,7 @@ public final class VeilBombFx {
                     case SEA -> 17.0f;
                     case MEDIUM -> 25.0f;
                     case LARGE -> 34.0f;
+                    case MOAB -> 52.0f;
                 };
         return brightness * Mth.clamp(flash.intensity, 0.55f, 1.35f);
     }
@@ -419,6 +422,7 @@ public final class VeilBombFx {
             case SEA -> 7.0D;
             case MEDIUM -> 10.0D;
             case LARGE -> 14.0D;
+            case MOAB -> 22.0D;
         };
     }
 

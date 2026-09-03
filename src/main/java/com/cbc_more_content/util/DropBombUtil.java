@@ -74,6 +74,7 @@ public final class DropBombUtil {
                         case SMALL -> ModEntityTypes.SMALL_BOMB.get();
                         case MEDIUM -> ModEntityTypes.MEDIUM_BOMB.get();
                         case LARGE -> ModEntityTypes.LARGE_BOMB.get();
+                        case MOAB -> ModEntityTypes.MOAB.get();
                         case SEA -> throw new IllegalStateException("unreachable");
                     };
             bomb = type.create(level);
