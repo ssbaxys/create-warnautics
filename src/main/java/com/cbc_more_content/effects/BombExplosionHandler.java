@@ -199,7 +199,7 @@ public final class BombExplosionHandler {
 
         if (canDamageTerrain) {
             BlastGlassShatter.scheduleFor(
-                    level, pos, (float) volume.horizontal(explosion.radius()), budget.lod(), craterBlocks);
+                    level, pos, (float) volume.horizontal(explosion.radius()), blockPower, budget.lod(), craterBlocks);
         }
     }
 
