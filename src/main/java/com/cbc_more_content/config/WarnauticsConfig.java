@@ -16,6 +16,7 @@ public final class WarnauticsConfig {
     public static final ModConfigSpec.BooleanValue EXTERNAL_CHAIN_DETONATION;
     /** Hard ceiling on blocks a single detonation may change, per detonation. */
     public static final ModConfigSpec.IntValue MAX_BLOCKS_PER_DETONATION;
+
     public static final ModConfigSpec.DoubleValue GLASS_SHATTER_RADIUS_MULTIPLIER;
     /** Global multiplier on particle/flash volume sent to clients. */
     public static final ModConfigSpec.DoubleValue BLAST_FX_SCALE;
