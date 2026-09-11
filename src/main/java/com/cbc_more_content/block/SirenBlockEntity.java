@@ -3,10 +3,10 @@ package com.cbc_more_content.block;
 import com.cbc_more_content.munitions.CruiseMissileProjectile;
 import com.cbc_more_content.munitions.DropBombProjectile;
 import com.cbc_more_content.munitions.SeaBombProjectile;
+import com.cbc_more_content.network.SirenWailPayload;
 import com.cbc_more_content.siren.BlastLog;
 import com.cbc_more_content.siren.SirenSettings;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
-import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -90,11 +90,6 @@ public class SirenBlockEntity extends KineticBlockEntity {
 
     public SirenBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
-    }
-
-    @Override
-    public void addBehaviours(java.util.List<BlockEntityBehaviour> behaviours) {
-        super.addBehaviours(behaviours);
     }
 
     @Override
@@ -239,7 +234,7 @@ public class SirenBlockEntity extends KineticBlockEntity {
         int remaining = Math.max(this.lingerTicks, this.held ? HELD_GRACE : 0);
         float voice = this.voice();
         this.announcedVoice = voice;
-        var payload = new com.cbc_more_content.network.SirenWailPayload(this.worldPosition, remaining, voice);
+        var payload = new SirenWailPayload(this.worldPosition, remaining, voice);
         double reachSqr = AUDIBLE * AUDIBLE;
         double x = this.worldPosition.getX() + 0.5D;
         double y = this.worldPosition.getY() + 0.5D;

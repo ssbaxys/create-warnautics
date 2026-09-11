@@ -5,6 +5,7 @@ import com.cbc_more_content.compat.RagdollBlastCompat;
 import com.cbc_more_content.compat.SableDropCompat;
 import com.cbc_more_content.config.WarnauticsConfig;
 import com.cbc_more_content.event.WarnauticsBlockDetonateEvent;
+import com.cbc_more_content.siren.BlastLog;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import java.util.ArrayList;
@@ -59,22 +60,18 @@ public final class BombExplosionHandler {
             float blockPower,
             float entityPower,
             BombSize size) {
-        if (ModList.get().isLoaded("sable")) {
-            SableDropCompat.BlastTarget target = SableDropCompat.resolveWorldBlast(level, pos);
-            level = target.level();
-            pos = target.pos();
-        }
+        var target = SableDropCompat.resolveWorldBlastChecked(level, pos);
+        level = target.level();
+        pos = target.pos();
         detonateInternal(level, source, damageSource, pos, blockPower, entityPower, size, false);
     }
 
     /** Breaching charge: same blast everywhere, hull or ground. */
     public static void detonateBreachingCharge(
             ServerLevel level, DamageSource damageSource, Vec3 pos, float blockPower, float entityPower) {
-        if (ModList.get().isLoaded("sable")) {
-            SableDropCompat.BlastTarget target = SableDropCompat.resolveWorldBlast(level, pos);
-            level = target.level();
-            pos = target.pos();
-        }
+        var target = SableDropCompat.resolveWorldBlastChecked(level, pos);
+        level = target.level();
+        pos = target.pos();
         detonateInternal(level, null, damageSource, pos, blockPower, entityPower, BombSize.MEDIUM, false);
     }
 
@@ -86,11 +83,9 @@ public final class BombExplosionHandler {
             Vec3 pos,
             float blockPower,
             float entityPower) {
-        if (ModList.get().isLoaded("sable")) {
-            SableDropCompat.BlastTarget target = SableDropCompat.resolveWorldBlast(level, pos);
-            level = target.level();
-            pos = target.pos();
-        }
+        var target = SableDropCompat.resolveWorldBlastChecked(level, pos);
+        level = target.level();
+        pos = target.pos();
         detonateInternal(level, source, damageSource, pos, blockPower, entityPower, BombSize.LARGE, true);
         // Wider and harder than the infantry charge: an anti-vehicle mine leaves the
         // ground around its crater visibly torn up, not just the hole itself.
@@ -109,7 +104,7 @@ public final class BombExplosionHandler {
         // Sirens ask this rather than trying to watch for a blast that is already
         // over by the time they next look around. Placed here, after the hull
         // remapping, so a post is told where the blast actually landed.
-        com.cbc_more_content.siren.BlastLog.record(level, pos);
+        BlastLog.record(level, pos);
         BombBurstBudget.Snapshot budget = BombBurstBudget.begin(level);
         float terrainPower = blockPower * budget.lod().terrainPowerScale();
         BombSize.BlastVolume volume = size.blastVolume();

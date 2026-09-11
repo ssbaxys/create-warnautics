@@ -1,13 +1,21 @@
 package com.cbc_more_content.block;
 
 import com.cbc_more_content.block.CruiseMissileBlockEntity.Guidance;
+import com.cbc_more_content.compat.SableDropCompat;
+import com.cbc_more_content.registry.ModBlockEntities;
+import com.cbc_more_content.registry.ModEntityTypes;
+import com.cbc_more_content.registry.ModSounds;
 import com.mojang.serialization.MapCodec;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.FluidTags;
+import net.minecraft.util.RandomSource;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
@@ -19,20 +27,24 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.neoforged.fml.ModList;
 
 /**
- * Three-block cruise missile airframe. Inert for now: it places, breaks and drops, and
- * has no warhead, guidance or launch behaviour.
+ * Three-block cruise missile airframe.
  * <p>
  * The authored model is three blocks long along its own X axis, so only the middle
  * segment draws it; the nose and tail segments are invisible and exist to carry the
@@ -42,8 +54,7 @@ public class CruiseMissileBlock extends BaseEntityBlock {
     public static final MapCodec<CruiseMissileBlock> CODEC = simpleCodec(CruiseMissileBlock::new);
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
     public static final EnumProperty<Part> PART = EnumProperty.create("part", Part.class);
-    public static final net.minecraft.world.level.block.state.properties.BooleanProperty WATERLOGGED =
-            BlockStateProperties.WATERLOGGED;
+    public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 
     /**
      * Slices of the model, measured from it, for a missile whose nose points WEST.
@@ -177,10 +188,6 @@ public class CruiseMissileBlock extends BaseEntityBlock {
     }
 
     /**
-     * Any segment losing its middle takes the whole airframe with it, so breaking one
-     * cell cannot leave floating fragments behind.
-     */
-    /**
      * Breaking any segment yields exactly one missile.
      * <p>
      * Only the middle segment carries a drop — its loot table is gated on
@@ -190,8 +197,7 @@ public class CruiseMissileBlock extends BaseEntityBlock {
      * for one.
      */
     @Override
-    public BlockState playerWillDestroy(
-            Level level, BlockPos pos, BlockState state, net.minecraft.world.entity.player.Player player) {
+    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
         if (!level.isClientSide && state.getValue(PART) != Part.BODY) {
             BlockPos body = bodyPos(pos, state);
             if (level.getBlockState(body).is(this)) {
@@ -266,18 +272,14 @@ public class CruiseMissileBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected void tick(
-            BlockState state,
-            net.minecraft.server.level.ServerLevel level,
-            BlockPos pos,
-            net.minecraft.util.RandomSource random) {
+    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         if (level.hasNeighborSignal(pos)) {
             launch(level, pos, state);
         }
     }
 
     /** Clears all three cells and puts a missile entity in their place. */
-    public static void launch(net.minecraft.server.level.ServerLevel level, BlockPos pos, BlockState state) {
+    public static void launch(ServerLevel level, BlockPos pos, BlockState state) {
         BlockPos body = bodyPos(pos, state);
         if (level.getFluidState(body).is(FluidTags.WATER)) {
             return;
@@ -310,21 +312,19 @@ public class CruiseMissileBlock extends BaseEntityBlock {
             }
         }
 
-        var missile = com.cbc_more_content.registry.ModEntityTypes.CRUISE_MISSILE
-                .get()
-                .create(level);
+        var missile = ModEntityTypes.CRUISE_MISSILE.get().create(level);
         if (missile == null) {
             return;
         }
-        var centre = net.minecraft.world.phys.Vec3.atCenterOf(body);
-        var heading = new net.minecraft.world.phys.Vec3(nose.getStepX(), nose.getStepY(), nose.getStepZ());
+        var centre = Vec3.atCenterOf(body);
+        var heading = new Vec3(nose.getStepX(), nose.getStepY(), nose.getStepZ());
         var spawnLevel = level;
 
         // A rack on a Sable hull points along the hull's own axes, so both the spawn
         // point and the heading are mapped into world space before launch. Without this
         // a missile on a pitched deck flies flat instead of along the rail it left.
-        if (net.neoforged.fml.ModList.get().isLoaded("sable")) {
-            var frame = com.cbc_more_content.compat.SableDropCompat.resolveLaunch(level, centre, heading, heading);
+        if (ModList.get().isLoaded("sable")) {
+            var frame = SableDropCompat.resolveLaunch(level, centre, heading, heading);
             spawnLevel = frame.level();
             centre = frame.pos();
             heading = frame.orientation() == null ? frame.vel() : frame.orientation();
@@ -342,13 +342,7 @@ public class CruiseMissileBlock extends BaseEntityBlock {
         }
         spawnLevel.addFreshEntity(missile);
 
-        level.playSound(
-                null,
-                body,
-                com.cbc_more_content.registry.ModSounds.CRUISE_MISSILE_LAUNCH.get(),
-                net.minecraft.sounds.SoundSource.BLOCKS,
-                4.0f,
-                1.0f);
+        level.playSound(null, body, ModSounds.CRUISE_MISSILE_LAUNCH.get(), SoundSource.BLOCKS, 4.0f, 1.0f);
     }
 
     @Nullable
@@ -360,15 +354,12 @@ public class CruiseMissileBlock extends BaseEntityBlock {
     /** Only an intercept round has anything to do while it sits on the rack. */
     @Nullable
     @Override
-    public <T extends BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<T> getTicker(
-            Level level, BlockState state, net.minecraft.world.level.block.entity.BlockEntityType<T> type) {
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(
+            Level level, BlockState state, BlockEntityType<T> type) {
         if (level.isClientSide || state.getValue(PART) != Part.BODY) {
             return null;
         }
-        return createTickerHelper(
-                type,
-                com.cbc_more_content.registry.ModBlockEntities.CRUISE_MISSILE.get(),
-                CruiseMissileBlockEntity::serverTick);
+        return createTickerHelper(type, ModBlockEntities.CRUISE_MISSILE.get(), CruiseMissileBlockEntity::serverTick);
     }
 
     @Override

@@ -11,6 +11,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -160,7 +161,7 @@ public class C4Projectile extends ThrowableItemProjectile {
         Direction face = hit.getDirection();
         BlockPos target = hit.getBlockPos().relative(face);
         BlockState existing = this.level().getBlockState(target);
-        boolean waterlogged = this.level().getFluidState(target).is(net.minecraft.tags.FluidTags.WATER);
+        boolean waterlogged = this.level().getFluidState(target).is(FluidTags.WATER);
         // Dirt paths are not replaceable, but placing a charge on one should behave like
         // placing any other block: flatten the path back into dirt, then occupy the cell.
         if (existing.getBlock() instanceof DirtPathBlock) {

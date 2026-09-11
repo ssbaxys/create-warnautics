@@ -1,10 +1,15 @@
 package com.cbc_more_content.munitions;
 
+import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.block.CruiseMissileBlockEntity.Guidance;
 import com.cbc_more_content.bomb.BombSize;
+import com.cbc_more_content.compat.RadarCompat;
 import com.cbc_more_content.compat.SableDropCompat;
 import com.cbc_more_content.damage.BombDamageSource;
+import com.cbc_more_content.effects.BlastScorch;
 import com.cbc_more_content.effects.BombExplosionHandler;
+import com.cbc_more_content.radar.InterceptSettings;
+import com.cbc_more_content.radar.InterceptSettingsStore;
 import com.cbc_more_content.registry.ModParticles;
 import com.cbc_more_content.registry.ModSounds;
 import javax.annotation.Nullable;
@@ -18,6 +23,7 @@ import net.minecraft.server.level.TicketType;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Entity.RemovalReason;
 import net.minecraft.world.entity.EntityType;
@@ -41,7 +47,6 @@ public class CruiseMissileProjectile extends Entity {
 
     private static final TicketType<Long> MISSILE_TICKET = TicketType.create("cruise_missile", Long::compareTo);
     private static final int CHUNK_TICKET_RADIUS = 2;
-    private static final int CLIENT_TRACKING_RADIUS_BLOCKS = 4096;
 
     private static final EntityDataAccessor<Boolean> POWERED =
             SynchedEntityData.defineId(CruiseMissileProjectile.class, EntityDataSerializers.BOOLEAN);
@@ -144,7 +149,6 @@ public class CruiseMissileProjectile extends Entity {
         }
 
         this.refreshChunkTickets();
-        this.refreshClientTracking();
         if (this.ejecting > 0) {
             this.coastOutOfRack();
             return;
@@ -344,23 +348,20 @@ public class CruiseMissileProjectile extends Entity {
 
     @Nullable
     private Vec3 radarAim() {
-        if (this.targeting.controller() == null || !com.cbc_more_content.compat.RadarCompat.loaded()) {
+        if (this.targeting.controller() == null || !RadarCompat.loaded()) {
             return null;
         }
         if (this.targeting.contact() != null) {
-            var held = com.cbc_more_content.compat.RadarCompat.contactById(
-                    this.level(), this.targeting.controller(), this.targeting.contact());
+            var held = RadarCompat.contactById(this.level(), this.targeting.controller(), this.targeting.contact());
             if (held != null) {
                 return held.position();
             }
             this.targeting.setContact(null);
         }
         var settings = this.level() instanceof ServerLevel server
-                ? com.cbc_more_content.radar.InterceptSettingsStore.get(server)
-                        .forController(this.targeting.controller())
-                : com.cbc_more_content.radar.InterceptSettings.DEFAULT;
-        var fresh = com.cbc_more_content.compat.RadarCompat.bestContact(
-                this.level(), this.targeting.controller(), this.position(), settings);
+                ? InterceptSettingsStore.get(server).forController(this.targeting.controller())
+                : InterceptSettings.DEFAULT;
+        var fresh = RadarCompat.bestContact(this.level(), this.targeting.controller(), this.position(), settings);
         if (fresh == null) {
             return null;
         }
@@ -433,14 +434,6 @@ public class CruiseMissileProjectile extends Entity {
         return entity.isAlive() && entity.isPickable() && !entity.isSpectator();
     }
 
-    private void refreshClientTracking() {
-        if (!(this.level() instanceof ServerLevel server)) {
-            return;
-        }
-        this.entityData.set(EJECTING, this.isEjecting());
-        this.setCustomNameVisible(false);
-    }
-
     private void refreshChunkTickets() {
         if (!(this.level() instanceof ServerLevel server)) {
             return;
@@ -484,9 +477,9 @@ public class CruiseMissileProjectile extends Entity {
         try {
             BombExplosionHandler.detonate(
                     server, this, BombDamageSource.create(server), at, BLOCK_POWER, ENTITY_POWER, BombSize.LARGE);
-            com.cbc_more_content.effects.BlastScorch.scuff(server, at, SCUFF_RADIUS, 1.0f);
+            BlastScorch.scuff(server, at, SCUFF_RADIUS, 1.0f);
         } catch (Throwable t) {
-            com.cbc_more_content.CBCMoreContent.LOGGER.error("Cruise missile detonation failed at {}", at, t);
+            CBCMoreContent.LOGGER.error("Cruise missile detonation failed at {}", at, t);
         } finally {
             this.discard();
         }
@@ -569,7 +562,7 @@ public class CruiseMissileProjectile extends Entity {
     }
 
     @Override
-    public boolean hurt(net.minecraft.world.damagesource.DamageSource source, float amount) {
+    public boolean hurt(DamageSource source, float amount) {
         if (!this.level().isClientSide && !this.detonated) {
             this.detonate(this.position());
         }

@@ -34,7 +34,7 @@ Small bombs can be combined into bundles containing 2, 3, or 4 bombs.
 # Requirements
 
  - Minecraft: 1.21.1
- - Loader: NeoForge 21.1.243
+ - Loader: NeoForge 21.1.234
  - Required: Create 6.0.10 or newer
  - Required: Create Big Cannons 5.11.x
  - Required by CBC: Ritchie's Projectile Library 2.1.2

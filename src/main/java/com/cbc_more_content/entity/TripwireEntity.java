@@ -45,8 +45,6 @@ public class TripwireEntity extends Entity {
     private static final double TIE_HEIGHT = 0.85D;
     /** How far off the line the wire still reaches someone. */
     private static final double REACH = 0.6D;
-    /** Shouldered this far sideways without crossing and it parts anyway. */
-    private static final double TRIP_PULL = 1.15D;
     /** Ticks of slack given back once nothing is pulling any more. */
     private static final int RELAX_TICKS = 6;
     /** How often the hull check runs; a plot is not going to sneak past between ticks. */
@@ -202,8 +200,7 @@ public class TripwireEntity extends Entity {
                 this.part(server);
                 return;
             }
-            // Or shouldered it far enough sideways without ever crossing.
-            if (Math.abs(side) >= TRIP_PULL) {
+            if (Math.abs(side) >= REACH * 0.95D) {
                 this.part(server);
                 return;
             }
@@ -240,7 +237,7 @@ public class TripwireEntity extends Entity {
 
     /** The wire pulls harder the further it is bent, so it is felt before it parts. */
     private void dragOn(LivingEntity living, double bend) {
-        double load = Mth.clamp(bend / TRIP_PULL, 0.0D, 1.0D);
+        double load = Mth.clamp(bend / REACH, 0.0D, 1.0D);
         double drag = 1.0D - (1.0D - CLING) * load;
         Vec3 held = living.getDeltaMovement();
         living.setDeltaMovement(held.x * drag, held.y, held.z * drag);

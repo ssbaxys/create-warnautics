@@ -17,12 +17,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.Projectile;
@@ -30,7 +33,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RenderShape;
@@ -40,6 +46,8 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -51,7 +59,6 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
-import rbasamoyai.createbigcannons.CBCCompatTransformers;
 
 /**
  * Placeable drop bomb. Rising-edge redstone launches; cassette stacks (small only)
@@ -66,11 +73,6 @@ public class DropBombBlock extends Block implements IWrenchable {
     public static final IntegerProperty CASSETTE = IntegerProperty.create("cassette", 1, 4);
 
     public static final int MAX_CASSETTE = 4;
-    /**
-     * Player-selectable release interval. New states store the actual tick count;
-     * values 0..5 remain valid solely so worlds made with the old six-preset dial
-     * still load without losing their setting.
-     */
     public static final int MIN_RELEASE_DELAY_TICKS = 6;
 
     public static final int MAX_RELEASE_DELAY_TICKS = 100;
@@ -193,7 +195,7 @@ public class DropBombBlock extends Block implements IWrenchable {
      * bomb block deliberately keeps the normal support rules, but the sea variant
      * must not be destroyed by water replacing its placement space.
      */
-    protected boolean canSurvive(BlockState state, net.minecraft.world.level.LevelReader level, BlockPos pos) {
+    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         return this.size == BombSize.SEA || super.canSurvive(state, level, pos);
     }
 
@@ -202,7 +204,7 @@ public class DropBombBlock extends Block implements IWrenchable {
             BlockState state,
             Direction direction,
             BlockState neighborState,
-            net.minecraft.world.level.LevelAccessor level,
+            LevelAccessor level,
             BlockPos pos,
             BlockPos neighborPos) {
         // Do not delegate fluid/support updates for sea torpedoes: vanilla's
@@ -215,10 +217,8 @@ public class DropBombBlock extends Block implements IWrenchable {
     }
 
     @Override
-    protected net.minecraft.world.level.material.FluidState getFluidState(BlockState state) {
-        return state.getValue(WATERLOGGED)
-                ? net.minecraft.world.level.material.Fluids.WATER.getSource(false)
-                : super.getFluidState(state);
+    protected FluidState getFluidState(BlockState state) {
+        return state.getValue(WATERLOGGED) ? Fluids.WATER.getSource(false) : super.getFluidState(state);
     }
 
     @Override
@@ -242,31 +242,31 @@ public class DropBombBlock extends Block implements IWrenchable {
      * to merge up to {@link #MAX_CASSETTE}.
      */
     @Override
-    protected net.minecraft.world.ItemInteractionResult useItemOn(
+    protected ItemInteractionResult useItemOn(
             ItemStack stack,
             BlockState state,
             Level level,
             BlockPos pos,
             Player player,
-            net.minecraft.world.InteractionHand hand,
+            InteractionHand hand,
             BlockHitResult hit) {
         if (!this.allowsCassette() || !(state.getBlock() instanceof DropBombBlock target) || !target.allowsCassette()) {
-            return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
         if (!(stack.getItem() instanceof DropBombItem heldItem) || heldItem.getBlock() != this) {
-            return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
 
         int current = state.getValue(CASSETTE);
         if (current >= MAX_CASSETTE) {
-            return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
 
         int adding = DropBombItem.getCassette(stack);
         int space = MAX_CASSETTE - current;
         int merged = Math.min(space, adding);
         if (merged <= 0) {
-            return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
 
         if (!level.isClientSide) {
@@ -282,7 +282,7 @@ public class DropBombBlock extends Block implements IWrenchable {
                 }
             }
         }
-        return net.minecraft.world.ItemInteractionResult.sidedSuccess(level.isClientSide);
+        return ItemInteractionResult.sidedSuccess(level.isClientSide);
     }
 
     @Override
@@ -437,7 +437,7 @@ public class DropBombBlock extends Block implements IWrenchable {
     private void deferEjectFromPlot(ServerLevel level, BlockPos pos) {
         BlockPos immutable = pos.immutable();
         int when = level.getServer().getTickCount() + 1;
-        level.getServer().tell(new net.minecraft.server.TickTask(when, () -> {
+        level.getServer().tell(new TickTask(when, () -> {
             BlockState current = level.getBlockState(immutable);
             if (!(current.getBlock() instanceof DropBombBlock bomb) || bomb != this) {
                 return;
@@ -534,7 +534,7 @@ public class DropBombBlock extends Block implements IWrenchable {
     }
 
     public static boolean isReceivingPower(Level level, BlockPos pos) {
-        return findPoweringSide(level, pos) != null || level.hasNeighborSignal(pos);
+        return findPoweringSide(level, pos) != null;
     }
 
     @Nullable
@@ -682,7 +682,7 @@ public class DropBombBlock extends Block implements IWrenchable {
     }
 
     @Override
-    public void wasExploded(Level level, BlockPos pos, net.minecraft.world.level.Explosion explosion) {
+    public void wasExploded(Level level, BlockPos pos, Explosion explosion) {
         if (!(level instanceof ServerLevel serverLevel)) {
             return;
         }
@@ -716,14 +716,8 @@ public class DropBombBlock extends Block implements IWrenchable {
 
     public static void detonateDetached(ServerLevel level, BlockPos pos, BombSize size) {
         Vec3 local = Vec3.atCenterOf(pos);
-        ServerLevel blastLevel = level;
-        Vec3 blastPos = CBCCompatTransformers.transformVec3(level, local);
-        if (ModList.get().isLoaded("sable")) {
-            SableDropCompat.BlastTarget target = SableDropCompat.resolveWorldBlast(level, local);
-            blastLevel = target.level();
-            blastPos = target.pos();
-        }
-        DropBombUtil.detonateAsReleasedProjectile(size, blastLevel, blastPos);
+        var target = SableDropCompat.resolveWorldBlastChecked(level, local);
+        DropBombUtil.detonateAsReleasedProjectile(size, target.level(), target.pos());
     }
 
     private record ProjectileHitKey(ServerLevel level, long pos) {}

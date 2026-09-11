@@ -2,12 +2,14 @@ package com.cbc_more_content.munitions;
 
 import com.cbc_more_content.registry.ModSounds;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.FluidTags;
@@ -37,8 +39,6 @@ public class SeaBombProjectile extends DropBombProjectile {
 
     private static final EntityDataAccessor<Byte> PHASE =
             SynchedEntityData.defineId(SeaBombProjectile.class, EntityDataSerializers.BYTE);
-    private static final EntityDataAccessor<Float> PROPELLER =
-            SynchedEntityData.defineId(SeaBombProjectile.class, EntityDataSerializers.FLOAT);
 
     private static final double SWIM_RANGE = 800.0D;
     private static final double SWIM_SPEED = 1.15D;
@@ -52,6 +52,8 @@ public class SeaBombProjectile extends DropBombProjectile {
     private int buzzCooldown;
     private Vec3 swimHeading = new Vec3(0.0D, 0.0D, 1.0D);
 
+    private float propellerDegrees;
+
     public SeaBombProjectile(EntityType<? extends DropBombProjectile> type, Level level) {
         super(type, level);
     }
@@ -60,15 +62,10 @@ public class SeaBombProjectile extends DropBombProjectile {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(PHASE, PHASE_AIR);
-        builder.define(PROPELLER, 0.0f);
     }
 
     public byte phase() {
         return this.entityData.get(PHASE);
-    }
-
-    public float propellerAngle() {
-        return this.entityData.get(PROPELLER);
     }
 
     /**
@@ -346,7 +343,7 @@ public class SeaBombProjectile extends DropBombProjectile {
         }
 
         this.swimDistance += motion.horizontalDistance();
-        this.entityData.set(PROPELLER, this.propellerAngle() + 48.0f);
+        this.propellerDegrees += 48.0f;
         this.spawnSwimParticles((ServerLevel) this.level());
         this.playBuzz();
 
@@ -387,7 +384,7 @@ public class SeaBombProjectile extends DropBombProjectile {
             return;
         }
 
-        this.entityData.set(PROPELLER, this.propellerAngle() + 28.0f);
+        this.propellerDegrees += 28.0f;
 
         if (this.level() instanceof ServerLevel server) {
             this.spawnSinkParticles(server);
@@ -417,7 +414,7 @@ public class SeaBombProjectile extends DropBombProjectile {
         Vec3 nose = p.add(heading.scale(0.55D));
         Vec3 tail = p.subtract(heading.scale(0.6D));
         Vec3 wake = p.subtract(heading.scale(1.15D));
-        float ang = this.propellerAngle() * Mth.DEG_TO_RAD;
+        float ang = this.propellerDegrees * Mth.DEG_TO_RAD;
         RandomSource random = this.random;
 
         // Bow wave: water shouldered aside at the nose, thrown out and slightly back.
@@ -677,7 +674,7 @@ public class SeaBombProjectile extends DropBombProjectile {
      * {@code ServerLevel#sendParticles} hardcodes {@code longDistance = false} and so
      * drops every packet past 32 blocks — invisible for a torpedo that runs 800.
      */
-    private static <T extends net.minecraft.core.particles.ParticleOptions> void emit(
+    private static <T extends ParticleOptions> void emit(
             ServerLevel server,
             T type,
             double x,
@@ -688,7 +685,7 @@ public class SeaBombProjectile extends DropBombProjectile {
             double dy,
             double dz,
             double speed) {
-        for (net.minecraft.server.level.ServerPlayer player : server.players()) {
+        for (ServerPlayer player : server.players()) {
             if (player.distanceToSqr(x, y, z) <= 192.0D * 192.0D) {
                 server.sendParticles(player, type, true, x, y, z, count, dx, dy, dz, speed);
             }

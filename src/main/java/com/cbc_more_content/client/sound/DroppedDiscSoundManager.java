@@ -21,7 +21,6 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
  */
 @EventBusSubscriber(modid = CBCMoreContent.MOD_ID, value = Dist.CLIENT)
 public final class DroppedDiscSoundManager {
-    /** A little past the whistle's own range, so a sound starts before it is audible. */
     private static final double SEARCH_RADIUS = 10.0D;
     /** Enough for a small pile; past this the mix turns to mud anyway. */
     private static final int MAX_DISCS = 4;

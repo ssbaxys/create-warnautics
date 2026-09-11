@@ -3,7 +3,9 @@ package com.cbc_more_content.block;
 import com.cbc_more_content.compat.SableDropCompat;
 import com.cbc_more_content.damage.MineDamageSource;
 import com.cbc_more_content.effects.BombExplosionHandler;
+import com.cbc_more_content.effects.BombSympatheticDetonation;
 import com.cbc_more_content.effects.MineExplosionHandler;
+import com.cbc_more_content.entity.BoundingMineEntity;
 import com.cbc_more_content.mine.MineType;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
@@ -14,19 +16,32 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ShovelItem;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.block.BedBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RenderShape;
@@ -38,11 +53,11 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.BlockEvent;
-import rbasamoyai.createbigcannons.CBCCompatTransformers;
 
 /**
  * Flat land mine. Arms after a short delay so the placer is safe.
@@ -107,7 +122,7 @@ public class LandMineBlock extends Block implements IWrenchable {
                 && context.getLevel()
                                 .getBlockState(context.getClickedPos().below())
                                 .getBlock()
-                        instanceof net.minecraft.world.level.block.BedBlock;
+                        instanceof BedBlock;
         return this.defaultBlockState()
                 .setValue(ARMED, false)
                 .setValue(BURIAL, 0)
@@ -116,9 +131,9 @@ public class LandMineBlock extends Block implements IWrenchable {
 
     /** A charge laid in a bed goes with the bed, and no mine sits on open water. */
     @Override
-    protected boolean canSurvive(BlockState state, net.minecraft.world.level.LevelReader level, BlockPos pos) {
+    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
         if (state.getValue(IN_BED)) {
-            return level.getBlockState(pos.below()).getBlock() instanceof net.minecraft.world.level.block.BedBlock;
+            return level.getBlockState(pos.below()).getBlock() instanceof BedBlock;
         }
         BlockState below = level.getBlockState(pos.below());
         return !below.isAir() && below.getFluidState().isEmpty();
@@ -128,21 +143,20 @@ public class LandMineBlock extends Block implements IWrenchable {
      * Ground a charge can actually be dug into: anything a shovel is the right tool for
      * — soil, sand, gravel, snow, clay. Stone, planks and open water are not.
      */
-    private static boolean isDiggableGround(net.minecraft.world.level.LevelReader level, BlockPos pos) {
+    private static boolean isDiggableGround(LevelReader level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        return state.is(net.minecraft.tags.BlockTags.MINEABLE_WITH_SHOVEL)
-                && state.getFluidState().isEmpty();
+        return state.is(BlockTags.MINEABLE_WITH_SHOVEL) && state.getFluidState().isEmpty();
     }
 
     @Override
     protected BlockState updateShape(
             BlockState state,
-            net.minecraft.core.Direction direction,
+            Direction direction,
             BlockState neighborState,
-            net.minecraft.world.level.LevelAccessor level,
+            LevelAccessor level,
             BlockPos pos,
             BlockPos neighborPos) {
-        if (direction == net.minecraft.core.Direction.DOWN && !state.canSurvive(level, pos)) {
+        if (direction == Direction.DOWN && !state.canSurvive(level, pos)) {
             return Blocks.AIR.defaultBlockState();
         }
         return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
@@ -232,28 +246,28 @@ public class LandMineBlock extends Block implements IWrenchable {
      * several. A buried mine keeps working — this only conceals it.
      */
     @Override
-    protected net.minecraft.world.ItemInteractionResult useItemOn(
+    protected ItemInteractionResult useItemOn(
             ItemStack stack,
             BlockState state,
             Level level,
             BlockPos pos,
             Player player,
-            net.minecraft.world.InteractionHand hand,
+            InteractionHand hand,
             BlockHitResult hit) {
         if (player != null && player.isShiftKeyDown()) {
             // Sneaking lifts it out whatever is in hand, so a shovel is not a trap.
-            return digUp(state, level, pos, player) == net.minecraft.world.InteractionResult.PASS
-                    ? net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION
-                    : net.minecraft.world.ItemInteractionResult.sidedSuccess(level.isClientSide);
+            return digUp(state, level, pos, player) == InteractionResult.PASS
+                    ? ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION
+                    : ItemInteractionResult.sidedSuccess(level.isClientSide);
         }
         if (state.getValue(IN_BED)) {
             // No digging in bedding: a charge in a bed is worked down by hand, and the
             // last click brings it back up so a bad guess can be undone.
             sinkInBedding(state, level, pos);
-            return net.minecraft.world.ItemInteractionResult.sidedSuccess(level.isClientSide);
+            return ItemInteractionResult.sidedSuccess(level.isClientSide);
         }
-        if (!(stack.getItem() instanceof net.minecraft.world.item.ShovelItem)) {
-            return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        if (!(stack.getItem() instanceof ShovelItem)) {
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
         if (!isDiggableGround(level, pos.below())) {
             // A charge is dug into loose ground, not pressed into stone or floated on
@@ -262,11 +276,11 @@ public class LandMineBlock extends Block implements IWrenchable {
             if (!level.isClientSide) {
                 level.playSound(null, pos, SoundEvents.STONE_HIT, SoundSource.BLOCKS, 0.5f, 1.4f);
             }
-            return net.minecraft.world.ItemInteractionResult.sidedSuccess(level.isClientSide);
+            return ItemInteractionResult.sidedSuccess(level.isClientSide);
         }
         int burial = state.getValue(BURIAL);
         if (burial >= MAX_BURIAL) {
-            return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         }
 
         if (!level.isClientSide) {
@@ -282,9 +296,7 @@ public class LandMineBlock extends Block implements IWrenchable {
                     0.8f + level.getRandom().nextFloat() * 0.25f);
             if (level instanceof ServerLevel server) {
                 server.sendParticles(
-                        new net.minecraft.core.particles.BlockParticleOption(
-                                net.minecraft.core.particles.ParticleTypes.BLOCK,
-                                net.minecraft.world.level.block.Blocks.DIRT.defaultBlockState()),
+                        new BlockParticleOption(ParticleTypes.BLOCK, Blocks.DIRT.defaultBlockState()),
                         pos.getX() + 0.5D,
                         pos.getY() + 0.15D,
                         pos.getZ() + 0.5D,
@@ -295,10 +307,10 @@ public class LandMineBlock extends Block implements IWrenchable {
                         0.02D);
             }
             if (player != null && !player.getAbilities().instabuild) {
-                stack.hurtAndBreak(1, player, net.minecraft.world.entity.EquipmentSlot.MAINHAND);
+                stack.hurtAndBreak(1, player, EquipmentSlot.MAINHAND);
             }
         }
-        return net.minecraft.world.ItemInteractionResult.sidedSuccess(level.isClientSide);
+        return ItemInteractionResult.sidedSuccess(level.isClientSide);
     }
 
     @Override
@@ -338,13 +350,10 @@ public class LandMineBlock extends Block implements IWrenchable {
      * shovels run 2 (wood) to 9 (netherite); bare hands always manage one.
      */
     private static int shovelStages(ItemStack stack) {
-        if (!(stack.getItem() instanceof net.minecraft.world.item.ShovelItem)) {
+        if (!(stack.getItem() instanceof ShovelItem)) {
             return 1;
         }
-        float speed = Math.max(
-                1.0f,
-                stack.getItem()
-                        .getDestroySpeed(stack, net.minecraft.world.level.block.Blocks.DIRT.defaultBlockState()));
+        float speed = Math.max(1.0f, stack.getItem().getDestroySpeed(stack, Blocks.DIRT.defaultBlockState()));
         return Math.max(1, Math.round(speed / 1.2f));
     }
 
@@ -368,10 +377,8 @@ public class LandMineBlock extends Block implements IWrenchable {
      */
     public static boolean detonateBeddedMines(ServerLevel level, BlockPos bedPos) {
         BlockState bed = level.getBlockState(bedPos);
-        BlockPos[] halves = bed.getBlock() instanceof net.minecraft.world.level.block.BedBlock
-                ? new BlockPos[] {
-                    bedPos, bedPos.relative(net.minecraft.world.level.block.BedBlock.getConnectedDirection(bed))
-                }
+        BlockPos[] halves = bed.getBlock() instanceof BedBlock
+                ? new BlockPos[] {bedPos, bedPos.relative(BedBlock.getConnectedDirection(bed))}
                 : new BlockPos[] {bedPos};
         for (BlockPos half : halves) {
             BlockPos above = half.above();
@@ -393,7 +400,7 @@ public class LandMineBlock extends Block implements IWrenchable {
         // Same thin disc — entities actually intersect it (pressure-plate style). One
         // lying in a bed has none at all: the bedding is what you stand on, and a lip
         // above it would give the charge away by tripping anyone walking across.
-        return state.getValue(IN_BED) ? net.minecraft.world.phys.shapes.Shapes.empty() : this.type.shape;
+        return state.getValue(IN_BED) ? Shapes.empty() : this.type.shape;
     }
 
     @Override
@@ -483,14 +490,13 @@ public class LandMineBlock extends Block implements IWrenchable {
         if (!PENDING_VEHICLE_DETONATIONS.add(pending)) {
             return;
         }
-        level.getServer()
-                .tell(new net.minecraft.server.TickTask(level.getServer().getTickCount(), () -> {
-                    try {
-                        tryVehicleDetonate(level, immutable);
-                    } finally {
-                        PENDING_VEHICLE_DETONATIONS.remove(pending);
-                    }
-                }));
+        level.getServer().tell(new TickTask(level.getServer().getTickCount(), () -> {
+            try {
+                tryVehicleDetonate(level, immutable);
+            } finally {
+                PENDING_VEHICLE_DETONATIONS.remove(pending);
+            }
+        }));
     }
 
     /**
@@ -507,12 +513,11 @@ public class LandMineBlock extends Block implements IWrenchable {
         }
         level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
 
-        var thrown = com.cbc_more_content.entity.BoundingMineEntity.pop(
-                level, Vec3.atBottomCenterOf(pos).add(0.0D, 0.15D, 0.0D));
+        var thrown = BoundingMineEntity.pop(level, Vec3.atBottomCenterOf(pos).add(0.0D, 0.15D, 0.0D));
         level.addFreshEntity(thrown);
         thrown.playPop();
         level.sendParticles(
-                net.minecraft.core.particles.ParticleTypes.LARGE_SMOKE,
+                ParticleTypes.LARGE_SMOKE,
                 pos.getX() + 0.5D,
                 pos.getY() + 0.1D,
                 pos.getZ() + 0.5D,
@@ -535,16 +540,12 @@ public class LandMineBlock extends Block implements IWrenchable {
         level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
 
         Vec3 local = Vec3.atCenterOf(pos);
-        ServerLevel blastLevel = level;
-        Vec3 blastPos = CBCCompatTransformers.transformVec3(level, local);
-        if (ModList.get().isLoaded("sable")) {
-            SableDropCompat.BlastTarget target = SableDropCompat.resolveWorldBlast(level, local);
-            blastLevel = target.level();
-            blastPos = target.pos();
-        }
+        var target = SableDropCompat.resolveWorldBlastChecked(level, local);
+        ServerLevel blastLevel = target.level();
+        Vec3 blastPos = target.pos();
         // Mines report their own death cause, so "blown up by a bomb" no longer shows
         // for someone who stepped on an antipersonnel charge.
-        if (type == MineType.SMALL) {
+        if (type == MineType.SMALL || type == MineType.BOUNDING) {
             MineExplosionHandler.detonateSmallShrapnel(
                     blastLevel, null, MineDamageSource.create(blastLevel, type), blastPos, type.entityBlastPower);
         } else {
@@ -589,8 +590,8 @@ public class LandMineBlock extends Block implements IWrenchable {
     }
 
     @Override
-    public void wasExploded(Level level, BlockPos pos, net.minecraft.world.level.Explosion explosion) {
-        if (level instanceof ServerLevel serverLevel) {
+    public void wasExploded(Level level, BlockPos pos, Explosion explosion) {
+        if (level instanceof ServerLevel serverLevel && BombSympatheticDetonation.allowsCookoffFrom(explosion)) {
             detonate(serverLevel, pos, level.getBlockState(pos));
         }
     }

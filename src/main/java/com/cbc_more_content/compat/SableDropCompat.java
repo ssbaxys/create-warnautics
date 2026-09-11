@@ -12,9 +12,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.fml.ModList;
 import org.joml.Vector3d;
 import rbasamoyai.createbigcannons.CBCCompatTransformers;
 
@@ -211,6 +211,13 @@ public final class SableDropCompat {
         return new BlastTarget(level, CBCCompatTransformers.transformVec3(level, localCenter));
     }
 
+    public static BlastTarget resolveWorldBlastChecked(ServerLevel level, Vec3 localCenter) {
+        if (!ModList.get().isLoaded("sable")) {
+            return new BlastTarget(level, CBCCompatTransformers.transformVec3(level, localCenter));
+        }
+        return resolveWorldBlast(level, localCenter);
+    }
+
     // —— small helpers ——
 
     private static ServerSubLevelContainer container(ServerLevel level) {
@@ -229,22 +236,6 @@ public final class SableDropCompat {
         }
     }
 
-    private static double resistance(BlockState state, BlockGetter source, BlockPos pos) {
-        try {
-            return Math.max(0.0D, state.getExplosionResistance(source, pos, null));
-        } catch (Throwable ignored) {
-            return Math.max(0.0D, state.getBlock().getExplosionResistance());
-        }
-    }
-
-    private static boolean unbreakable(BlockState state, BlockGetter source, BlockPos pos) {
-        try {
-            return state.getDestroySpeed(source, pos) < 0.0f;
-        } catch (Throwable ignored) {
-            return state.is(Blocks.BEDROCK);
-        }
-    }
-
     private static boolean withinReach(BoundingBox3dc aabb, double x, double y, double z, double reachSqr) {
         if (aabb == null) {
             return false;
@@ -254,21 +245,6 @@ public final class SableDropCompat {
         double dz = Math.max(aabb.minZ() - z, Math.max(0.0D, z - aabb.maxZ()));
         return dx * dx + dy * dy + dz * dz <= reachSqr;
     }
-
-    private static boolean finite(Vec3 v) {
-        return v != null && Double.isFinite(v.x) && Double.isFinite(v.y) && Double.isFinite(v.z);
-    }
-
-    private static boolean finite(float value) {
-        return Float.isFinite(value) && value > 0.0f;
-    }
-
-    @FunctionalInterface
-    private interface BlockFilter {
-        boolean test(BlockPos pos, BlockState state);
-    }
-
-    private record Target(BlockPos pos, double score) {}
 
     public record BlastTarget(ServerLevel level, Vec3 pos) {}
 

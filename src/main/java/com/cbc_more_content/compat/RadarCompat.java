@@ -1,10 +1,12 @@
 package com.cbc_more_content.compat;
 
 import com.cbc_more_content.CBCMoreContent;
+import com.cbc_more_content.radar.InterceptSettings;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
@@ -74,22 +76,20 @@ public final class RadarCompat {
         if (blockEntity == null || !loaded()) {
             return false;
         }
-        var key = net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(blockEntity.getType());
+        var key = BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(blockEntity.getType());
         return key != null && MOD_ID.equals(key.getNamespace());
     }
 
     /**
      * The track worth intercepting, or null when the network is dark, empty or looking
-     * at nothing in range. Everything is re-read each call: a radar picture is only ever
-     * a snapshot.
+     * at nothing in range.
      * <p>
      * Scored on speed first and range second, because an interceptor exists for the
      * thing that is moving. Picking purely by distance sent missiles at whatever drifted
      * closest, which on a busy map is a parked plot rather than the hull bearing down.
      */
     @Nullable
-    public static Contact bestContact(
-            Level level, BlockPos controller, Vec3 from, com.cbc_more_content.radar.InterceptSettings settings) {
+    public static Contact bestContact(Level level, BlockPos controller, Vec3 from, InterceptSettings settings) {
         Contact best = null;
         double bestScore = -Double.MAX_VALUE;
         double maxRange = settings.maxRange();
@@ -137,6 +137,19 @@ public final class RadarCompat {
      */
     private static final int SOURCE_SCAN_RADIUS = 48;
 
+    private static final int SOURCE_CACHE_TICKS = 10;
+
+    @Nullable
+    private static Level cachedSourceLevel;
+
+    @Nullable
+    private static BlockPos cachedSourceController;
+
+    @Nullable
+    private static java.util.List<BlockEntity> cachedSources;
+
+    private static long cachedSourceGameTime;
+
     private static Iterable<Contact> contacts(Level level, BlockPos controller) {
         if (!loaded() || !resolve() || !level.isLoaded(controller)) {
             return java.util.List.of();
@@ -156,6 +169,11 @@ public final class RadarCompat {
         }
         if (!isRadarModBlock(bound)) {
             return java.util.List.of();
+        }
+
+        java.util.List<BlockEntity> cached = cacheIfFresh(level, controller);
+        if (cached != null) {
+            return cached;
         }
 
         java.util.List<BlockEntity> found = new java.util.ArrayList<>();
@@ -178,7 +196,35 @@ public final class RadarCompat {
                 }
             }
         }
+
+        cachedSourceLevel = level;
+        cachedSourceController = controller.immutable();
+        cachedSourceGameTime = level.getGameTime();
+        cachedSources = found;
         return found;
+    }
+
+    /**
+     * A sweep of up to 49 chunks' block entities on every guidance tick is the single
+     * most expensive thing an in-flight intercept does, and the dish layout around a
+     * controller does not change tick to tick.
+     */
+    @Nullable
+    private static java.util.List<BlockEntity> cacheIfFresh(Level level, BlockPos controller) {
+        if (cachedSources == null
+                || cachedSourceLevel != level
+                || cachedSourceController == null
+                || !cachedSourceController.equals(controller)
+                || level.getGameTime() - cachedSourceGameTime >= SOURCE_CACHE_TICKS) {
+            return null;
+        }
+        for (BlockEntity source : cachedSources) {
+            if (source.isRemoved()) {
+                cachedSources = null;
+                return null;
+            }
+        }
+        return cachedSources;
     }
 
     private static void readContacts(BlockEntity source, java.util.List<Contact> out) {

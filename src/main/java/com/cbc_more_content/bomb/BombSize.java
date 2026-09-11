@@ -1,5 +1,6 @@
 package com.cbc_more_content.bomb;
 
+import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
@@ -18,7 +19,6 @@ public enum BombSize {
             Block.box(0.0D, 3.0D, 4.0D, 10.0D, 13.0D, 12.0D),
             0.40D,
             0.12D,
-            // Weakened 2x: block 3.625f, entity 4.0f
             0.45f,
             3.625f,
             4.0f),
@@ -38,7 +38,6 @@ public enum BombSize {
             Block.box(0.0D, 2.0D, 3.0D, 12.0D, 14.0D, 13.0D),
             0.36D,
             0.10D,
-            // Rebalanced from 16.5/21: medium payload weakened exactly 1.5x.
             0.65f,
             11.0f,
             14.0f),
@@ -48,7 +47,6 @@ public enum BombSize {
             Block.box(0.0D, 1.0D, 2.0D, 14.0D, 15.0D, 14.0D),
             0.30D,
             0.08D,
-            // Warnautics heavy payload pass: 1.5x block/entity blast power.
             0.90f,
             15.6f,
             21.45f),
@@ -93,7 +91,7 @@ public enum BombSize {
         this.entityBlastPower = entityBlastPower;
     }
 
-    public VoxelShape shapeFor(net.minecraft.core.Direction.Axis axis) {
+    public VoxelShape shapeFor(Direction.Axis axis) {
         return switch (axis) {
             case X -> this.shapeEw;
             case Z -> this.shapeNs;

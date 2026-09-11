@@ -1,16 +1,19 @@
 package com.cbc_more_content.block;
 
 import com.cbc_more_content.bomb.BombSize;
+import com.cbc_more_content.effects.BombSympatheticDetonation;
 import com.cbc_more_content.item.DropBombItem;
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import java.util.List;
+import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -18,6 +21,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
@@ -186,17 +190,11 @@ public class MoabBlock extends DropBombBlock {
 
     private static double[] corner(Direction facing, double x, double y, double z) {
         return switch (facing) {
-                // x:0: identity.
             case UP -> new double[] {x, y, z};
-                // x:180: (x, y, z) -> (x, 16-y, 16-z).
             case DOWN -> new double[] {x, 1.0D - y, 1.0D - z};
-                // x:90: (x, y, z) -> (x, z, 16-y); the nose (+Y) lands on north (-Z).
             case NORTH -> new double[] {x, z, 1.0D - y};
-                // x:90 then y:180: (x, y, z) -> (16-x, z, y); nose lands on south (+Z).
             case SOUTH -> new double[] {1.0D - x, z, y};
-                // x:90 then y:90: (x, y, z) -> (y, z, x); nose lands on east (+X).
             case EAST -> new double[] {y, z, x};
-                // x:90 then y:270: (x, y, z) -> (16-y, z, 16-x); nose lands on west (-X).
             case WEST -> new double[] {1.0D - y, z, 1.0D - x};
         };
     }
@@ -228,19 +226,17 @@ public class MoabBlock extends DropBombBlock {
             BlockState state,
             Level level,
             BlockPos pos,
-            net.minecraft.world.level.Explosion explosion,
-            java.util.function.BiConsumer<ItemStack, BlockPos> dropConsumer) {
+            Explosion explosion,
+            BiConsumer<ItemStack, BlockPos> dropConsumer) {
         if (this.getBombSize() != BombSize.MOAB || state.getValue(PART) == Part.BODY) {
             super.onExplosionHit(state, level, pos, explosion, dropConsumer);
             return;
         }
-        level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
-        if (level instanceof ServerLevel serverLevel
-                && com.cbc_more_content.effects.BombSympatheticDetonation.allowsCookoffFrom(explosion)) {
+        level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
+        if (level instanceof ServerLevel serverLevel && BombSympatheticDetonation.allowsCookoffFrom(explosion)) {
             BlockPos body = bodyOf(state, pos);
             if (level.getBlockState(body).is(this.asBlock())) {
-                com.cbc_more_content.effects.BombSympatheticDetonation.schedulePlacedBombCookoff(
-                        serverLevel, body, 28, 92);
+                BombSympatheticDetonation.schedulePlacedBombCookoff(serverLevel, body, 28, 92);
             }
         }
     }
@@ -260,6 +256,10 @@ public class MoabBlock extends DropBombBlock {
         if (this.getBombSize() != BombSize.MOAB || state.getValue(PART) == Part.BODY) {
             super.tick(state, level, pos, random);
             return;
+        }
+        boolean live = isReceivingPower(level, pos);
+        if (live != state.getValue(POWERED)) {
+            level.setBlock(pos, state.setValue(POWERED, live), Block.UPDATE_CLIENTS);
         }
         BlockPos body = bodyOf(state, pos);
         BlockState bodyState = level.getBlockState(body);
@@ -339,7 +339,7 @@ public class MoabBlock extends DropBombBlock {
         return InteractionResult.SUCCESS;
     }
 
-    public enum Part implements net.minecraft.util.StringRepresentable {
+    public enum Part implements StringRepresentable {
         NOSE("nose"),
         BODY("body"),
         TAIL("tail");

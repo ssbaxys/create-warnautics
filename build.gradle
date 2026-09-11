@@ -103,7 +103,7 @@ dependencies {
     }
 
     // Veil (optional — real dynamic lights + post bloom; bundled with Sable)
-    compileOnly("foundry.veil:veil-neoforge-${minecraft_version}:4.1.4")
+    compileOnly("foundry.veil:veil-neoforge-${minecraft_version}:${veil_version}")
 
     // Create Big Cannons + RPL (Modrinth artifacts; GitHub Packages needs auth)
     implementation("maven.modrinth:create-big-cannons:${cbc_modrinth_version}")
