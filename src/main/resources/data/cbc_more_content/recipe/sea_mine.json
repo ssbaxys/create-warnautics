@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "C": {
+      "tag": "c:ingots/copper"
+    },
+    "N": {
+      "tag": "c:nuggets/iron"
+    },
+    "X": {
+      "tag": "createbigcannons:high_explosive_materials"
+    }
+  },
+  "pattern": [
+    "NCN",
+    "CXC",
+    "NCN"
+  ],
+  "result": {
+    "count": 1,
+    "id": "cbc_more_content:sea_mine"
+  }
+}

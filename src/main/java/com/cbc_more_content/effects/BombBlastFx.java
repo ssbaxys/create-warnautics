@@ -11,6 +11,7 @@ import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -172,6 +173,86 @@ public final class BombBlastFx {
                             0.0D,
                             0.0D));
         }
+    }
+
+    /** Ticks before the seat bursts into foam, so the shock reads as outgoing. */
+    private static final int SEAT_BURST_DELAY_TICKS = 2;
+    /** How long the pressure wave takes to reach the surface, per block of depth, in ticks. */
+    private static final int SPOUT_TICKS_PER_BLOCK_DEPTH = 2;
+
+    /**
+     * Underwater burst dressing for the sea mine: churned foam at the seat, and a
+     * spout standing on the surface above — arriving late by the depth, because the
+     * pressure wave has to climb to get there.
+     * <p>
+     * Everything rides the ordinary particle and sound paths, so Sound Physics
+     * Remastered keeps shaping the audio; the extra sounds are chosen to sit under the
+     * roar already fired by the blast profile, not over it.
+     */
+    public static void underwaterBurst(ServerLevel level, Vec3 pos) {
+        int depth = Math.max(0, surfaceHeight(level, pos) - Mth.floor(pos.y));
+
+        // A muffled crack under the water, then the splash to come.
+        level.playSound(
+                null, pos.x, pos.y, pos.z, SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_INSIDE, SoundSource.BLOCKS, 3.0f, 0.55f);
+        level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.GENERIC_SPLASH, SoundSource.BLOCKS, 2.5f, 0.7f);
+
+        int waves = Math.max(3, Math.min(7, depth / 2));
+        int foam = Math.max(10, Math.min(30, depth));
+
+        schedule(level, SEAT_BURST_DELAY_TICKS, () -> {
+            emitFar(level, ParticleTypes.BUBBLE_POP, pos.x, pos.y + 0.3D, pos.z, foam, 2.4D, 1.6D, 2.4D, 0.12D);
+            emitFar(level, ParticleTypes.BUBBLE, pos.x, pos.y + 0.5D, pos.z, foam * 2, 1.8D, 1.2D, 1.8D, 0.045D);
+            emitFar(level, ParticleTypes.BUBBLE_COLUMN_UP, pos.x, pos.y + 0.8D, pos.z, foam, 1.4D, 0.9D, 1.4D, 0.02D);
+            emitFar(level, ParticleTypes.CLOUD, pos.x, pos.y + 0.4D, pos.z, foam / 3, 2.2D, 1.0D, 2.2D, 0.05D);
+        });
+
+        // The wave reaches the surface late by the depth; the water says so.
+        schedule(level, SEAT_BURST_DELAY_TICKS + depth * SPOUT_TICKS_PER_BLOCK_DEPTH, () -> {
+            double surfaceY = pos.y + depth;
+            emitFar(level, ParticleTypes.SPLASH, pos.x, surfaceY - 0.2D, pos.z, waves * 6, 1.6D, 0.1D, 1.6D, 0.35D);
+            emitFar(
+                    level,
+                    ParticleTypes.FALLING_WATER,
+                    pos.x,
+                    surfaceY + 0.4D,
+                    pos.z,
+                    waves * 3,
+                    1.8D,
+                    0.2D,
+                    1.8D,
+                    0.05D);
+            // Steam where hot gas met water, and a white pillar standing off it.
+            emitFar(level, ParticleTypes.CLOUD, pos.x, surfaceY + 0.3D, pos.z, waves, 1.9D, 0.15D, 1.9D, 0.02D);
+            emitFar(
+                    level,
+                    ParticleTypes.CAMPFIRE_COSY_SMOKE,
+                    pos.x,
+                    surfaceY + 0.6D,
+                    pos.z,
+                    waves * 2,
+                    1.0D,
+                    0.2D,
+                    1.0D,
+                    0.02D);
+        });
+    }
+
+    /**
+     * The height of the first air block straight up from {@code pos} — where the sea
+     * surface actually is, not where the last sea-lantern wishes it were.
+     */
+    private static int surfaceHeight(ServerLevel level, Vec3 pos) {
+        int top = level.getMaxBuildHeight();
+        int x = Mth.floor(pos.x);
+        int z = Mth.floor(pos.z);
+        int startY = Math.min(top, Mth.floor(pos.y) + 40);
+        for (int y = startY; y < top; y++) {
+            if (level.getBlockState(new net.minecraft.core.BlockPos(x, y, z)).isAir()) {
+                return y;
+            }
+        }
+        return startY;
     }
 
     /**
@@ -641,7 +722,9 @@ public final class BombBlastFx {
                         6.2f,
                         34.0D);
                 case SEA -> new FxProfile(
-                        ModSounds.BOMB_EXPLOSION_SMALL.get(),
+                        // A step up from the small bomb's report: a moored charge is a
+                        // ship-killer, and it should sound like one through the water.
+                        ModSounds.BOMB_EXPLOSION_MEDIUM.get(),
                         Math.max(2.0f, blockPower * 0.30f),
                         true,
                         Math.max(18.0D, blockPower * 6.0D),

@@ -19,6 +19,9 @@ import net.minecraft.world.phys.Vec3;
  * <p>
  * Blocks the same blast is about to destroy are excluded: the wall that fails absorbs
  * its share, breaks, and the rest carries through.
+ * <p>
+ * Fluids pass free: water transmits a blast — muffled with distance, not stopped — so
+ * it never counts as cover, or a swimmer beside an underwater burst would be untouchable.
  */
 public final class BlastCover {
     /** Ray step in blocks — fine enough to catch a single pane. */
@@ -163,6 +166,14 @@ public final class BlastCover {
                 continue;
             }
             if (state.isAir()) {
+                continue;
+            }
+            // A fluid that cannot hold a shape is the medium the pressure pulse travels
+            // through, not armour against it. Charging it (water is resistance 100)
+            // silenced every underwater blast. Waterlogged solids still count — their
+            // shape is what the blast actually has to defeat.
+            if (!state.getFluidState().isEmpty()
+                    && state.getCollisionShape(level, cursor).isEmpty()) {
                 continue;
             }
             double resistance;

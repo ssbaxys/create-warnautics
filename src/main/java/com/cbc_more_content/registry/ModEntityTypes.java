@@ -81,6 +81,19 @@ public final class ModEntityTypes {
                             .updateInterval(1)
                             .build("bounding_mine"));
 
+    /**
+     * A moored sea mine: almost never moves after settling, so it tracks far and
+     * updates rarely; only the oxidation stage ever needs resyncing.
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.cbc_more_content.entity.SeaMineEntity>> SEA_MINE =
+            ENTITY_TYPES.register("sea_mine", () -> EntityType.Builder.<com.cbc_more_content.entity.SeaMineEntity>of(
+                            com.cbc_more_content.entity.SeaMineEntity::new, MobCategory.MISC)
+                    .sized(0.94f, 0.94f)
+                    .fireImmune()
+                    .clientTrackingRange(10)
+                    .updateInterval(2)
+                    .build("sea_mine"));
+
     /** A chunk thrown clear of a blast; short-lived, so it never needs to travel far. */
     public static final DeferredHolder<EntityType<?>, EntityType<com.cbc_more_content.entity.BlastDebrisEntity>>
             BLAST_DEBRIS = ENTITY_TYPES.register(

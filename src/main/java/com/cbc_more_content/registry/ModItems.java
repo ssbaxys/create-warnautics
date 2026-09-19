@@ -54,6 +54,10 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> LARGE_MINE = ITEMS.register(
             "large_mine", () -> new BlockItem(ModBlocks.LARGE_MINE.get(), new Item.Properties().stacksTo(16)));
 
+    /** Places into water only; the mine itself is an entity, so this is a spawner not a block item. */
+    public static final DeferredItem<com.cbc_more_content.item.SeaMineItem> SEA_MINE = ITEMS.register(
+            "sea_mine", () -> new com.cbc_more_content.item.SeaMineItem(new Item.Properties().stacksTo(16)));
+
     /** Three-cell guided airframe; the guidance package lives on its middle cell. */
     public static final DeferredItem<BlockItem> SIREN =
             ITEMS.register("siren", () -> new BlockItem(ModBlocks.SIREN.get(), new Item.Properties().stacksTo(16)));

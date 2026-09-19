@@ -1,5 +1,6 @@
 package com.cbc_more_content.effects;
 
+import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.compat.RagdollBlastCompat;
 import com.cbc_more_content.compat.SableDropCompat;
@@ -21,6 +22,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.LiquidBlock;
@@ -92,6 +94,52 @@ public final class BombExplosionHandler {
         BlastScorch.scuff(level, pos, Math.max(6.0D, blockPower * 1.6D), 1.0f);
     }
 
+    /**
+     * Sea mine burst: full-size blast physics, but the crater is hulls only.
+     * <p>
+     * A moored mine exists to break ships, and a charge that big would hollow a fair
+     * bite out of the seabed it hangs above — yet there is nothing to scorch or rubble
+     * down there: the blast happens in open water. The standard shell sweep still runs
+     * (Sable needs it gathering hull blocks), then every position in open world is
+     * dropped and only sub-level blocks survive — so a hull loses real structure while
+     * the water column, the anchor and the seabed all pass untouched.
+     * <p>
+     * Terrain flags stay honest ({@code canDamageTerrain}) so Sable's own filters keep
+     * working; the water simply has no solid blocks for the sweep to find.
+     * <p>
+     * Sound travels on the ordinary {@link ServerLevel#playSound} pipeline in
+     * {@link BombBlastFx} — which is exactly what Sound Physics Remastered shapes — so
+     * the burst keeps its reverb and muffling in the water rather than bypassing it.
+     */
+    public static void detonateSeaMine(
+            ServerLevel level,
+            @Nullable Entity source,
+            DamageSource damageSource,
+            Vec3 pos,
+            float blockPower,
+            float entityPower) {
+        var target = SableDropCompat.resolveWorldBlastChecked(level, pos);
+        level = target.level();
+        pos = target.pos();
+        detonateInternal(level, source, damageSource, pos, blockPower, entityPower, BombSize.SEA, false, true);
+        // A column of bubbles at the seat, and a spout standing on the surface above,
+        // arriving late by the depth of the water — the pressure wave has to climb.
+        BombBlastFx.underwaterBurst(level, pos);
+        // No BlastScorch here: the seat of the burst is mid-water, and scuffing paints
+        // the seabed below as if the blast had ground contact. Underwater bursts don't
+        // leave scorch marks — they leave a hole in whatever they touched, and that is
+        // the hull.
+    }
+
+    /**
+     * True if a crater position belongs to open world rather than to a Sable physics
+     * sub-level. Used by the sea-mine blast, which spares terrain outright — including
+     * every block in the water, on the shore and on the seabed.
+     */
+    private static boolean isWorldTerrain(ServerLevel level, BlockPos pos) {
+        return !SableDropCompat.isInsideSubLevel(level, pos);
+    }
+
     private static void detonateInternal(
             ServerLevel level,
             @Nullable Entity source,
@@ -101,6 +149,23 @@ public final class BombExplosionHandler {
             float entityPower,
             BombSize size,
             boolean compactFx) {
+        detonateInternal(level, source, damageSource, pos, blockPower, entityPower, size, compactFx, false);
+    }
+
+    /**
+     * @param hullsOnly strip every open-world block from the crater — sea mines break
+     *        hulls, not water or seabed
+     */
+    private static void detonateInternal(
+            ServerLevel level,
+            @Nullable Entity source,
+            DamageSource damageSource,
+            Vec3 pos,
+            float blockPower,
+            float entityPower,
+            BombSize size,
+            boolean compactFx,
+            boolean hullsOnly) {
         // Sirens ask this rather than trying to watch for a blast that is already
         // over by the time they next look around. Placed here, after the hull
         // remapping, so a post is told where the blast actually landed.
@@ -123,6 +188,16 @@ public final class BombExplosionHandler {
                 false,
                 CBCConfigs.server().munitions.damageRestriction.get().explosiveInteraction(),
                 true);
+
+        // CBC's ShellExplosion hardcodes its own damage calculator, which inherits
+        // vanilla water semantics — water is resistance 100, so a blast fired under
+        // water had every crater ray end on the first wet cell and nothing on the
+        // seabed ever broke. The calculator cannot be passed in, so the field is
+        // swapped after construction; open water then transmits the blast and the
+        // crater carves the seabed as it would dry ground. Best-effort: if Mojang
+        // reshuffles the field, blasts go back to vanilla's muffled underwater
+        // behaviour rather than failing.
+        setBlastCalculator(explosion, FluidTransparentBlastCalculator.INSTANCE);
 
         if (IndexPlatform.onExplosionStart(level, explosion)) {
             return;
@@ -151,6 +226,11 @@ public final class BombExplosionHandler {
                 }
             }
 
+            if (hullsOnly) {
+                List<BlockPos> toBlow = explosion.getToBlow();
+                toBlow.removeIf(worldPos -> isWorldTerrain(level, worldPos));
+            }
+
             if (canDamageTerrain && !volume.isSphere()) {
                 clampToBlastVolume(explosion, pos, volume);
             }
@@ -169,11 +249,11 @@ public final class BombExplosionHandler {
             }
             RagdollBlastCompat.onBombBlast(level, pos, entityPower, size);
 
-            if (canDamageTerrain) {
+            if (canDamageTerrain && !hullsOnly) {
                 BlastDebris.fling(level, pos, explosion.getToBlow());
             }
 
-            if (!canDamageTerrain) {
+            if (!canDamageTerrain || hullsOnly) {
                 explosion.clearToBlow();
             } else {
                 capToBlow(level, explosion, volume);
@@ -192,9 +272,25 @@ public final class BombExplosionHandler {
 
         sendBlastToNearbyPlayers(level, explosion, pos, size);
 
-        if (canDamageTerrain) {
+        if (canDamageTerrain && !hullsOnly) {
             BlastGlassShatter.scheduleFor(
                     level, pos, (float) volume.horizontal(explosion.radius()), blockPower, budget.lod(), craterBlocks);
+        }
+    }
+
+    /**
+     * Points the sweep at a calculator that lets open fluid pass free. The field is
+     * private and has no accessor, so this goes through the reflection helper. Failure
+     * is logged at debug and otherwise ignored — a missed swap costs underwater
+     * craters, never a crash.
+     */
+    private static void setBlastCalculator(ShellExplosion explosion, Object calculator) {
+        try {
+            java.lang.reflect.Field field = Explosion.class.getDeclaredField("damageCalculator");
+            field.setAccessible(true);
+            field.set(explosion, calculator);
+        } catch (Throwable t) {
+            CBCMoreContent.LOGGER.debug("Underwater blast calculator swap unavailable: {}", t.toString());
         }
     }
 

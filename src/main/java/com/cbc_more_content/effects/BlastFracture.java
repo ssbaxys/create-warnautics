@@ -123,7 +123,12 @@ public final class BlastFracture {
         for (double travelled = 0.0D; travelled < radius && energy > 0.0D; travelled += STEP) {
             cursor.set(x, y, z);
             BlockState state = level.getBlockState(cursor);
-            if (!state.isAir()) {
+            // Fluids are the medium the blast travels through, not armour: charging
+            // them (water is resistance 100) is what silenced underwater blasts. A
+            // waterlogged solid still pays — its collision shape is real material.
+            boolean openFluid = !state.getFluidState().isEmpty()
+                    && state.getCollisionShape(level, cursor).isEmpty();
+            if (!state.isAir() && !openFluid) {
                 double resistance;
                 try {
                     resistance = state.getExplosionResistance(level, cursor, null);

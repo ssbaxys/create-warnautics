@@ -52,6 +52,10 @@ public class CBCMoreContentClient {
         event.register(WireCutterRenderer.RIGHT);
         event.register(WireCutterRenderer.LEFT);
         event.register(WireCutterRenderer.CENTER);
+        event.register(com.cbc_more_content.client.SeaMineRenderer.MODEL_COPPER);
+        event.register(com.cbc_more_content.client.SeaMineRenderer.MODEL_EXPOSED);
+        event.register(com.cbc_more_content.client.SeaMineRenderer.MODEL_WEATHERED);
+        event.register(com.cbc_more_content.client.SeaMineRenderer.MODEL_OXIDIZED);
     }
 
     /** The cutters are drawn part by part so their handles can hinge. */
@@ -78,6 +82,7 @@ public class CBCMoreContentClient {
         event.registerEntityRenderer(ModEntityTypes.TRIPWIRE.get(), TripwireRenderer::new);
         event.registerEntityRenderer(
                 ModEntityTypes.BOUNDING_MINE.get(), com.cbc_more_content.client.BoundingMineRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.SEA_MINE.get(), com.cbc_more_content.client.SeaMineRenderer::new);
         event.registerEntityRenderer(
                 ModEntityTypes.BLAST_DEBRIS.get(), com.cbc_more_content.client.BlastDebrisRenderer::new);
         event.registerEntityRenderer(
