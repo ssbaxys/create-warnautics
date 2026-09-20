@@ -3,6 +3,7 @@ package com.cbc_more_content;
 import com.cbc_more_content.config.WarnauticsClientConfig;
 import com.cbc_more_content.config.WarnauticsConfig;
 import com.cbc_more_content.network.ModNetworking;
+import com.cbc_more_content.registry.ModArmorMaterials;
 import com.cbc_more_content.registry.ModBlockEntities;
 import com.cbc_more_content.registry.ModBlocks;
 import com.cbc_more_content.registry.ModCreativeTabs;
@@ -33,6 +34,7 @@ public class CBCMoreContent {
         ModBlocks.BLOCKS.register(modEventBus);
         ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
+        ModArmorMaterials.ARMOR_MATERIALS.register(modEventBus);
         ModEntityTypes.ENTITY_TYPES.register(modEventBus);
         ModParticles.PARTICLE_TYPES.register(modEventBus);
         ModLootModifiers.SERIALIZERS.register(modEventBus);

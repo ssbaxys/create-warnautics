@@ -135,7 +135,10 @@ public class SeaMineRenderer extends EntityRenderer<SeaMineEntity> {
             PoseStack pose,
             MultiBufferSource buffers,
             int packedLight) {
-        BlockPos anchor = SeaMineEntity.findAnchor(level, mine.blockPosition());
+        if (!mine.isAnchored()) {
+            return;
+        }
+        BlockPos anchor = mine.getAnchor();
         if (anchor == null) {
             return;
         }

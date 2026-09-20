@@ -1,6 +1,7 @@
 package com.cbc_more_content.entity;
 
 import com.cbc_more_content.compat.sable.SeaMineSableCompat;
+import com.cbc_more_content.compat.sable.SeaMineSablePhysicsCompat;
 import com.cbc_more_content.damage.MineDamageSource;
 import com.cbc_more_content.effects.BombExplosionHandler;
 import com.cbc_more_content.mine.MineType;
@@ -8,6 +9,7 @@ import com.cbc_more_content.registry.ModEntityTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -20,66 +22,24 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-/**
- * A moored underwater contact mine.
- * <p>
- * An entity rather than a block for three reasons, in order: it has to settle at an
- * exact height above the seabed (a block is stuck to whole cells), it oxidizes through
- * four models without ever being four blockstates in the palette, and it has to ride a
- * rising chain smoothly while staying a live fuze. The chain below is rendered, not
- * placed — no column of blocks to break, grief or tick.
- * <p>
- * Contact fuze only. A player swimming into the horns, or a hull drifting over the
- * mooring, sets it off. Being struck — shot, chopped, whatever — does too: a mine is
- * a casing full of high explosive, not something you can take a swing at.
- */
 public class SeaMineEntity extends Entity {
-    /** How the four oxidization stages sync. Also the only synched datum there is. */
     private static final EntityDataAccessor<Integer> OXIDATION =
             SynchedEntityData.defineId(SeaMineEntity.class, EntityDataSerializers.INT);
 
-    /** Slow drift toward the resting hover, blocks/tick² — a heavy object in water. */
-    private static final double RISE_ACCEL = 0.012D;
-
-    private static final double FALL_ACCEL = 0.010D;
-    /** Water drag, per tick. */
-    private static final double WATER_DRAG = 0.82D;
-    /** Air drag, per tick — it should thud down out of the water, not float. */
-    private static final double AIR_DRAG = 0.96D;
-    /**
-     * Settle-speed cap. Eased out toward as the hover is approached — the mine slows
-     * into its mark over roughly the last block and a half instead of hitting a wall.
-     */
-    private static final double MAX_SPEED = 0.09D;
-
-    /**
-     * Base mooring depth: seabed to mine centre, in blocks. The user asked for about
-     * four; the horns reach a little above the body, so the body hovers a shade under.
-     */
-    public static final double BASE_MOORING_HEIGHT = 3.85D;
-    /** How far one added chain link lifts the mine. */
-    public static final double HEIGHT_PER_CHAIN = 1.0D;
-    /** Mooring height cap. Past this the chain visibly leaves its column. */
-    public static final double MAX_MOORING_HEIGHT = 24.0D;
-
-    /** Vanilla copper block oxidizes in an average of ~163 ticks per stage underwater; this is slower, so placement reads as an event. */
     private static final int OXIDATION_TICKS_PER_STAGE = 30 * 60;
 
-    /** Mooring length in blocks, saved. Starts at {@link #BASE_MOORING_HEIGHT}. */
-    private double mooringHeight = BASE_MOORING_HEIGHT;
-    /** Ticks spent submerged, driving the oxidation stage. */
     private int ageInWater;
-    /** Set the tick a fuze contact is accepted; the burst lands next tick. */
     private boolean triggered;
+    public SeaMineSablePhysicsCompat.State sableState;
+    private BlockPos anchor;
+    private double anchorLength;
 
     public SeaMineEntity(EntityType<? extends SeaMineEntity> type, Level level) {
         super(type, level);
@@ -99,14 +59,11 @@ public class SeaMineEntity extends Entity {
         builder.define(OXIDATION, 0);
     }
 
-    // —— ticking ——
-
     @Override
     public void tick() {
         this.baseTick();
 
         if (this.level().isClientSide) {
-            // The wake of a settling mine: a bubble now and then while it is still moving.
             if (this.isInWater() && this.getDeltaMovement().lengthSqr() > 1.0E-6D && this.random.nextInt(4) == 0) {
                 this.level()
                         .addParticle(
@@ -126,48 +83,17 @@ public class SeaMineEntity extends Entity {
             return;
         }
 
-        this.applyBuoyancy();
+        if (this.level() instanceof ServerLevel server) {
+            if (this.sableState == null) {
+                this.sableState = SeaMineSablePhysicsCompat.create(server, this);
+            }
+            SeaMineSablePhysicsCompat.tick(server, this, this.sableState);
+        }
         this.ageAndOxidize();
         this.sweepForContact();
         SeaMineSableCompat.sweepHulls((ServerLevel) this.level(), this);
     }
 
-    /**
-     * Hangs at the mooring height: accelerates toward the target, drags in whatever
-     * fluid it is in, never exceeds a settle-speed. Out of water it simply falls.
-     */
-    private void applyBuoyancy() {
-        BlockPos floor = findAnchor(this.level(), this.blockPosition());
-        if (floor == null) {
-            // No mooring within reach of the chain: it sinks like the metal it is,
-            // rather than hanging from nothing.
-            Vec3 fall = this.getDeltaMovement().add(0.0D, -FALL_ACCEL * 2.0D, 0.0D);
-            this.setDeltaMovement(fall);
-            this.move(MoverType.SELF, fall);
-            return;
-        }
-        double targetY = floor.getY() + 1.0D + this.mooringHeight();
-
-        Vec3 motion = this.getDeltaMovement();
-        double dy = targetY - this.getY();
-        double accel = dy > 0.0D ? RISE_ACCEL : FALL_ACCEL;
-        double step = Math.abs(dy) < accel ? dy : Math.signum(dy) * accel;
-
-        // Only the horizontal axes are pinned to the mooring; leaving motion.y in
-        // place lets the drag below actually act on the rise, instead of resetting it
-        // every tick and turning the climb into a steppy, sawtooth approximation.
-        double nextY = (motion.y + step) * (this.isInWater() ? WATER_DRAG : AIR_DRAG);
-        // Ease out to the settle-speed cap as the mine approaches its hover: a hard
-        // clamp reads as a bounce-stop, a blended one reads as settling. The easing
-        // window is a block or so either side of the mark.
-        double capped = MAX_SPEED * Math.min(1.0D, Math.abs(dy) / 1.5D);
-        nextY = net.minecraft.util.Mth.clamp(nextY, -capped, capped);
-        motion = new Vec3(0.0D, nextY, 0.0D);
-        this.setDeltaMovement(motion);
-        this.move(MoverType.SELF, motion);
-    }
-
-    /** One stage of four, at fixed intervals, while it sits in water. */
     private void ageAndOxidize() {
         if (!this.isInWater()) {
             return;
@@ -180,14 +106,6 @@ public class SeaMineEntity extends Entity {
         }
     }
 
-    /**
-     * The contact fuze.
-     * <p>
-     * A swimmer in the horns' reach goes off — the horns are a pressure device and a
-     * body pushing through the water next to one is exactly what they are for. Fish and
-     * drifting items do not: a fuze that a cod could trip would empty the ocean on its
-     * own. Creative flying is skipped, as with every mine in this mod.
-     */
     private void sweepForContact() {
         double reach = MineType.SEA_TRIGGER_REACH;
         AABB horns = this.getBoundingBox().inflate(reach);
@@ -200,7 +118,6 @@ public class SeaMineEntity extends Entity {
         }
     }
 
-    /** One tick of grace, so the horn contact reads before the water erases it. */
     public void trigger() {
         if (!this.level().isClientSide) {
             this.triggered = true;
@@ -212,9 +129,7 @@ public class SeaMineEntity extends Entity {
             return;
         }
         this.playDetonationSound();
-        // Hulls only: the charge breaks ships, not the water it hangs in or the seabed
-        // under it. Entities and Sable physics objects inside the burst still take the
-        // full pressure and impulse.
+        SeaMineSablePhysicsCompat.remove(server, this.sableState);
         BombExplosionHandler.detonateSeaMine(
                 server,
                 null,
@@ -251,58 +166,150 @@ public class SeaMineEntity extends Entity {
                         0.85f);
     }
 
-    // —— chain interaction ——
+    // —— mooring interaction ——
 
     /**
-     * Right-click with a chain: one more link, one block higher, the chain consumed.
-     * Whether the anchor still exists decides nothing — the mine simply rides higher
-     * on the same mooring. At the cap there is nothing more to pay out.
+     * Mooring by hand. Simulated's rope strands can only clamp to blocks, so the mine
+     * answers the rope tools itself:
+     * <p>
+     * <ul>
+     * <li>A <strong>Rope Coupling</strong> that has tapped a Rope Connector (the
+     * connection Simulated stores on the coupling) moors the mine to that connector —
+     * the same two-click flow as coupling two connectors, with the mine as the far
+     * end.</li>
+     * <li>A coupling with no stored connection, or the Rope Connector's own item,
+     * moors the mine straight to the ground below.</li>
+     * <li>Sneak-clicking with either cuts the mooring.</li>
+     * </ul>
      */
     @Override
     public net.minecraft.world.InteractionResult interact(Player player, net.minecraft.world.InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
-        if (stack.getItem() != Items.CHAIN) {
+        if (!isRopeTool(stack)) {
             return net.minecraft.world.InteractionResult.PASS;
         }
         if (this.level().isClientSide) {
             return net.minecraft.world.InteractionResult.SUCCESS;
         }
-        if (!this.addChainLink()) {
-            player.displayClientMessage(
-                    net.minecraft.network.chat.Component.translatable("message.cbc_more_content.sea_mine.max_height"),
-                    true);
+        if (!(this.level() instanceof ServerLevel server)) {
             return net.minecraft.world.InteractionResult.CONSUME;
+        }
+
+        // Sneak with the rope tool in hand: cut the mooring.
+        if (player.isShiftKeyDown() && this.isAnchored()) {
+            SeaMineSablePhysicsCompat.unanchor(server, this);
+            server.playSound(null, this.blockPosition(), SoundEvents.CHAIN_BREAK, SoundSource.BLOCKS, 0.8f, 0.9f);
+            say(player, "message.cbc_more_content.sea_mine.rope_cut");
+            return net.minecraft.world.InteractionResult.CONSUME;
+        }
+        if (this.isAnchored()) {
+            return net.minecraft.world.InteractionResult.CONSUME;
+        }
+
+        BlockPos connector = storedFirstConnection(stack);
+        if (connector != null) {
+            if (!isSimulatedConnector(this.level(), connector)) {
+                say(player, "message.cbc_more_content.sea_mine.rope_first");
+                return net.minecraft.world.InteractionResult.CONSUME;
+            }
+            if (connector.distToCenterSqr(this.position()) > CONNECTOR_RANGE * CONNECTOR_RANGE) {
+                say(player, "message.cbc_more_content.sea_mine.rope_far");
+                return net.minecraft.world.InteractionResult.CONSUME;
+            }
+            SeaMineSablePhysicsCompat.anchor(server, this, connector);
+        } else {
+            BlockPos floor = findAnchor(this.level(), this.blockPosition());
+            if (floor == null) {
+                return net.minecraft.world.InteractionResult.FAIL;
+            }
+            SeaMineSablePhysicsCompat.anchor(server, this, floor);
+        }
+
+        // Mirror RopeItem: the stored connection is spent, then the coupling is used up.
+        spendRopeTool(stack, player);
+        server.playSound(null, this.blockPosition(), SoundEvents.CHAIN_PLACE, SoundSource.BLOCKS, 0.8f, 1.0f);
+        say(player, "message.cbc_more_content.sea_mine.rope_linked");
+        return net.minecraft.world.InteractionResult.CONSUME;
+    }
+
+    /** How far a rope connector may sit from the mine to be moorable. */
+    private static final int CONNECTOR_RANGE = 64;
+
+    private static boolean isRopeTool(ItemStack stack) {
+        String id = net.minecraft.core.registries.BuiltInRegistries.ITEM
+                .getKey(stack.getItem())
+                .toString();
+        return id.equals("simulated:rope_coupling") || id.equals("simulated:rope_connector");
+    }
+
+    /**
+     * The rope connector the coupling tapped, read out of Simulated's
+     * {@code rope_first_connection} data component. Simulated is not on the compile
+     * classpath, so the component type is found by registry name and the value — a
+     * {@link BlockPos} in Simulated's own code — is read as {@code Object}.
+     */
+    @javax.annotation.Nullable
+    private static BlockPos storedFirstConnection(ItemStack stack) {
+        for (net.minecraft.core.component.DataComponentType<?> type :
+                net.minecraft.core.registries.BuiltInRegistries.DATA_COMPONENT_TYPE) {
+            var key = net.minecraft.core.registries.BuiltInRegistries.DATA_COMPONENT_TYPE.getResourceKey(type);
+            if (key.isEmpty()
+                    || !key.get().location().getNamespace().equals("simulated")
+                    || !key.get().location().getPath().equals("rope_first_connection")) {
+                continue;
+            }
+            Object value = stack.get(type);
+            return value instanceof BlockPos pos ? pos : null;
+        }
+        return null;
+    }
+
+    /** Spends the rope tool: clears the stored connection, then consumes one item. */
+    private static void spendRopeTool(ItemStack stack, Player player) {
+        for (net.minecraft.core.component.DataComponentType<?> type :
+                net.minecraft.core.registries.BuiltInRegistries.DATA_COMPONENT_TYPE) {
+            var key = net.minecraft.core.registries.BuiltInRegistries.DATA_COMPONENT_TYPE.getResourceKey(type);
+            if (key.isPresent()
+                    && key.get().location().getNamespace().equals("simulated")
+                    && key.get().location().getPath().equals("rope_first_connection")) {
+                stack.remove(type);
+                break;
+            }
         }
         if (!player.getAbilities().instabuild) {
             stack.shrink(1);
         }
-        this.level()
-                .playSound(
-                        null,
-                        this.getX(),
-                        this.getY(),
-                        this.getZ(),
-                        SoundEvents.CHAIN_PLACE,
-                        SoundSource.BLOCKS,
-                        0.8f,
-                        1.0f);
-        return net.minecraft.world.InteractionResult.CONSUME;
     }
 
-    /**
-     * Right-click with a chain: one more link, one block higher. Whether the anchor
-     * still exists decides nothing — the mine simply rides higher on the same mooring.
-     */
-    public boolean addChainLink() {
-        if (this.mooringHeight() + HEIGHT_PER_CHAIN > MAX_MOORING_HEIGHT) {
-            return false;
-        }
-        this.mooringHeight += HEIGHT_PER_CHAIN;
-        return true;
+    private static boolean isSimulatedConnector(net.minecraft.world.level.Level level, BlockPos pos) {
+        return net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                .getKey(level.getBlockState(pos).getBlock())
+                .toString()
+                .equals("simulated:rope_connector");
     }
 
-    public double mooringHeight() {
-        return this.mooringHeight;
+    private static void say(Player player, String key) {
+        player.displayClientMessage(net.minecraft.network.chat.Component.translatable(key), true);
+    }
+
+    public boolean isAnchored() {
+        return this.anchor != null;
+    }
+
+    public BlockPos getAnchor() {
+        return this.anchor;
+    }
+
+    public void setAnchor(BlockPos anchor) {
+        this.anchor = anchor.immutable();
+    }
+
+    public double getAnchorLength() {
+        return this.anchorLength;
+    }
+
+    public void setAnchorLength(double length) {
+        this.anchorLength = Math.max(0.0D, length);
     }
 
     public int getOxidation() {
@@ -313,12 +320,6 @@ public class SeaMineEntity extends Entity {
         this.entityData.set(OXIDATION, Math.max(0, Math.min(3, stage)));
     }
 
-    // —— collision / fuze plumbing ——
-
-    /**
-     * Solid to everything, so hulls and swimmers actually touch it rather than passing
-     * through — and so the sweep above is what decides to go off, not the physics.
-     */
     @Override
     public boolean isPickable() {
         return true;
@@ -334,7 +335,6 @@ public class SeaMineEntity extends Entity {
         return true;
     }
 
-    /** A shove is a contact: any collision pushes the fuze, exactly as bumping the horns would. */
     @Override
     public boolean hurt(DamageSource source, float amount) {
         if (this.level().isClientSide) {
@@ -357,7 +357,6 @@ public class SeaMineEntity extends Entity {
         }
     }
 
-    /** Hit scans and projectiles reach it, which matters because a hit sets it off. */
     @Override
     public boolean canBeHitByProjectile() {
         return true;
@@ -367,30 +366,29 @@ public class SeaMineEntity extends Entity {
 
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
-        this.mooringHeight = tag.contains("Mooring")
-                ? net.minecraft.util.Mth.clamp(tag.getDouble("Mooring"), BASE_MOORING_HEIGHT, MAX_MOORING_HEIGHT)
-                : BASE_MOORING_HEIGHT;
         this.ageInWater = tag.getInt("WaterAge");
         this.setOxidation(tag.getInt("Oxidation"));
+        this.anchor =
+                tag.contains("Anchor") ? NbtUtils.readBlockPos(tag, "Anchor").orElse(null) : null;
+        this.anchorLength = tag.getDouble("AnchorLength");
     }
 
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {
-        tag.putDouble("Mooring", this.mooringHeight);
         tag.putInt("WaterAge", this.ageInWater);
         tag.putInt("Oxidation", this.getOxidation());
+        if (this.anchor != null) {
+            tag.put("Anchor", NbtUtils.writeBlockPos(this.anchor));
+            tag.putDouble("AnchorLength", this.anchorLength);
+        }
     }
 
     // —— helpers ——
 
-    /**
-     * The seabed under a moored mine, wherever the mine has drifted to. Glass and leaves
-     * are refused so a chain cannot be stood on a pane; any ordinary solid will do.
-     */
     @javax.annotation.Nullable
     public static BlockPos findAnchor(Level level, BlockPos from) {
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(from.getX(), from.getY(), from.getZ());
-        for (int i = 0; i < 32; i++) {
+        for (int i = 0; i < 256; i++) {
             cursor.move(0, -1, 0);
             if (cursor.getY() < level.getMinBuildHeight()) {
                 return null;
@@ -404,18 +402,10 @@ public class SeaMineEntity extends Entity {
         return null;
     }
 
-    /**
-     * Whether the mine would hang free at {@code pos}: water around it, and a real
-     * seabed close enough below that the chain has something to stand on.
-     */
     public static boolean canMooring(Level level, BlockPos pos) {
-        if (!level.getFluidState(pos).is(FluidTags.WATER)) {
-            return false;
-        }
-        return SeaMineEntity.findAnchor(level, pos) != null;
+        return level.getFluidState(pos).is(FluidTags.WATER);
     }
 
-    /** Creative-picked or /summoned mines start unoxidized and unchained. */
     @Override
     public ItemStack getPickedResult(net.minecraft.world.phys.HitResult target) {
         return new ItemStack(com.cbc_more_content.registry.ModItems.SEA_MINE.get());

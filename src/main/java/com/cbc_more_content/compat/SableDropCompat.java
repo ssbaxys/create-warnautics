@@ -18,18 +18,6 @@ import net.neoforged.fml.ModList;
 import org.joml.Vector3d;
 import rbasamoyai.createbigcannons.CBCCompatTransformers;
 
-/**
- * Sable bridge — only touched when {@code sable} is on the classpath.
- * <p>
- * Coordinate mapping, and nothing else. A bomb launched inside a plot is created in
- * parent-world space with the carrier's inertia already applied, rather than spawned
- * locally and kicked out mid-physics-tick, and a detonation resolved from plot space is
- * mapped to where the blast should actually happen.
- * <p>
- * Blast destruction is deliberately not handled here. Sable patches
- * {@code ServerLevel#explode} and {@code Explosion#explode} itself, so an ordinary
- * explosion already breaks hull blocks; carving them by hand only bypassed that.
- */
 public final class SableDropCompat {
     private SableDropCompat() {}
 
@@ -51,7 +39,17 @@ public final class SableDropCompat {
         }
     }
 
-    /** True if any loaded sub-level comes within {@code reach} of {@code center}. */
+    @javax.annotation.Nullable
+    public static dev.ryanhcode.sable.sublevel.ServerSubLevel containingSubLevel(Level level, BlockPos pos) {
+        try {
+            return Sable.HELPER.getContaining(level, pos) instanceof dev.ryanhcode.sable.sublevel.ServerSubLevel sub
+                    ? sub
+                    : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
     public static boolean overlapsAnySubLevel(ServerLevel level, Vec3 center, double reach) {
         ServerSubLevelContainer container = container(level);
         if (container == null) {
@@ -68,17 +66,10 @@ public final class SableDropCompat {
         return false;
     }
 
-    /** Vaporize plus heat-map assembly freezes the server tick, so skip it near a hull. */
     public static boolean shouldSkipVaporize(ServerLevel level, Vec3 center, float blastRadius) {
         return overlapsAnySubLevel(level, center, Math.max(blastRadius * 2.0D, 8.0D));
     }
 
-    /**
-     * Runtime id of the sub-level containing {@code pos}, or -1 for open world.
-     * <p>
-     * Resolved here rather than on the client: the designator only reports the block a
-     * player was looking at, and the server decides what that block belongs to.
-     */
     public static int subLevelIdAt(ServerLevel level, BlockPos pos) {
         try {
             return Sable.HELPER.getContaining(level, pos) instanceof ServerSubLevel sub ? sub.getRuntimeId() : -1;
@@ -87,21 +78,6 @@ public final class SableDropCompat {
         }
     }
 
-    /**
-     * First hull block a world-space segment runs into, in world space, or null when the
-     * path is clear of every sub-level.
-     * <p>
-     * A hull's blocks are not where the hull appears to be — they sit off in the plot grid
-     * and are drawn through the sub-level's pose — so an ordinary {@code level.clip} along
-     * a flight path sweeps through open air and reports nothing. That is why a missile
-     * flew straight through a physics ship. Ordinary bombs do not, because they are Big
-     * Cannons projectiles and go through Create's raycast, which Sable patches.
-     * <p>
-     * So this goes through the same door rather than mapping coordinates by hand. Sable
-     * walks the ray through its own sub-levels and hands back which one a block belonged
-     * to along with the block; only the mapping of that block back out to world space is
-     * ours, and even that is checked before it is used.
-     */
     public static Vec3 clipSubLevels(ServerLevel level, Vec3 from, Vec3 to) {
         Vec3[] hit = new Vec3[1];
         try {
@@ -122,9 +98,6 @@ public final class SableDropCompat {
                             return false;
                         }
                         Vec3 mapped = sub.logicalPose().transformPosition(Vec3.atCenterOf(plotPos));
-                        // If the pose puts it somewhere it plainly cannot be, take where
-                        // the missile itself got to rather than firing a warhead off into
-                        // the storage grid.
                         hit[0] = nearSegment(mapped, from, to) ? mapped : to;
                         return true;
                     });
@@ -133,10 +106,8 @@ public final class SableDropCompat {
         return hit[0];
     }
 
-    /** How far off the flight path a mapped hit may land and still be believed. */
     private static final double MAPPING_SLACK = 8.0D;
 
-    /** Whether a point lies close enough to a segment to be a hit on it. */
     private static boolean nearSegment(Vec3 point, Vec3 from, Vec3 to) {
         Vec3 span = to.subtract(from);
         double lengthSqr = span.lengthSqr();

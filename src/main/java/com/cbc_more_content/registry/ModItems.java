@@ -2,6 +2,7 @@ package com.cbc_more_content.registry;
 
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.item.BombSettingsKeyItem;
+import com.cbc_more_content.item.BombVestItem;
 import com.cbc_more_content.item.C4Item;
 import com.cbc_more_content.item.CruiseMissileItem;
 import com.cbc_more_content.item.DetonatorItem;
@@ -95,6 +96,9 @@ public final class ModItems {
     /** Fires a charge that was set to remote, from up to 250 blocks away. */
     public static final DeferredItem<DetonatorItem> DETONATOR =
             ITEMS.register("detonator", () -> new DetonatorItem(new Item.Properties().stacksTo(1)));
+
+    public static final DeferredItem<BombVestItem> BOMB_VEST = ITEMS.register(
+            "bomb_vest", () -> new BombVestItem(ModArmorMaterials.BOMB_VEST, new Item.Properties().stacksTo(1)));
 
     /** Opens the wire panel on a live charge. */
     public static final DeferredItem<WireCuttersItem> WIRE_CUTTERS = ITEMS.register(

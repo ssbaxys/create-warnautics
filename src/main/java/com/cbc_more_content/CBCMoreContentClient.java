@@ -1,5 +1,6 @@
 package com.cbc_more_content;
 
+import com.cbc_more_content.client.BombVestLayer;
 import com.cbc_more_content.client.C4ProjectileRenderer;
 import com.cbc_more_content.client.C4Renderer;
 import com.cbc_more_content.client.ClientSetup;
@@ -15,7 +16,14 @@ import com.cbc_more_content.registry.ModEntityTypes;
 import com.cbc_more_content.registry.ModItems;
 import com.cbc_more_content.registry.ModParticles;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
+import net.minecraft.client.renderer.ItemInHandRenderer;
+import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+import net.minecraft.client.renderer.entity.player.PlayerRenderer;
+import net.minecraft.client.resources.PlayerSkin;
+import net.minecraft.world.entity.EntityType;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -30,6 +38,7 @@ import rbasamoyai.createbigcannons.munitions.big_cannon.BigCannonProjectileRende
 public class CBCMoreContentClient {
     public CBCMoreContentClient(IEventBus modEventBus) {
         modEventBus.addListener(this::registerRenderers);
+        modEventBus.addListener(this::addBombVestLayers);
         modEventBus.addListener(this::registerParticles);
         modEventBus.addListener(this::registerExtraModels);
         modEventBus.addListener(this::registerItemExtensions);
@@ -43,7 +52,6 @@ public class CBCMoreContentClient {
                 ModParticles.MISSILE_GAS.get(), com.cbc_more_content.client.particle.MissileGasParticle.Provider::new);
     }
 
-    /** The spinning C4 cog is drawn by a renderer, so nothing else pulls it in to bake. */
     private void registerExtraModels(ModelEvent.RegisterAdditional event) {
         event.register(C4Renderer.COG);
         event.register(C4Renderer.COG_ARMED);
@@ -56,9 +64,9 @@ public class CBCMoreContentClient {
         event.register(com.cbc_more_content.client.SeaMineRenderer.MODEL_EXPOSED);
         event.register(com.cbc_more_content.client.SeaMineRenderer.MODEL_WEATHERED);
         event.register(com.cbc_more_content.client.SeaMineRenderer.MODEL_OXIDIZED);
+        event.register(BombVestLayer.LINKED_MODEL);
     }
 
-    /** The cutters are drawn part by part so their handles can hinge. */
     private void registerItemExtensions(RegisterClientExtensionsEvent event) {
         Minecraft mc = Minecraft.getInstance();
         WireCutterRenderer renderer = new WireCutterRenderer(mc.getBlockEntityRenderDispatcher(), mc.getEntityModels());
@@ -70,6 +78,33 @@ public class CBCMoreContentClient {
                     }
                 },
                 ModItems.WIRE_CUTTERS.get());
+    }
+
+    private void addBombVestLayers(EntityRenderersEvent.AddLayers event) {
+        ItemInHandRenderer itemInHandRenderer = event.getContext().getItemInHandRenderer();
+        for (PlayerSkin.Model skin : event.getSkins()) {
+            PlayerRenderer renderer = event.getSkin(skin);
+            if (renderer != null) {
+                addVestLayer(renderer, itemInHandRenderer);
+            }
+        }
+        for (EntityType<?> type : event.getEntityTypes()) {
+            EntityRenderer<?> renderer = event.getRenderer(type);
+            if (renderer instanceof LivingEntityRenderer<?, ?> living) {
+                addVestLayerRaw(living, itemInHandRenderer);
+            }
+        }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static void addVestLayerRaw(LivingEntityRenderer renderer, ItemInHandRenderer itemInHandRenderer) {
+        if (renderer.getModel() instanceof HumanoidModel) {
+            renderer.addLayer(new BombVestLayer(renderer, itemInHandRenderer));
+        }
+    }
+
+    private static void addVestLayer(PlayerRenderer renderer, ItemInHandRenderer itemInHandRenderer) {
+        renderer.addLayer(new BombVestLayer<>(renderer, itemInHandRenderer));
     }
 
     private void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {

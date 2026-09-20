@@ -5,7 +5,7 @@
     32
   ],
   "textures": {
-    "2": "cbc_more_content:item/detonator"
+    "2": "cbc_more_content:item/detonator_vest_linked"
   },
   "elements": [
     {
@@ -736,7 +736,7 @@
       "rotation": [
         -180,
         60,
-        -180
+        180
       ],
       "translation": [
         0,
@@ -792,19 +792,5 @@
         2
       ]
     }
-  },
-  "overrides": [
-    {
-      "predicate": {
-        "cbc_more_content:bound": 1
-      },
-      "model": "cbc_more_content:item/detonator_powered"
-    },
-    {
-      "predicate": {
-        "cbc_more_content:vest_linked": 1
-      },
-      "model": "cbc_more_content:item/detonator_vest_linked"
-    }
-  ]
+  }
 }

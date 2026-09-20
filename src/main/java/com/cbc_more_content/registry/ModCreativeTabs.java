@@ -30,6 +30,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.LARGE_MINE.get());
                         output.accept(ModItems.SEA_MINE.get());
                         output.accept(ModItems.C4.get());
+                        output.accept(ModItems.BOMB_VEST.get());
                         output.accept(ModItems.CRUISE_MISSILE.get());
                         output.accept(ModItems.TRIPWIRE_COIL.get());
                         output.accept(ModItems.SIREN.get());

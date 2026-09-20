@@ -29,31 +29,23 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
-/**
- * Radio detonator for charges set to remote.
- * <p>
- * Pairing is deliberately physical — each charge has to be touched with the set after it
- * is armed — while firing is not, up to {@link #RANGE}. Past that the press simply does
- * nothing: there is no signal to send, so none is. One set holds a whole ring, and the
- * plunger fires all of it at once.
- */
 public class DetonatorItem extends Item {
-    /** How far the set will reach. Beyond it, pressing the plunger sends nothing. */
     public static final double RANGE = 250.0D;
-    /** Enough for a demolition ring, few enough that the tooltip stays readable. */
+    private static final String LINKED_VEST = "LinkedVest";
     public static final int MAX_CHARGES = 12;
 
+    public static boolean holdsVestLink(ItemStack stack) {
+        return boundVest(stack) != null;
+    }
+
     private static final String BOUND = "BoundCharges";
-    /** Long enough that a fumbled press cannot be repeated into a second ring. */
     private static final int COOLDOWN_TICKS = 10;
-    /** How often a carried detonator checks that its charges are still there. */
     private static final int VALIDATE_INTERVAL = 20;
 
     public DetonatorItem(Properties properties) {
         super(properties);
     }
 
-    /** Touching an armed remote charge adds it to the ring; sneaking takes it back off. */
     @Override
     public InteractionResult useOn(UseOnContext context) {
         Level level = context.getLevel();
@@ -82,7 +74,6 @@ public class DetonatorItem extends Item {
         }
 
         if (!(level.getBlockEntity(pos) instanceof C4BlockEntity charge) || !charge.isWaitingOnRemote()) {
-            // Either not armed yet, or armed on its own timer; neither answers a set.
             say(player, "message.cbc_more_content.detonator.not_remote", ChatFormatting.RED);
             return InteractionResult.CONSUME;
         }
@@ -115,10 +106,13 @@ public class DetonatorItem extends Item {
             return InteractionResultHolder.sidedSuccess(stack, true);
         }
 
+        if (player.isShiftKeyDown() && BombVestItem.isWearing(player)) {
+            toggleVestLink(level, player, stack);
+            return InteractionResultHolder.success(stack);
+        }
+
         List<BlockPos> ring = boundCharges(stack);
         if (player.isShiftKeyDown()) {
-            // Sneaking in the open drops the whole ring. Sneaking on a charge drops that
-            // one, which is handled in useOn before this ever runs.
             if (!ring.isEmpty()) {
                 for (BlockPos charge : ring) {
                     if (level.isLoaded(charge) && level.getBlockEntity(charge) instanceof C4BlockEntity dropped) {
@@ -138,7 +132,7 @@ public class DetonatorItem extends Item {
             return InteractionResultHolder.success(stack);
         }
 
-        if (ring.isEmpty()) {
+        if (ring.isEmpty() && boundVest(stack) == null) {
             say(player, "message.cbc_more_content.detonator.unbound", ChatFormatting.GRAY);
             return InteractionResultHolder.success(stack);
         }
@@ -156,20 +150,31 @@ public class DetonatorItem extends Item {
         for (BlockPos charge : ring) {
             double distanceSqr = player.distanceToSqr(charge.getX() + 0.5D, charge.getY() + 0.5D, charge.getZ() + 0.5D);
             if (distanceSqr > RANGE * RANGE || !level.isLoaded(charge)) {
-                // Nothing reached it, so nothing has changed about it: it stays on the
-                // set, and can be fired from closer.
                 left.add(charge);
             } else {
                 reached.add(charge);
             }
         }
-        // Anything that was reached and did not answer is gone or no longer remote;
-        // either way the set has no business still holding it, so only the ones out of
-        // reach are kept.
         int fired = C4BlockEntity.fireRing(server, reached);
         int unreachable = left.size();
         store(stack, left);
 
+        int firedVests = 0;
+        java.util.UUID vestId = boundVest(stack);
+        if (vestId != null) {
+            Entity maybeVest = server.getEntity(vestId);
+            if (maybeVest instanceof Player vestWearer && BombVestItem.isWearing(vestWearer)) {
+                BombVestItem.detonate(server, vestWearer);
+                firedVests = 1;
+                storeVestLink(stack, null);
+            } else if (maybeVest instanceof Player) {
+                storeVestLink(stack, null);
+            }
+        }
+
+        if (firedVests > 0) {
+            say(player, "message.cbc_more_content.detonator.vest_fired", ChatFormatting.GREEN);
+        }
         if (fired > 0) {
             say(
                     Component.translatable("message.cbc_more_content.detonator.fired", fired)
@@ -177,30 +182,20 @@ public class DetonatorItem extends Item {
                     player);
         } else if (unreachable > 0) {
             say(player, "message.cbc_more_content.detonator.out_of_range", ChatFormatting.RED);
-        } else {
+        } else if (firedVests == 0) {
             say(player, "message.cbc_more_content.detonator.no_signal", ChatFormatting.RED);
         }
         return InteractionResultHolder.success(stack);
     }
 
-    /**
-     * Charges that have gone off take their place on the set with them. Checked from the
-     * pocket rather than pushed by the blast: a charge is a block entity being deleted,
-     * and it has no way of reaching an item stack in somebody's inventory.
-     */
     @Override
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int slot, boolean selected) {
         if (level.isClientSide || level.getGameTime() % VALIDATE_INTERVAL != 0) {
             return;
         }
         List<BlockPos> ring = boundCharges(stack);
-        if (ring.isEmpty()) {
-            return;
-        }
         List<BlockPos> left = new ArrayList<>(ring.size());
         for (BlockPos charge : ring) {
-            // An unloaded charge is kept: it may well still be sitting there, and the set
-            // being carried out of the chunk is not the charge going away.
             if (!level.isLoaded(charge)
                     || (level.getBlockEntity(charge) instanceof C4BlockEntity target && target.isWaitingOnRemote())) {
                 left.add(charge);
@@ -209,9 +204,16 @@ public class DetonatorItem extends Item {
         if (left.size() != ring.size()) {
             store(stack, left);
         }
+        if (level instanceof ServerLevel serverLevel) {
+            java.util.UUID vestId = boundVest(stack);
+            if (vestId != null
+                    && serverLevel.getEntity(vestId) instanceof Player vestWearer
+                    && !BombVestItem.isWearing(vestWearer)) {
+                storeVestLink(stack, null);
+            }
+        }
     }
 
-    /** The charges this set holds, in the order they were paired. Never null. */
     public static List<BlockPos> boundCharges(ItemStack stack) {
         List<BlockPos> ring = new ArrayList<>();
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
@@ -228,7 +230,6 @@ public class DetonatorItem extends Item {
         return ring;
     }
 
-    /** Takes one charge off the set. False when it was not on it to begin with. */
     public static boolean unbind(ItemStack stack, BlockPos charge) {
         List<BlockPos> ring = boundCharges(stack);
         if (!ring.remove(charge)) {
@@ -242,18 +243,84 @@ public class DetonatorItem extends Item {
         stack.remove(DataComponents.CUSTOM_DATA);
     }
 
+    @Nullable
+    public static java.util.UUID boundVest(ItemStack stack) {
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null) {
+            return null;
+        }
+        String id = data.copyTag().getString(LINKED_VEST);
+        try {
+            return id.isEmpty() ? null : java.util.UUID.fromString(id);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    public static void storeVestLink(ItemStack stack, @Nullable java.util.UUID vestId) {
+        CompoundTag root = stack.get(DataComponents.CUSTOM_DATA) != null
+                ? stack.get(DataComponents.CUSTOM_DATA).copyTag()
+                : new CompoundTag();
+        if (vestId == null) {
+            if (!root.contains(LINKED_VEST)) {
+                return;
+            }
+            root.remove(LINKED_VEST);
+            if (root.isEmpty()) {
+                clear(stack);
+                return;
+            }
+            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
+            return;
+        }
+        root.putString(LINKED_VEST, vestId.toString());
+        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
+    }
+
+    private static void toggleVestLink(Level level, Player player, ItemStack stack) {
+        ItemStack vest = BombVestItem.worn(player);
+        if (vest == null) {
+            return;
+        }
+        java.util.UUID self = player.getUUID();
+        if (self.equals(boundVest(stack))) {
+            storeVestLink(stack, null);
+            BombVestItem.syncLinkMirror(player);
+            level.playSound(
+                    null, player.blockPosition(), SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.PLAYERS, 0.8f, 0.9f);
+            say(player, "message.cbc_more_content.detonator.vest_unlinked", ChatFormatting.GRAY);
+            return;
+        }
+        storeVestLink(stack, self);
+        BombVestItem.syncLinkMirror(player);
+        level.playSound(
+                null, player.blockPosition(), SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.PLAYERS, 0.8f, 1.5f);
+        say(player, "message.cbc_more_content.detonator.vest_linked", ChatFormatting.GREEN);
+    }
+
     private static void store(ItemStack stack, List<BlockPos> ring) {
         if (ring.isEmpty()) {
-            clear(stack);
+            CompoundTag vestRoot = root(stack);
+            vestRoot.remove(BOUND);
+            if (vestRoot.isEmpty()) {
+                clear(stack);
+            } else {
+                stack.set(DataComponents.CUSTOM_DATA, CustomData.of(vestRoot));
+            }
             return;
         }
         ListTag list = new ListTag();
         for (BlockPos charge : ring) {
             list.add(new IntArrayTag(new int[] {charge.getX(), charge.getY(), charge.getZ()}));
         }
-        CompoundTag root = new CompoundTag();
+        CompoundTag root = root(stack);
         root.put(BOUND, list);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
+    }
+
+    private static CompoundTag root(ItemStack stack) {
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        return data != null ? data.copyTag() : new CompoundTag();
     }
 
     private static void say(@Nullable Player player, String key, ChatFormatting colour) {
@@ -287,5 +354,9 @@ public class DetonatorItem extends Item {
         }
         tooltip.add(Component.translatable("tooltip.cbc_more_content.detonator.range", (int) RANGE)
                 .withStyle(ChatFormatting.DARK_GRAY));
+        if (boundVest(stack) != null) {
+            tooltip.add(Component.translatable("tooltip.cbc_more_content.detonator.vest")
+                    .withStyle(ChatFormatting.GREEN));
+        }
     }
 }

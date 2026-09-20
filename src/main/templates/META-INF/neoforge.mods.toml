@@ -42,14 +42,20 @@ config="${mod_id}.mixins.json"
     side="BOTH"
 [[dependencies.${mod_id}]]
     modId="sable"
-    type="optional"
-    versionRange="*"
+    type="required"
+    versionRange="[2.0.3,)"
     ordering="AFTER"
     side="BOTH"
 [[dependencies.${mod_id}]]
     modId="simulated"
-    type="optional"
+    type="required"
     versionRange="[1.2.1,)"
+    ordering="AFTER"
+    side="BOTH"
+[[dependencies.${mod_id}]]
+    modId="aeronautics"
+    type="required"
+    versionRange="[1.0.0,)"
     ordering="AFTER"
     side="BOTH"
 [[dependencies.${mod_id}]]

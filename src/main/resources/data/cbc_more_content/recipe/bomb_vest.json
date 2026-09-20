@@ -1,0 +1,32 @@
+{
+  "type": "create:mechanical_crafting",
+  "accept_mirrored": true,
+  "category": "misc",
+  "key": {
+    "B": {
+      "tag": "c:plates/brass"
+    },
+    "C": {
+      "item": "cbc_more_content:c4"
+    },
+    "L": {
+      "item": "minecraft:leather_chestplate"
+    },
+    "R": {
+      "tag": "createbigcannons:dusts_redstone"
+    },
+    "S": {
+      "item": "minecraft:string"
+    }
+  },
+  "pattern": [
+    " BSB ",
+    "BLCLB",
+    " RRR ",
+    " B B "
+  ],
+  "result": {
+    "count": 1,
+    "id": "cbc_more_content:bomb_vest"
+  }
+}

@@ -19,14 +19,6 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
-/**
- * Places a moored sea mine into the water cell that was clicked.
- * <p>
- * Water only, and it refuses anywhere without a seabed within reach of the chain — the
- * mooring is what holds the mine at its hover, and a chain with nothing under it is
- * decoration. The mine spawns as the fresh copper version and drifts up to its mooring
- * height on its own; nothing here places it at height.
- */
 public class SeaMineItem extends Item {
     public SeaMineItem(Properties properties) {
         super(properties);
@@ -38,9 +30,6 @@ public class SeaMineItem extends Item {
         BlockPos clicked = context.getClickedPos();
         Player player = context.getPlayer();
 
-        // The face clicked decides the cell. Against the seabed that is the water above
-        // it; against the water itself it is that cell. Against a hull side it is the
-        // water beside it, which is where a diver would plant one anyway.
         BlockPos pos = SeaMineEntity.canMooring(level, clicked) ? clicked : clicked.relative(context.getClickedFace());
         if (!SeaMineEntity.canMooring(level, pos)) {
             if (!level.isClientSide && player != null) {
@@ -67,7 +56,6 @@ public class SeaMineItem extends Item {
         level.playSound(null, pos, SoundEvents.COPPER_PLACE, SoundSource.BLOCKS, 0.8f, 0.85f);
     }
 
-    /** Right-clicking open water with no block face: still try the cell aimed at. */
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
@@ -91,10 +79,6 @@ public class SeaMineItem extends Item {
         return InteractionResultHolder.consume(stack);
     }
 
-    /**
-     * The water cell a player is aiming at, within reach. A clip in water hits nothing
-     * solid, so the aim ray is walked by hand and stopped at the first water cell.
-     */
     @Nullable
     private static net.minecraft.world.phys.BlockHitResult pickWater(Level level, Player player) {
         Vec3 eye = player.getEyePosition();
