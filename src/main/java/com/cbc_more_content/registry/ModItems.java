@@ -55,11 +55,9 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> LARGE_MINE = ITEMS.register(
             "large_mine", () -> new BlockItem(ModBlocks.LARGE_MINE.get(), new Item.Properties().stacksTo(16)));
 
-    /** Places into water only; the mine itself is an entity, so this is a spawner not a block item. */
-    public static final DeferredItem<com.cbc_more_content.item.SeaMineItem> SEA_MINE = ITEMS.register(
-            "sea_mine", () -> new com.cbc_more_content.item.SeaMineItem(new Item.Properties().stacksTo(16)));
+    public static final DeferredItem<BlockItem> SEA_MINE = ITEMS.register(
+            "sea_mine", () -> new BlockItem(ModBlocks.SEA_MINE.get(), new Item.Properties().stacksTo(16)));
 
-    /** Three-cell guided airframe; the guidance package lives on its middle cell. */
     public static final DeferredItem<BlockItem> SIREN =
             ITEMS.register("siren", () -> new BlockItem(ModBlocks.SIREN.get(), new Item.Properties().stacksTo(16)));
 
@@ -67,10 +65,6 @@ public final class ModItems {
             "cruise_missile",
             () -> new CruiseMissileItem(ModBlocks.CRUISE_MISSILE.get(), new Item.Properties().stacksTo(8)));
 
-    /**
-     * The mod's main theme as a playable record. The song itself is defined by the
-     * jukebox_song datapack entry; the item only points at it.
-     */
     public static final DeferredItem<Item> MUSIC_DISC_BREAKER_OF_SKIES = ITEMS.register(
             "music_disc_breaker_of_skies",
             () -> new Item(new Item.Properties()
