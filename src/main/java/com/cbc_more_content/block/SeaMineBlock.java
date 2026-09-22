@@ -6,6 +6,7 @@ import com.mojang.serialization.MapCodec;
 import dev.ryanhcode.sable.api.SubLevelAssemblyHelper;
 import dev.ryanhcode.sable.companion.math.BoundingBox3i;
 import java.util.List;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -29,7 +30,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
@@ -95,7 +95,11 @@ public class SeaMineBlock extends BaseEntityBlock {
         if (connector == null) {
             connector = SeaMineBlockEntity.findAnchor(level, pos);
         }
-        if (connector == null || connector.distToCenterSqr(Vec3.atCenterOf(pos)) > 64.0D * 64.0D) {
+        if (connector == null) {
+            player.displayClientMessage(Component.translatable("message.cbc_more_content.sea_mine.rope_first"), true);
+            return ItemInteractionResult.FAIL;
+        }
+        if (connector.distSqr(pos) > 64.0D * 64.0D) {
             player.displayClientMessage(Component.translatable("message.cbc_more_content.sea_mine.rope_far"), true);
             return ItemInteractionResult.FAIL;
         }
@@ -118,7 +122,16 @@ public class SeaMineBlock extends BaseEntityBlock {
                     && key.get().location().getNamespace().equals("simulated")
                     && key.get().location().getPath().equals("rope_first_connection")) {
                 Object value = stack.get(type);
-                return value instanceof BlockPos pos ? pos : null;
+                if (value instanceof BlockPos pos) {
+                    return pos;
+                }
+                if (value instanceof Optional<?> optional && optional.orElse(null) instanceof BlockPos pos) {
+                    return pos;
+                }
+                if (value instanceof Long packed) {
+                    return BlockPos.of(packed);
+                }
+                return null;
             }
         }
         return null;

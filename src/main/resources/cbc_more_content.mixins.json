@@ -9,6 +9,7 @@
     "TripwireSignalMixin",
     "compat.sable.DropBombBlockMixin",
     "compat.sable.LandMineBlockMixin",
+    "compat.sable.SeaMineBlockMixin",
     "compat.offroad.WheelMountBlockEntityMixin"
   ],
   "client": [
