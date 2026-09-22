@@ -41,15 +41,6 @@ public class MineDamageSource extends DamageSource {
         "death.attack.cbc_more_content.land_mine.bounding.6"
     };
 
-    private static final String[] SEA_KEYS = {
-        "death.attack.cbc_more_content.land_mine.sea.1",
-        "death.attack.cbc_more_content.land_mine.sea.2",
-        "death.attack.cbc_more_content.land_mine.sea.3",
-        "death.attack.cbc_more_content.land_mine.sea.4",
-        "death.attack.cbc_more_content.land_mine.sea.5",
-        "death.attack.cbc_more_content.land_mine.sea.6"
-    };
-
     private final MineType type;
 
     public MineDamageSource(Holder<DamageType> damageType, MineType type) {
@@ -71,7 +62,6 @@ public class MineDamageSource extends DamageSource {
                     case SMALL -> SMALL_KEYS;
                     case BOUNDING -> BOUNDING_KEYS;
                     case LARGE -> LARGE_KEYS;
-                    case SEA -> SEA_KEYS;
                 };
         String key = keys[entity.getRandom().nextInt(keys.length)];
         return Component.translatable(key, entity.getDisplayName());

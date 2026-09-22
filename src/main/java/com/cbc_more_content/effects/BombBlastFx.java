@@ -175,13 +175,13 @@ public final class BombBlastFx {
         }
     }
 
-    /** Ticks before the seat bursts into foam, so the shock reads as outgoing. */
+    /** Ticks before a sea bomb seat bursts into foam, so the shock reads as outgoing. */
     private static final int SEAT_BURST_DELAY_TICKS = 2;
     /** How long the pressure wave takes to reach the surface, per block of depth, in ticks. */
     private static final int SPOUT_TICKS_PER_BLOCK_DEPTH = 2;
 
     /**
-     * Underwater burst dressing for the sea mine: churned foam at the seat, and a
+     * Underwater burst dressing for the sea bomb: churned foam at the seat, and a
      * spout standing on the surface above — arriving late by the depth, because the
      * pressure wave has to climb to get there.
      * <p>

@@ -95,7 +95,7 @@ public final class BombExplosionHandler {
     }
 
     /**
-     * Sea mine burst: full-size blast physics, but the crater is hulls only.
+     * Sea bomb burst: full-size blast physics, but the crater is hulls only.
      * <p>
      * A moored mine exists to break ships, and a charge that big would hollow a fair
      * bite out of the seabed it hangs above — yet there is nothing to scorch or rubble
@@ -111,26 +111,6 @@ public final class BombExplosionHandler {
      * {@link BombBlastFx} — which is exactly what Sound Physics Remastered shapes — so
      * the burst keeps its reverb and muffling in the water rather than bypassing it.
      */
-    public static void detonateSeaMine(
-            ServerLevel level,
-            @Nullable Entity source,
-            DamageSource damageSource,
-            Vec3 pos,
-            float blockPower,
-            float entityPower) {
-        var target = SableDropCompat.resolveWorldBlastChecked(level, pos);
-        level = target.level();
-        pos = target.pos();
-        detonateInternal(level, source, damageSource, pos, blockPower, entityPower, BombSize.SEA, false, true);
-        // A column of bubbles at the seat, and a spout standing on the surface above,
-        // arriving late by the depth of the water — the pressure wave has to climb.
-        BombBlastFx.underwaterBurst(level, pos);
-        // No BlastScorch here: the seat of the burst is mid-water, and scuffing paints
-        // the seabed below as if the blast had ground contact. Underwater bursts don't
-        // leave scorch marks — they leave a hole in whatever they touched, and that is
-        // the hull.
-    }
-
     /**
      * True if a crater position belongs to open world rather than to a Sable physics
      * sub-level. Used by the sea-mine blast, which spares terrain outright — including
@@ -153,7 +133,7 @@ public final class BombExplosionHandler {
     }
 
     /**
-     * @param hullsOnly strip every open-world block from the crater — sea mines break
+     * @param hullsOnly strip every open-world block from the crater — sea bombs break
      *        hulls, not water or seabed
      */
     private static void detonateInternal(

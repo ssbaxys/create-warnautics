@@ -1,7 +1,6 @@
 package com.cbc_more_content.mine;
 
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 /**
@@ -10,7 +9,6 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  *   <li>{@link #SMALL} — antipersonnel: living entities stepping on it</li>
  *   <li>{@link #LARGE} — antivehicle: Sable sub-levels and Offroad (Aeronautics stack) wheels</li>
  *   <li>{@link #BOUNDING} — antipersonnel, but it jumps before it goes off</li>
- *   <li>{@link #SEA} — a moored underwater charge: anything solid drifting into it, at any depth</li>
  * </ul>
  */
 public enum MineType {
@@ -23,21 +21,7 @@ public enum MineType {
      * bursts there — which is why it reaches over cover and why its trigger reads half a
      * block past its own cell rather than only the square it sits on.
      */
-    BOUNDING(Block.box(6.0D, 0.0D, 6.0D, 10.0D, 2.5D, 10.0D), true, false, false, 0.5D, 0.0f, 8.5f),
-    /**
-     * Moored, never buried. A hull-sized charge a step under the antivehicle tier —
-     * the thing it exists to stop is a hull — and it arms on contact from any direction:
-     * a swimmer counts as much as a ship. No shape: it is an entity, so its cell is the
-     * one it floats in.
-     */
-    SEA(Shapes.empty(), false, true, false, 0.0D, 6.5f, 8.0f);
-
-    /**
-     * A horn sphere around a moored charge, kept as a {@link VoxelShape} only so the
-     * reach constant lives beside the others. A sea mine is never a block, so this is
-     * never baked into a blockstate; the entity sweeps the same half-block reach.
-     */
-    public static final double SEA_TRIGGER_REACH = 0.55D;
+    BOUNDING(Block.box(6.0D, 0.0D, 6.0D, 10.0D, 2.5D, 10.0D), true, false, false, 0.5D, 0.0f, 8.5f);
 
     public final VoxelShape shape;
     /** Trigger when a living entity steps on the mine. */

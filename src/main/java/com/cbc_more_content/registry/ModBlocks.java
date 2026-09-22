@@ -6,7 +6,6 @@ import com.cbc_more_content.block.CruiseMissileBlock;
 import com.cbc_more_content.block.DropBombBlock;
 import com.cbc_more_content.block.LandMineBlock;
 import com.cbc_more_content.block.MoabBlock;
-import com.cbc_more_content.block.SeaMineBlock;
 import com.cbc_more_content.block.SirenBlock;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.mine.MineType;
@@ -44,16 +43,6 @@ public final class ModBlocks {
 
     public static final DeferredBlock<LandMineBlock> LARGE_MINE = BLOCKS.register(
             "large_mine", () -> new LandMineBlock(mineProps(MapColor.TERRACOTTA_GRAY, 0.7f), MineType.LARGE));
-
-    public static final DeferredBlock<SeaMineBlock> SEA_MINE = BLOCKS.register(
-            "sea_mine",
-            () -> new SeaMineBlock(BlockBehaviour.Properties.of()
-                    .mapColor(MapColor.COLOR_BLUE)
-                    .strength(0.8f)
-                    .sound(SoundType.METAL)
-                    .noOcclusion()
-                    .pushReaction(PushReaction.DESTROY)
-                    .isRedstoneConductor((state, level, pos) -> false)));
 
     public static final DeferredBlock<CruiseMissileBlock> CRUISE_MISSILE =
             BLOCKS.register("cruise_missile", () -> new CruiseMissileBlock(bombProps(MapColor.METAL, 1.0f)));

@@ -55,9 +55,6 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> LARGE_MINE = ITEMS.register(
             "large_mine", () -> new BlockItem(ModBlocks.LARGE_MINE.get(), new Item.Properties().stacksTo(16)));
 
-    public static final DeferredItem<BlockItem> SEA_MINE = ITEMS.register(
-            "sea_mine", () -> new BlockItem(ModBlocks.SEA_MINE.get(), new Item.Properties().stacksTo(16)));
-
     public static final DeferredItem<BlockItem> SIREN =
             ITEMS.register("siren", () -> new BlockItem(ModBlocks.SIREN.get(), new Item.Properties().stacksTo(16)));
 
