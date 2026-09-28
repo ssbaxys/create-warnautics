@@ -1,11 +1,14 @@
 package com.cbc_more_content.registry;
 
 import com.cbc_more_content.CBCMoreContent;
+import com.cbc_more_content.block.Aim9Block;
 import com.cbc_more_content.block.C4Block;
+import com.cbc_more_content.block.ChainConnectorBlock;
 import com.cbc_more_content.block.CruiseMissileBlock;
 import com.cbc_more_content.block.DropBombBlock;
 import com.cbc_more_content.block.LandMineBlock;
 import com.cbc_more_content.block.MoabBlock;
+import com.cbc_more_content.block.SeaMineBlock;
 import com.cbc_more_content.block.SirenBlock;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.mine.MineType;
@@ -18,6 +21,11 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 public final class ModBlocks {
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(CBCMoreContent.MOD_ID);
+
+    public static final DeferredBlock<ChainConnectorBlock> CHAIN_CONNECTOR = BLOCKS.register(
+            "chain_connector",
+            () -> new ChainConnectorBlock(BlockBehaviour.Properties.ofFullCopy(
+                    dev.simulated_team.simulated.index.SimBlocks.ROPE_CONNECTOR.get())));
 
     public static final DeferredBlock<DropBombBlock> SMALL_BOMB = BLOCKS.register(
             "small_bomb", () -> new DropBombBlock(bombProps(MapColor.COLOR_GREEN, 0.5f), BombSize.SMALL));
@@ -44,8 +52,21 @@ public final class ModBlocks {
     public static final DeferredBlock<LandMineBlock> LARGE_MINE = BLOCKS.register(
             "large_mine", () -> new LandMineBlock(mineProps(MapColor.TERRACOTTA_GRAY, 0.7f), MineType.LARGE));
 
+    public static final DeferredBlock<SeaMineBlock> SEA_MINE = BLOCKS.register(
+            "sea_mine",
+            () -> new SeaMineBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.COLOR_BLUE)
+                    .strength(0.8f)
+                    .sound(SoundType.METAL)
+                    .noOcclusion()
+                    .pushReaction(PushReaction.DESTROY)
+                    .isRedstoneConductor((state, level, pos) -> false)));
+
     public static final DeferredBlock<CruiseMissileBlock> CRUISE_MISSILE =
             BLOCKS.register("cruise_missile", () -> new CruiseMissileBlock(bombProps(MapColor.METAL, 1.0f)));
+
+    public static final DeferredBlock<Aim9Block> AIM9 =
+            BLOCKS.register("aim9", () -> new Aim9Block(bombProps(MapColor.METAL, 1.0f)));
 
     public static final DeferredBlock<C4Block> C4 = BLOCKS.register(
             "c4",

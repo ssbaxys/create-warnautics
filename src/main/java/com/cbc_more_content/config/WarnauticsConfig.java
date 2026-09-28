@@ -3,16 +3,15 @@ package com.cbc_more_content.config;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
- * Server-side tuning. Defaults describe a usable heavy bomber: a released stick
- * never cooks off the payload still on the aircraft, and one detonation cannot
- * flood a client with more block updates than it can mesh in a tick.
+ * Server-side tuning for airborne ignition and the work performed by each blast.
+ * Explosive blocks physically destroyed by any explosion always detonate.
  */
 public final class WarnauticsConfig {
     public static final ModConfigSpec SPEC;
 
-    /** Warnautics blasts igniting other Warnautics bombs. Off = bombers are practical. */
+    /** Warnautics blasts igniting other airborne bombs. */
     public static final ModConfigSpec.BooleanValue FRIENDLY_CHAIN_DETONATION;
-    /** External TNT / shells / fire still cooking off bombs. */
+    /** External damage igniting airborne bombs, and fire/projectile hits cooking off placed bombs. */
     public static final ModConfigSpec.BooleanValue EXTERNAL_CHAIN_DETONATION;
     /** Hard ceiling on blocks a single detonation may change, per detonation. */
     public static final ModConfigSpec.IntValue MAX_BLOCKS_PER_DETONATION;
@@ -28,15 +27,13 @@ public final class WarnauticsConfig {
 
         builder.comment("Create Warnautics — detonation behaviour").push("detonation");
         FRIENDLY_CHAIN_DETONATION = builder.comment(
-                        "Allow a Warnautics bomb blast to cook off other Warnautics bombs.",
-                        "false (default): a released bomb can never destroy the payload still",
-                        "carried by the aircraft, so tightly packed bomb bays are safe.",
-                        "true: pre-1.0.2 behaviour — one hit detonates the whole rack.")
+                        "Allow Warnautics blasts to ignite other airborne Warnautics bombs.",
+                        "Explosive blocks destroyed by a blast always chain-detonate, regardless of this setting.")
                 .define("friendlyChainDetonation", false);
         EXTERNAL_CHAIN_DETONATION = builder.comment(
-                        "Allow non-Warnautics explosions (TNT, cannon shells, creepers), fire",
-                        "and lava to cook off placed bombs. This is what makes an ammunition",
-                        "hit on a bomber dangerous, and is unrelated to friendly chaining.")
+                        "Allow external damage to ignite airborne bombs, and fire/lava/projectile",
+                        "hits to cook off placed bombs. Explosive blocks destroyed by any blast",
+                        "always chain-detonate, regardless of this setting.")
                 .define("externalChainDetonation", true);
         builder.pop();
 

@@ -1,0 +1,9 @@
+{
+  "selector": "cbc_more_content:aim9",
+  "priority": 2000,
+  "properties": {
+    "sable:mass": 0.03,
+    "sable:friction": 0.8,
+    "sable:restitution": 0.1
+  }
+}

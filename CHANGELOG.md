@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1
+
+This update is largely about making a battle behave the same way on a moving ship as it does on ordinary terrain. Bombs now cut into physical hulls, blasts leave rounder craters and disturbed ground, and a ship can be pushed as well as broken. The old balance and the broad footprint of the MOAB remain; the biggest change is where the damage actually lands.
+
+The sea mine is back. It floats as a physical body, damages ships on contact, and rusts through four states (0–3) while wet. Rust makes a contact misfire more likely; the dull knock means this impact failed, not that the mine is harmless. A separate chain coil and chain connector can be used with Simulated connections and winches, without replacing its ordinary rope.
+
+Bomb racks are easier to work with now. Small-bomb bundles of two, three and four release their charges separately, and an explosion destroying a stored bundle can set off the individual bombs in sequence. The settings key gives the whole connected rack an adjustable release interval. The MOAB and the new AIM-9 airframe both fit into three-block spaces more reliably. AIM-9 is a placeable model for now; it does **not** have flight or a live warhead yet.
+
+The sea torpedo keeps moving when it leaves water: it follows a falling arc, and resumes its run if it lands back in water. The cruise missile can launch from a physical ship, its blast has the character of a smaller MOAB, and the target designator now acquires moving ships from at least 50 blocks away. It ignores your own hull while aiming, but other obstacles still matter.
+
+Siren drive, sound and lighting received another pass, including on moving ships. Missile exhaust has a fuller, more continuous smoke trail and a flame that spreads at its tip. Explosion flashes and debris are smoother when several blasts happen close together, with less work spent on effects the player cannot see.
+
+Every one of the mod's 25 items now has its own Create-style Shift/Ctrl description and a six-step Ponder lesson, in English and Russian. Hold the Ponder key while hovering an item to see its guide. Lessons show the actual controls and limitations, from mine burial and chain endpoints to remote charges and missile guidance.
+
+Compatibility: Minecraft 1.21.1 / NeoForge 21.1.234, Create 6.0.10, Create Big Cannons 5.11.x, Sable 2.0.3+, and Create Aeronautics 1.3.2. Veil remains optional for the extra effects.
+
 ## 1.0.7
 
 Create Warnautics 1.0.7: the C4 breaching charge, wire cutters and a defusal minigame, a guided cruise missile, and mines that leave the ground looking like something happened to it.

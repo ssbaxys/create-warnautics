@@ -20,6 +20,22 @@ import net.minecraft.world.phys.Vec3;
  * set before launch and read once, when redstone lets the missile go.
  */
 public class CruiseMissileBlockEntity extends BlockEntity {
+    private java.util.UUID missileId = java.util.UUID.randomUUID();
+
+    public java.util.UUID missileId() {
+        return this.missileId;
+    }
+
+    /** Old renderer entries can outlive an assembly move; only the current live middle cell may draw. */
+    public boolean isLiveAirframe() {
+        return !this.isRemoved()
+                && this.level != null
+                && this.level.getBlockEntity(this.worldPosition) == this
+                && this.level.getBlockState(this.worldPosition).getBlock() instanceof CruiseMissileBlock
+                && this.level.getBlockState(this.worldPosition).getValue(CruiseMissileBlock.PART)
+                        == CruiseMissileBlock.Part.BODY;
+    }
+
     @Nullable
     private BlockPos target;
 
@@ -146,6 +162,9 @@ public class CruiseMissileBlockEntity extends BlockEntity {
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
+        if (tag.hasUUID("MissileId")) {
+            this.missileId = tag.getUUID("MissileId");
+        }
         this.target = tag.contains("TargetX")
                 ? new BlockPos(tag.getInt("TargetX"), tag.getInt("TargetY"), tag.getInt("TargetZ"))
                 : null;
@@ -159,6 +178,7 @@ public class CruiseMissileBlockEntity extends BlockEntity {
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
+        tag.putUUID("MissileId", this.missileId);
         if (this.target != null) {
             tag.putInt("TargetX", this.target.getX());
             tag.putInt("TargetY", this.target.getY());

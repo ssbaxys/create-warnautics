@@ -52,6 +52,13 @@ public final class DropBombUtil {
         return bomb;
     }
 
+    /** A launch frame captured before its rack was removed is already in world space. */
+    public static DropBombProjectile spawn(BombSize size, SableDropCompat.LaunchFrame frame, @Nullable Entity owner) {
+        DropBombProjectile bomb = createBomb(size, frame.level());
+        configureAndAdd(frame.level(), bomb, frame.pos(), frame.vel(), frame.orientation(), owner);
+        return bomb;
+    }
+
     /**
      * Detonates a Sable physics-block bomb through its real projectile type without
      * briefly adding a duplicate entity to the world. This preserves CBC datapack

@@ -50,9 +50,17 @@ public class TripwireRenderer extends EntityRenderer<TripwireEntity> {
             PoseStack pose,
             MultiBufferSource buffers,
             int packedLight) {
-        Vec3 origin = wire.position();
-        Vec3 a = wire.endA().subtract(origin);
-        Vec3 b = wire.endB().subtract(origin);
+        Vec3 origin = new Vec3(
+                net.minecraft.util.Mth.lerp(partialTick, wire.xOld, wire.getX()),
+                net.minecraft.util.Mth.lerp(partialTick, wire.yOld, wire.getY()),
+                net.minecraft.util.Mth.lerp(partialTick, wire.zOld, wire.getZ()));
+        Vec3 worldA = TripwireRenderGeometry.position(wire.level(), wire.anchorA(), wire.ownerA());
+        Vec3 worldB = TripwireRenderGeometry.position(wire.level(), wire.anchorB(), wire.ownerB());
+        if (worldA == null || worldB == null) {
+            return;
+        }
+        Vec3 a = worldA.subtract(origin);
+        Vec3 b = worldB.subtract(origin);
         if (a.distanceToSqr(b) < 1.0E-6D) {
             return;
         }

@@ -41,9 +41,7 @@ public final class MineExplosionHandler {
 
     private static final double PARTICLE_RANGE_SQR = 64.0D * 64.0D;
     /** How far the blast marks the surface, and how hard it does so at the seat. */
-    private static final double SCUFF_RADIUS = 4.0D;
-
-    private static final float SCUFF_STRENGTH = 0.9f;
+    private static final double SCUFF_RADIUS = 5.0D;
 
     /**
      * Most the pressure takes off somebody standing directly on the charge, before armour
@@ -68,7 +66,10 @@ public final class MineExplosionHandler {
 
     public static void detonateSmallShrapnel(
             ServerLevel level, @Nullable Entity source, DamageSource damageSource, Vec3 pos, float entityPower) {
-        ShrapnelExplosion pressure = new ShrapnelExplosion(
+        var target = com.cbc_more_content.compat.SableDropCompat.resolveWorldBlastChecked(level, pos);
+        level = target.level();
+        pos = target.pos();
+        ShrapnelExplosion pressure = new MinePressureExplosion(
                 level,
                 source,
                 damageSource,
@@ -85,12 +86,36 @@ public final class MineExplosionHandler {
         applyPressure(level, damageSource, pos, entityPower);
 
         spawnFragmentFan(level, pos);
+        BombBlastFx.waterBurst(level, pos, entityPower);
         // An antipersonnel charge digs nothing, but it does strip the ground it sat on.
-        BlastScorch.scuff(level, pos, SCUFF_RADIUS, SCUFF_STRENGTH);
+        BlastScorch.scuff(level, pos, SCUFF_RADIUS, BlastScorch.SCAR_STRENGTH);
 
         level.playSound(null, pos.x, pos.y + 0.15D, pos.z, SoundEvents.CHAIN_BREAK, SoundSource.BLOCKS, 2.2f, 1.42f);
         level.playSound(
                 null, pos.x, pos.y + 0.15D, pos.z, SoundEvents.IRON_GOLEM_DAMAGE, SoundSource.BLOCKS, 1.15f, 1.72f);
+    }
+
+    private static final class MinePressureExplosion extends ShrapnelExplosion {
+        private MinePressureExplosion(
+                ServerLevel level,
+                @Nullable Entity source,
+                DamageSource damageSource,
+                double x,
+                double y,
+                double z,
+                float blockPower,
+                float entityPower,
+                BlockInteraction interaction) {
+            super(level, source, damageSource, x, y, z, blockPower, entityPower, interaction);
+        }
+
+        @Override
+        public void explode() {
+            super.explode();
+            if (canDamageTerrain() && getBlockInteraction() != BlockInteraction.KEEP) {
+                BlastPropagation.pushSubLevels((ServerLevel) level, this, Math.min(3.0f, getEntityRadius() * 0.35f));
+            }
+        }
     }
 
     /**

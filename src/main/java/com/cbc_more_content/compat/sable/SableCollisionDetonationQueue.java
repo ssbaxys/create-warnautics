@@ -3,6 +3,7 @@ package com.cbc_more_content.compat.sable;
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.block.DropBombBlock;
 import com.cbc_more_content.block.LandMineBlock;
+import com.cbc_more_content.block.SeaMineBlockEntity;
 import dev.ryanhcode.sable.neoforge.event.ForgeSablePostPhysicsTickEvent;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -40,6 +41,10 @@ public final class SableCollisionDetonationQueue {
         queue(level, pos, Kind.MINE);
     }
 
+    public static void queueSeaMine(ServerLevel level, BlockPos pos) {
+        queue(level, pos, Kind.SEA_MINE);
+    }
+
     private static synchronized void queue(ServerLevel level, BlockPos pos, Kind kind) {
         if (level == null || pos == null) {
             return;
@@ -75,13 +80,17 @@ public final class SableCollisionDetonationQueue {
                 DropBombBlock.detonateInPlace(level, pos, state);
             } else if (entry.getValue() == Kind.MINE && state.getBlock() instanceof LandMineBlock) {
                 LandMineBlock.tryVehicleDetonate(level, pos);
+            } else if (entry.getValue() == Kind.SEA_MINE
+                    && level.getBlockEntity(pos) instanceof SeaMineBlockEntity mine) {
+                mine.contact(level);
             }
         }
     }
 
     private enum Kind {
         BOMB,
-        MINE
+        MINE,
+        SEA_MINE
     }
 
     private record Key(ServerLevel level, long pos) {}

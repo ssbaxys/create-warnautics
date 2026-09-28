@@ -43,7 +43,7 @@ public final class CannonBlastFx {
 
     private static final float LARGE_RADIUS = 7.0f;
     /** Scorched, churned ground well past the hole itself. */
-    private static final double SCUFF_FACTOR = 1.8D;
+    private static final double SCUFF_FACTOR = 2.2D;
 
     /**
      * Depth of this mod's own explosions currently running.
@@ -79,7 +79,7 @@ public final class CannonBlastFx {
             return;
         }
         float radius = explosion.radius();
-        if (!Float.isFinite(radius) || radius < MIN_RADIUS) {
+        if (!Float.isFinite(radius) || radius <= 0) {
             return;
         }
         if (!WarnauticsServerSettings.get(server).cannonFx()) {
@@ -89,10 +89,17 @@ public final class CannonBlastFx {
         Vec3 at = explosion.center();
         BombSize size = sizeFor(radius);
         try {
+            // Finalization exposes the crater floor after this event returns. Even
+            // small explosive rounds scar soil, without receiving oversized visual FX.
+            if (explosion.getBlockInteraction() != Explosion.BlockInteraction.KEEP
+                    && (!(explosion instanceof rbasamoyai.createbigcannons.remix.CustomExplosion custom)
+                            || custom.canDamageTerrain())) {
+                BlastScorch.scuffDeferred(server, at, radius * SCUFF_FACTOR, BlastScorch.SCAR_STRENGTH, 1);
+            }
+            if (radius < MIN_RADIUS) {
+                return;
+            }
             BombBlastFx.play(server, at, size, radius);
-            // Past the crater rim the ground is churned rather than removed, so the shell
-            // leaves a scar rather than a clean hole in an untouched field.
-            BlastScorch.scuff(server, at, radius * SCUFF_FACTOR, 1.0f);
             // The blocks the blast is about to take, read before it takes them, so the
             // debris carries the model that was actually standing there.
             BlastDebris.fling(server, at, event.getAffectedBlocks());

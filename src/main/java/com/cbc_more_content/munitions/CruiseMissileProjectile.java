@@ -6,11 +6,9 @@ import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.compat.RadarCompat;
 import com.cbc_more_content.compat.SableDropCompat;
 import com.cbc_more_content.damage.BombDamageSource;
-import com.cbc_more_content.effects.BlastScorch;
 import com.cbc_more_content.effects.BombExplosionHandler;
 import com.cbc_more_content.radar.InterceptSettings;
 import com.cbc_more_content.radar.InterceptSettingsStore;
-import com.cbc_more_content.registry.ModParticles;
 import com.cbc_more_content.registry.ModSounds;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
@@ -67,10 +65,9 @@ public class CruiseMissileProjectile extends Entity {
     private static final float JINK_CHANCE = 0.4f;
     private static final int SHAKEN_TICKS = 26;
 
-    private static final float BLOCK_POWER = BombSize.LARGE.blockBlastPower * 1.3f;
+    private static final float BLOCK_POWER = BombSize.MOAB.blockBlastPower * 0.85f;
 
-    private static final float ENTITY_POWER = BombSize.LARGE.entityBlastPower * 1.6f;
-    private static final double SCUFF_RADIUS = BLOCK_POWER * 2.1D;
+    private static final float ENTITY_POWER = BombSize.MOAB.entityBlastPower * 0.85f;
 
     private int fuel = FUEL_TICKS;
     private boolean detonated;
@@ -88,6 +85,7 @@ public class CruiseMissileProjectile extends Entity {
     private Vec3 lastAimDrift;
 
     private int ejecting;
+    private Vec3 carrierVelocity = Vec3.ZERO;
     private final MissileTargetingState targeting = new MissileTargetingState();
 
     public CruiseMissileProjectile(EntityType<? extends CruiseMissileProjectile> type, Level level) {
@@ -118,19 +116,28 @@ public class CruiseMissileProjectile extends Entity {
     }
 
     public void ejectUpward() {
+        this.eject(new Vec3(0, 1, 0), Vec3.ZERO);
+    }
+
+    public void eject(Vec3 heading, Vec3 carrierVelocity) {
+        this.carrierVelocity = carrierVelocity;
         this.ejecting = EJECT_TICKS;
         this.entityData.set(EJECTING, true);
         this.entityData.set(POWERED, false);
-        this.setDeltaMovement(0.0D, EJECT_SPEED, 0.0D);
-        this.setYRot(0.0f);
-        this.setXRot(-90.0f);
+        this.setDeltaMovement(heading.normalize().scale(EJECT_SPEED).add(carrierVelocity));
+        this.faceMotion(heading);
         this.yRotO = this.getYRot();
         this.xRotO = this.getXRot();
     }
 
     public void launch(Vec3 heading) {
+        this.launch(heading, Vec3.ZERO);
+    }
+
+    public void launch(Vec3 heading, Vec3 carrierVelocity) {
+        this.carrierVelocity = carrierVelocity;
         Vec3 dir = heading.lengthSqr() < 1.0E-6D ? new Vec3(1.0D, 0.0D, 0.0D) : heading.normalize();
-        this.setDeltaMovement(dir.scale(CRUISE_SPEED));
+        this.setDeltaMovement(dir.scale(CRUISE_SPEED).add(carrierVelocity));
         this.setYRot((float) (Math.atan2(dir.z, dir.x) * 180.0D / Math.PI) - 90.0f);
         this.setXRot((float) (-Math.asin(dir.y) * 180.0D / Math.PI));
         this.yRotO = this.getYRot();
@@ -141,7 +148,6 @@ public class CruiseMissileProjectile extends Entity {
     public void tick() {
         super.tick();
         if (this.level().isClientSide) {
-            this.spawnExhaust();
             return;
         }
         if (this.detonated) {
@@ -191,7 +197,9 @@ public class CruiseMissileProjectile extends Entity {
 
         Vec3 motion = this.getDeltaMovement();
         if (this.isPowered() && !this.waterEntered) {
-            motion = this.steer(motion.normalize(), aim).scale(this.speedFor(aim));
+            motion = this.steer(motion.subtract(this.carrierVelocity).normalize(), aim)
+                    .scale(this.speedFor(aim))
+                    .add(this.carrierVelocity);
             if (this.tickCount % 4 == 0) {
                 this.level()
                         .playSound(
@@ -233,8 +241,9 @@ public class CruiseMissileProjectile extends Entity {
 
         this.entityData.set(EJECTING, false);
         this.entityData.set(POWERED, true);
-        Vec3 heading = motion.lengthSqr() < 1.0E-4D ? new Vec3(0.0D, 1.0D, 0.0D) : motion.normalize();
-        this.setDeltaMovement(heading.scale(CRUISE_SPEED));
+        Vec3 relative = motion.subtract(this.carrierVelocity);
+        Vec3 heading = relative.lengthSqr() < 1.0E-4D ? new Vec3(0.0D, 1.0D, 0.0D) : relative.normalize();
+        this.setDeltaMovement(heading.scale(CRUISE_SPEED).add(this.carrierVelocity));
         this.level()
                 .playSound(
                         null,
@@ -475,14 +484,18 @@ public class CruiseMissileProjectile extends Entity {
         }
         this.detonated = true;
         try {
-            BombExplosionHandler.detonate(
-                    server, this, BombDamageSource.create(server), at, BLOCK_POWER, ENTITY_POWER, BombSize.LARGE);
-            BlastScorch.scuff(server, at, SCUFF_RADIUS, 1.0f);
+            detonateWarhead(server, this, at);
         } catch (Throwable t) {
             CBCMoreContent.LOGGER.error("Cruise missile detonation failed at {}", at, t);
         } finally {
             this.discard();
         }
+    }
+
+    /** The same warhead is used when the placed airframe is destroyed by an explosion. */
+    public static void detonateWarhead(ServerLevel level, @Nullable Entity source, Vec3 at) {
+        BombExplosionHandler.detonate(
+                level, source, BombDamageSource.create(level), at, BLOCK_POWER, ENTITY_POWER, BombSize.MOAB);
     }
 
     private void faceMotion(Vec3 motion) {
@@ -494,71 +507,6 @@ public class CruiseMissileProjectile extends Entity {
         this.xRotO = this.getXRot();
         this.setYRot((float) (Math.atan2(dir.z, dir.x) * 180.0D / Math.PI) - 90.0f);
         this.setXRot((float) (-Math.asin(dir.y) * 180.0D / Math.PI));
-    }
-
-    private void spawnExhaust() {
-        float yaw = (this.getYRot() + 90.0f) * Mth.DEG_TO_RAD;
-        float pitch = -this.getXRot() * Mth.DEG_TO_RAD;
-        double cos = Mth.cos(pitch);
-        Vec3 heading = new Vec3(Mth.cos(yaw) * cos, Mth.sin(pitch), Mth.sin(yaw) * cos);
-        if (heading.lengthSqr() < 1.0E-6D) {
-            return;
-        }
-        Vec3 back = heading.normalize().scale(-1.6D);
-        Vec3 nozzle = this.position().add(back);
-
-        if (this.isEjecting()) {
-            for (int i = 0; i < 10; i++) {
-                double ox = (this.random.nextDouble() - 0.5D) * 0.9D;
-                double oy = (this.random.nextDouble() - 0.5D) * 0.5D;
-                double oz = (this.random.nextDouble() - 0.5D) * 0.9D;
-                this.level()
-                        .addParticle(
-                                ModParticles.MISSILE_GAS.get(),
-                                true,
-                                nozzle.x + ox,
-                                nozzle.y + oy,
-                                nozzle.z + oz,
-                                ox * 0.35D,
-                                -0.12D + oy * 0.2D,
-                                oz * 0.35D);
-            }
-            return;
-        }
-
-        boolean powered = this.isPowered();
-
-        int puffs = powered ? 5 : 1;
-        for (int i = 0; i < puffs; i++) {
-            double jitter = 0.12D;
-            double ox = (this.random.nextDouble() - 0.5D) * jitter;
-            double oy = (this.random.nextDouble() - 0.5D) * jitter;
-            double oz = (this.random.nextDouble() - 0.5D) * jitter;
-            if (powered) {
-                this.level()
-                        .addParticle(
-                                ModParticles.MISSILE_EXHAUST.get(),
-                                true,
-                                nozzle.x + ox,
-                                nozzle.y + oy,
-                                nozzle.z + oz,
-                                back.x * 0.10D + ox * 0.4D,
-                                back.y * 0.10D + oy * 0.4D,
-                                back.z * 0.10D + oz * 0.4D);
-            } else {
-                // A dead motor fades into the same cold-gas trail as ejection.
-                this.level()
-                        .addParticle(
-                                ModParticles.MISSILE_GAS.get(),
-                                true,
-                                nozzle.x + ox * 2.0D,
-                                nozzle.y + oy * 2.0D,
-                                nozzle.z + oz * 2.0D,
-                                back.x * 0.02D,
-                                0.01D,
-                                back.z * 0.02D);
-            }
-        }
     }
 
     @Override
@@ -590,6 +538,10 @@ public class CruiseMissileProjectile extends Entity {
         this.fuel = tag.getInt("Fuel");
         this.entityData.set(POWERED, tag.getBoolean("Powered"));
         this.waterEntered = tag.getBoolean("WaterEntered");
+        this.ejecting = Math.clamp(tag.getInt("Ejecting"), 0, EJECT_TICKS);
+        this.entityData.set(EJECTING, this.ejecting > 0);
+        this.carrierVelocity =
+                new Vec3(tag.getDouble("CarrierX"), tag.getDouble("CarrierY"), tag.getDouble("CarrierZ"));
         this.targeting.readFrom(tag);
     }
 
@@ -598,6 +550,10 @@ public class CruiseMissileProjectile extends Entity {
         tag.putInt("Fuel", this.fuel);
         tag.putBoolean("Powered", this.isPowered());
         tag.putBoolean("WaterEntered", this.waterEntered);
+        tag.putInt("Ejecting", this.ejecting);
+        tag.putDouble("CarrierX", this.carrierVelocity.x);
+        tag.putDouble("CarrierY", this.carrierVelocity.y);
+        tag.putDouble("CarrierZ", this.carrierVelocity.z);
         this.targeting.writeTo(tag);
     }
 }

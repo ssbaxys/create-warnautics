@@ -1,18 +1,18 @@
 package com.cbc_more_content.block;
 
 import com.cbc_more_content.bomb.BombSize;
-import com.cbc_more_content.effects.BombSympatheticDetonation;
 import com.cbc_more_content.item.DropBombItem;
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
-import java.util.List;
-import java.util.function.BiConsumer;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
@@ -21,16 +21,14 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -40,6 +38,7 @@ import net.neoforged.neoforge.event.level.BlockEvent;
 public class MoabBlock extends DropBombBlock {
     public static final MapCodec<MoabBlock> CODEC = simpleCodec(props -> new MoabBlock(props, BombSize.MOAB));
     public static final EnumProperty<Part> PART = EnumProperty.create("part", Part.class);
+    private static final Map<ShapeRotation, VoxelShape> ROTATED_SHAPES = new ConcurrentHashMap<>();
 
     private static final VoxelShape SHAPE_NOSE_UP = Shapes.or(
             Block.box(7.75D, 8.0D, 8.7929D, 8.25D, 16.0D, 10.2071D),
@@ -84,30 +83,46 @@ public class MoabBlock extends DropBombBlock {
     @Nullable
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        Direction nose = this.placementFacing(context);
+        BlockState base = super.getStateForPlacement(context);
+        Level level = context.getLevel();
         BlockPos pos = context.getClickedPos();
-        if (!canOccupy(context.getLevel(), pos.relative(nose))
-                || !canOccupy(context.getLevel(), pos.relative(nose.getOpposite()))) {
-            return null;
+        CollisionContext collision =
+                context.getPlayer() == null ? CollisionContext.empty() : CollisionContext.of(context.getPlayer());
+        // Keep the requested direction. Move the centre when a floor, ceiling or
+        // wall occupies one end of the centred footprint.
+        for (Part anchor : new Part[] {Part.BODY, Part.TAIL, Part.NOSE}) {
+            BlockState candidate = base.setValue(PART, anchor);
+            BlockPos body = bodyOf(candidate, pos);
+            boolean fits = true;
+            for (var entry : airframeStates(level, body, candidate).entrySet()) {
+                BlockPos cell = entry.getKey();
+                if (level.isOutsideBuildHeight(cell)
+                        || !level.getBlockState(cell)
+                                .canBeReplaced(BlockPlaceContext.at(context, cell, context.getClickedFace()))
+                        || !level.isUnobstructed(entry.getValue(), cell, collision)) {
+                    fits = false;
+                    break;
+                }
+            }
+            if (fits) {
+                return candidate;
+            }
         }
-        return super.getStateForPlacement(context);
+        return null;
     }
 
-    private static boolean canOccupy(LevelReader level, BlockPos pos) {
-        return !level.isOutsideBuildHeight(pos) && level.getBlockState(pos).canBeReplaced();
+    @Override
+    protected Direction placementFacing(BlockPlaceContext context) {
+        return context.getPlayer() != null && context.getPlayer().isShiftKeyDown()
+                ? context.getHorizontalDirection()
+                : context.getClickedFace();
     }
 
     @Override
     public void setPlacedBy(
             Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
         super.setPlacedBy(level, pos, state, placer, stack);
-        if (level.isClientSide) {
-            return;
-        }
-        Direction nose = state.getValue(FACING);
-        level.setBlock(pos, state.setValue(PART, Part.BODY), Block.UPDATE_ALL);
-        level.setBlock(pos.relative(nose), state.setValue(PART, Part.NOSE), Block.UPDATE_ALL);
-        level.setBlock(pos.relative(nose.getOpposite()), state.setValue(PART, Part.TAIL), Block.UPDATE_ALL);
+        writeAirframe(level, airframeStates(level, bodyOf(state, pos), state));
     }
 
     public static BlockPos bodyOf(BlockState state, BlockPos pos) {
@@ -119,10 +134,33 @@ public class MoabBlock extends DropBombBlock {
         };
     }
 
-    private List<BlockPos> airframeCells(BlockState state, BlockPos pos) {
-        BlockPos body = bodyOf(state, pos);
-        Direction nose = state.getValue(FACING);
-        return List.of(body.relative(nose), body, body.relative(nose.getOpposite()));
+    private static Map<BlockPos, BlockState> airframeStates(Level level, BlockPos body, BlockState state) {
+        Map<BlockPos, BlockState> cells = new LinkedHashMap<>();
+        for (Part part : new Part[] {Part.BODY, Part.NOSE, Part.TAIL}) {
+            BlockPos cell = body.relative(state.getValue(FACING), part == Part.NOSE ? 1 : part == Part.TAIL ? -1 : 0);
+            cells.put(
+                    cell,
+                    state.setValue(PART, part)
+                            .setValue(WATERLOGGED, level.getFluidState(cell).is(FluidTags.WATER))
+                            .setValue(POWERED, isReceivingPower(level, cell)));
+        }
+        return cells;
+    }
+
+    private static void writeAirframe(Level level, Map<BlockPos, BlockState> cells) {
+        // Complete the structure on both sides before sending neighbour updates.
+        cells.forEach((cell, state) -> level.setBlock(cell, state, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE));
+        cells.keySet().forEach(cell -> {
+            BlockState state = level.getBlockState(cell);
+            state.updateNeighbourShapes(level, cell, Block.UPDATE_ALL);
+            level.updateNeighborsAt(cell, state.getBlock());
+        });
+    }
+
+    private static boolean belongsTo(BlockState state, BlockPos cell, BlockPos body, BlockState bodyState) {
+        return state.is(bodyState.getBlock())
+                && state.getValue(FACING) == bodyState.getValue(FACING)
+                && bodyOf(state, cell).equals(body);
     }
 
     @Override
@@ -139,8 +177,10 @@ public class MoabBlock extends DropBombBlock {
         if (state.getBlock() == this
                 && state.getValue(PART) != Part.BODY
                 && neighborPos.equals(bodyOf(state, pos))
-                && !neighborState.is(this.asBlock())) {
-            return Blocks.AIR.defaultBlockState();
+                && (!neighborState.is(this.asBlock())
+                        || neighborState.getValue(PART) != Part.BODY
+                        || neighborState.getValue(FACING) != state.getValue(FACING))) {
+            return state.getFluidState().createLegacyBlock();
         }
         return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
     }
@@ -171,11 +211,18 @@ public class MoabBlock extends DropBombBlock {
         if (facing == Direction.UP) {
             return shape;
         }
+        return ROTATED_SHAPES.computeIfAbsent(
+                new ShapeRotation(shape, facing), key -> rotateShape(key.shape(), key.facing()));
+    }
+
+    private record ShapeRotation(VoxelShape shape, Direction facing) {}
+
+    private static VoxelShape rotateShape(VoxelShape shape, Direction facing) {
         VoxelShape result = Shapes.empty();
         for (var box : shape.toAabbs()) {
             double[] a = corner(facing, box.minX, box.minY, box.minZ);
             double[] b = corner(facing, box.maxX, box.maxY, box.maxZ);
-            result = Shapes.or(
+            result = Shapes.joinUnoptimized(
                     result,
                     Shapes.box(
                             Math.min(a[0], b[0]),
@@ -183,9 +230,11 @@ public class MoabBlock extends DropBombBlock {
                             Math.min(a[2], b[2]),
                             Math.max(a[0], b[0]),
                             Math.max(a[1], b[1]),
-                            Math.max(a[2], b[2])));
+                            Math.max(a[2], b[2])),
+                    BooleanOp.OR);
         }
-        return result;
+        // Optimizing after every small box fragments and re-merges the entire shape at each step.
+        return result.optimize();
     }
 
     private static double[] corner(Direction facing, double x, double y, double z) {
@@ -208,67 +257,40 @@ public class MoabBlock extends DropBombBlock {
     @Override
     protected void ejectOne(ServerLevel level, BlockPos pos, BlockState state) {
         BlockPos body = bodyOf(state, pos);
+        var launch = prepareLaunchAlongNose(level, body, state.getValue(FACING), this.getBombSize());
         clearAirframe(level, state, body);
-        this.launchAlongNose(level, body, state.getValue(FACING), this.getBombSize());
+        this.launchPrepared(this.getBombSize(), launch);
     }
 
     private static void clearAirframe(Level level, BlockState anyCellState, BlockPos body) {
         Direction nose = anyCellState.getValue(FACING);
         for (BlockPos cell : new BlockPos[] {body.relative(nose), body, body.relative(nose.getOpposite())}) {
-            if (level.getBlockState(cell).is(anyCellState.getBlock())) {
-                level.setBlock(cell, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+            BlockState current = level.getBlockState(cell);
+            if (belongsTo(current, cell, body, anyCellState)) {
+                level.setBlock(
+                        cell,
+                        current.getFluidState().createLegacyBlock(),
+                        Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
             }
         }
     }
 
     @Override
-    protected void onExplosionHit(
-            BlockState state,
-            Level level,
-            BlockPos pos,
-            Explosion explosion,
-            BiConsumer<ItemStack, BlockPos> dropConsumer) {
-        if (this.getBombSize() != BombSize.MOAB || state.getValue(PART) == Part.BODY) {
-            super.onExplosionHit(state, level, pos, explosion, dropConsumer);
-            return;
-        }
-        level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-        if (level instanceof ServerLevel serverLevel && BombSympatheticDetonation.allowsCookoffFrom(explosion)) {
-            BlockPos body = bodyOf(state, pos);
-            if (level.getBlockState(body).is(this.asBlock())) {
-                BombSympatheticDetonation.schedulePlacedBombCookoff(serverLevel, body, 28, 92);
-            }
-        }
+    public BlockPos explosionAnchor(BlockState state, BlockPos pos) {
+        return bodyOf(state, pos);
+    }
+
+    @Override
+    public java.util.List<BlockPos> explosionParts(BlockState state, BlockPos anchor) {
+        Direction facing = state.getValue(FACING);
+        return java.util.List.of(anchor, anchor.relative(facing), anchor.relative(facing.getOpposite()));
     }
 
     @Override
     protected BlockPos detonationAnchor(ServerLevel level, BlockPos pos, BlockState state) {
-        level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
         BlockPos body = bodyOf(state, pos);
-        if (!body.equals(pos)) {
-            clearAirframe(level, state, body);
-        }
+        clearAirframe(level, state, body);
         return body;
-    }
-
-    @Override
-    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
-        if (this.getBombSize() != BombSize.MOAB || state.getValue(PART) == Part.BODY) {
-            super.tick(state, level, pos, random);
-            return;
-        }
-        boolean live = isReceivingPower(level, pos);
-        if (live != state.getValue(POWERED)) {
-            level.setBlock(pos, state.setValue(POWERED, live), Block.UPDATE_CLIENTS);
-        }
-        BlockPos body = bodyOf(state, pos);
-        BlockState bodyState = level.getBlockState(body);
-        if (bodyState.is(this.asBlock()) && bodyState.getValue(PART) == Part.BODY && isReceivingPower(level, body)) {
-            if (!bodyState.getValue(POWERED)) {
-                level.setBlock(body, bodyState.setValue(POWERED, true), Block.UPDATE_CLIENTS);
-            }
-            this.performRackEject(level, body);
-        }
     }
 
     @Override
@@ -312,29 +334,39 @@ public class MoabBlock extends DropBombBlock {
         if (level.isClientSide) {
             return InteractionResult.SUCCESS;
         }
-        Direction face = context.getClickedFace();
-        Direction newFacing = state.getValue(FACING).getClockWise(face.getAxis());
         BlockPos body = bodyOf(state, pos);
         BlockState bodyState = level.getBlockState(body);
-        if (!bodyState.is(this.asBlock())) {
+        if (!bodyState.is(this.asBlock()) || bodyState.getValue(PART) != Part.BODY) {
             return InteractionResult.SUCCESS;
         }
         Direction oldNose = bodyState.getValue(FACING);
+        Direction newFacing = oldNose.getClockWise(context.getClickedFace().getAxis());
+        if (newFacing == oldNose) {
+            return InteractionResult.SUCCESS;
+        }
+        Map<BlockPos, BlockState> rotated = airframeStates(level, body, bodyState.setValue(FACING, newFacing));
+        CollisionContext collision =
+                context.getPlayer() == null ? CollisionContext.empty() : CollisionContext.of(context.getPlayer());
+        // Validate the entire destination before touching the existing bomb.
+        for (var entry : rotated.entrySet()) {
+            BlockPos cell = entry.getKey();
+            BlockState current = level.getBlockState(cell);
+            if (level.isOutsideBuildHeight(cell)
+                    || (!belongsTo(current, cell, body, bodyState) && !current.canBeReplaced())
+                    || !level.isUnobstructed(entry.getValue(), cell, collision)) {
+                return InteractionResult.SUCCESS;
+            }
+        }
+        Map<BlockPos, BlockState> changes = new LinkedHashMap<>();
         for (Direction side : new Direction[] {oldNose, oldNose.getOpposite()}) {
             BlockPos cell = body.relative(side);
-            if (!cell.equals(body) && level.getBlockState(cell).is(this.asBlock())) {
-                level.setBlock(cell, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+            BlockState current = level.getBlockState(cell);
+            if (belongsTo(current, cell, body, bodyState)) {
+                changes.put(cell, current.getFluidState().createLegacyBlock());
             }
         }
-        BlockState rotated = bodyState.setValue(FACING, newFacing);
-        level.setBlock(body, rotated.setValue(PART, Part.BODY), Block.UPDATE_ALL);
-        for (Direction side : new Direction[] {newFacing, newFacing.getOpposite()}) {
-            BlockPos cell = body.relative(side);
-            if (level.getBlockState(cell).canBeReplaced()) {
-                level.setBlock(
-                        cell, rotated.setValue(PART, side == newFacing ? Part.NOSE : Part.TAIL), Block.UPDATE_ALL);
-            }
-        }
+        changes.putAll(rotated);
+        writeAirframe(level, changes);
         IWrenchable.playRotateSound(level, pos);
         return InteractionResult.SUCCESS;
     }

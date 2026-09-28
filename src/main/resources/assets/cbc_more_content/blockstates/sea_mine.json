@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "oxidation=0": { "model": "cbc_more_content:block/sea_mine/copper" },
+    "oxidation=1": { "model": "cbc_more_content:block/sea_mine/exposed" },
+    "oxidation=2": { "model": "cbc_more_content:block/sea_mine/weathered" },
+    "oxidation=3": { "model": "cbc_more_content:block/sea_mine/oxidized" }
+  }
+}

@@ -66,10 +66,6 @@ public final class SableDropCompat {
         return false;
     }
 
-    public static boolean shouldSkipVaporize(ServerLevel level, Vec3 center, float blastRadius) {
-        return overlapsAnySubLevel(level, center, Math.max(blastRadius * 2.0D, 8.0D));
-    }
-
     public static int subLevelIdAt(ServerLevel level, BlockPos pos) {
         try {
             return Sable.HELPER.getContaining(level, pos) instanceof ServerSubLevel sub ? sub.getRuntimeId() : -1;
@@ -144,11 +140,20 @@ public final class SableDropCompat {
 
     /** Maps a plot-local launch into parent-world space, adding the carrier's velocity. */
     public static LaunchFrame resolveLaunch(ServerLevel level, Vec3 localPos, Vec3 localVel, Vec3 localOrientation) {
+        return resolveLaunch(level, BlockPos.containing(localPos), localPos, localVel, localOrientation);
+    }
+
+    /** Resolve the owner from its rack, even when the muzzle lies outside its last occupied chunk. */
+    public static LaunchFrame resolveLaunch(
+            ServerLevel level, BlockPos anchor, Vec3 localPos, Vec3 localVel, Vec3 localOrientation) {
         try {
-            if (Sable.HELPER.getContaining(level, localPos) instanceof ServerSubLevel sub) {
+            if (Sable.HELPER.getContaining(level, anchor) instanceof ServerSubLevel sub) {
                 ServerLevel parent = sub.getLevel() == null ? level : sub.getLevel();
                 Vector3d carrier = new Vector3d();
-                Sable.HELPER.getVelocity(level, JOMLConversion.toJOML(localPos), carrier);
+                var handle = dev.ryanhcode.sable.api.physics.handle.RigidBodyHandle.of(sub);
+                if (handle != null && handle.isValid()) {
+                    Sable.HELPER.getVelocity(level, sub, JOMLConversion.toJOML(localPos), carrier);
+                }
                 carrier.mul(1.0D / 20.0D);
                 return new LaunchFrame(
                         parent,

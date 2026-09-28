@@ -1,6 +1,8 @@
 package com.cbc_more_content.item;
 
 import com.cbc_more_content.block.CruiseMissileBlock;
+import com.cbc_more_content.block.CruiseMissileBlockEntity;
+import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
 import java.util.List;
 import javax.annotation.Nullable;
 import net.minecraft.ChatFormatting;
@@ -45,6 +47,14 @@ public class TargetDesignatorItem extends Item {
         BlockPos body = CruiseMissileBlock.bodyOf(state, pos);
         if (!level.isClientSide) {
             bind(context.getItemInHand(), body);
+            if (level.getBlockEntity(body) instanceof CruiseMissileBlockEntity missile) {
+                var data =
+                        context.getItemInHand().get(DataComponents.CUSTOM_DATA).copyTag();
+                data.getCompound(BOUND).putUUID("Id", missile.missileId());
+                data.getCompound(BOUND)
+                        .putString("Dimension", level.dimension().location().toString());
+                context.getItemInHand().set(DataComponents.CUSTOM_DATA, CustomData.of(data));
+            }
             level.playSound(null, body, SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.PLAYERS, 0.7f, 1.6f);
         }
         return InteractionResult.sidedSuccess(level.isClientSide);
@@ -69,6 +79,54 @@ public class TargetDesignatorItem extends Item {
         return tag.contains("X") ? new BlockPos(tag.getInt("X"), tag.getInt("Y"), tag.getInt("Z")) : null;
     }
 
+    /** Assembly preserves the missile's identity while moving it to a different storage address. */
+    @Nullable
+    public static BlockPos resolveBoundMissile(Level level, ItemStack stack) {
+        BlockPos stored = boundMissile(stack);
+        if (stored == null) {
+            return null;
+        }
+        var data = stack.get(DataComponents.CUSTOM_DATA).copyTag();
+        var binding = data.getCompound(BOUND);
+        if (binding.contains("Dimension")
+                && !binding.getString("Dimension")
+                        .equals(level.dimension().location().toString())) {
+            return null;
+        }
+        var id = binding.hasUUID("Id") ? binding.getUUID("Id") : null;
+        if (level.isLoaded(stored)
+                && level.getBlockEntity(stored) instanceof CruiseMissileBlockEntity missile
+                && (id == null || id.equals(missile.missileId()))) {
+            return stored;
+        }
+        if (id == null) {
+            return null;
+        }
+        var container = SubLevelContainer.getContainer(level);
+        if (container != null) {
+            for (var sub : container.getAllSubLevels()) {
+                if (sub.isRemoved()) {
+                    continue;
+                }
+                for (var chunk : sub.getPlot().getLoadedChunks()) {
+                    for (var be : chunk.getChunk().getBlockEntities().values()) {
+                        if (be instanceof CruiseMissileBlockEntity missile
+                                && !missile.isRemoved()
+                                && id.equals(missile.missileId())) {
+                            var pos = missile.getBlockPos();
+                            binding.putInt("X", pos.getX());
+                            binding.putInt("Y", pos.getY());
+                            binding.putInt("Z", pos.getZ());
+                            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(data));
+                            return pos;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     private static CompoundTag wrap(CompoundTag inner) {
         CompoundTag root = new CompoundTag();
         root.put(BOUND, inner);
@@ -78,7 +136,6 @@ public class TargetDesignatorItem extends Item {
     @Override
     public void appendHoverText(
             ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
-        WorkInProgress.append(tooltip);
         BlockPos bound = boundMissile(stack);
         tooltip.add(Component.translatable(
                         bound == null

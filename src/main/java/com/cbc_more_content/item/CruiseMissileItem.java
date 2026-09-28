@@ -17,7 +17,6 @@ public class CruiseMissileItem extends BlockItem {
     @Override
     public void appendHoverText(
             ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
-        WorkInProgress.append(tooltip);
         super.appendHoverText(stack, context, tooltip, flag);
     }
 }

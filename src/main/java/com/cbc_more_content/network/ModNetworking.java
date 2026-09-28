@@ -5,6 +5,7 @@ import com.cbc_more_content.block.DropBombBlock;
 import com.cbc_more_content.item.BombSettingsKeyItem;
 import com.cbc_more_content.item.TargetDesignatorItem;
 import com.cbc_more_content.item.WireCuttersItem;
+import com.cbc_more_content.siren.SirenSource;
 import com.cbc_more_content.util.ReflectiveDispatcher;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -27,7 +28,7 @@ public final class ModNetworking {
     private ModNetworking() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        event.registrar("1")
+        event.registrar("2")
                 .playToClient(BombFlashPayload.TYPE, BombFlashPayload.STREAM_CODEC, ModNetworking::handleClient)
                 .playToClient(ConcussionPayload.TYPE, ConcussionPayload.STREAM_CODEC, ModNetworking::handleConcussion)
                 .playToClient(
@@ -273,10 +274,8 @@ public final class ModNetworking {
             ReflectiveDispatcher.invoke(
                     "com.cbc_more_content.client.sound.SirenSoundManager",
                     "wail",
-                    new Class<?>[] {BlockPos.class, int.class, float.class},
-                    payload.pos(),
-                    payload.remainingTicks(),
-                    payload.voice());
+                    new Class<?>[] {SirenWailPayload.class},
+                    payload);
         });
     }
 
@@ -380,10 +379,12 @@ public final class ModNetworking {
                 return;
             }
             BlockPos missile = payload.missile();
-            if (!canAccess(player, missile) || !holdsDesignator(player)) {
+            if (!com.cbc_more_content.compat.MissileDesignatorTargeting.canControl(player, missile)
+                    || !holdsDesignator(player)) {
                 return;
             }
-            BlockPos bound = com.cbc_more_content.item.TargetDesignatorItem.boundMissile(player.getMainHandItem());
+            BlockPos bound =
+                    com.cbc_more_content.item.TargetDesignatorItem.resolveBoundMissile(level, player.getMainHandItem());
             if (bound == null || !bound.equals(missile)) {
                 return;
             }
@@ -404,6 +405,10 @@ public final class ModNetworking {
             if (runtimeId < 0 || centre == null) {
                 return;
             }
+            if (!com.cbc_more_content.compat.MissileDesignatorTargeting.canTarget(
+                    player, missile, payload.subLevel(), centre)) {
+                return;
+            }
 
             guidance.lockOnto(runtimeId, centre);
             com.cbc_more_content.block.CruiseMissileBlock.launch(level, missile, state);
@@ -422,7 +427,7 @@ public final class ModNetworking {
 
     private static boolean canAccess(Player player, BlockPos pos) {
         return player.level().isLoaded(pos)
-                && player.distanceToSqr(pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D) <= REACH_SQR;
+                && player.distanceToSqr(SirenSource.capture(player.level(), pos).worldPosition()) <= REACH_SQR;
     }
 
     private static boolean holdsSettingsKey(Player player) {

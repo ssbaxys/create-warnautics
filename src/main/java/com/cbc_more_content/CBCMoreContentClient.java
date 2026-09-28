@@ -37,6 +37,7 @@ import rbasamoyai.createbigcannons.munitions.big_cannon.BigCannonProjectileRende
 @Mod(value = CBCMoreContent.MOD_ID, dist = Dist.CLIENT)
 public class CBCMoreContentClient {
     public CBCMoreContentClient(IEventBus modEventBus) {
+        com.cbc_more_content.client.ChainModels.init();
         modEventBus.addListener(this::registerRenderers);
         modEventBus.addListener(this::addBombVestLayers);
         modEventBus.addListener(this::registerParticles);
@@ -46,6 +47,9 @@ public class CBCMoreContentClient {
     }
 
     private void registerParticles(RegisterParticleProvidersEvent event) {
+        event.registerSpriteSet(
+                ModParticles.MISSILE_SMOKE.get(),
+                com.cbc_more_content.client.particle.MissileSmokeParticle.Provider::new);
         event.registerSpriteSet(ModParticles.MINE_FRAGMENT.get(), MineFragmentParticle.Provider::new);
         event.registerSpriteSet(ModParticles.MISSILE_EXHAUST.get(), MissileExhaustParticle.Provider::new);
         event.registerSpriteSet(
@@ -104,6 +108,11 @@ public class CBCMoreContentClient {
     }
 
     private void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerBlockEntityRenderer(
+                ModBlockEntities.AIM9.get(), com.cbc_more_content.client.Aim9BlockRenderer::new);
+        event.registerBlockEntityRenderer(
+                ModBlockEntities.CHAIN_CONNECTOR.get(),
+                dev.simulated_team.simulated.content.blocks.rope.rope_connector.RopeConnectorRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.SMALL_BOMB.get(), BigCannonProjectileRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.SEA_BOMB.get(), SeaBombRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.MEDIUM_BOMB.get(), BigCannonProjectileRenderer::new);

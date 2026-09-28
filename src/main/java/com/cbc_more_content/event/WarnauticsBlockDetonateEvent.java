@@ -28,7 +28,7 @@ public class WarnauticsBlockDetonateEvent extends Event {
         return this.level;
     }
 
-    /** The CBC {@code ShellExplosion} backing this blast. */
+    /** The explosion whose final block callbacks perform this blast. */
     public Explosion getExplosion() {
         return this.explosion;
     }
@@ -42,10 +42,10 @@ public class WarnauticsBlockDetonateEvent extends Event {
     }
 
     /**
-     * Live, mutable list of positions the blast is about to destroy. Remove entries
-     * to spare individual blocks; the crater cap, core vaporization and
-     * {@code finalizeExplosion} all honor the edited list, and the client explosion
-     * packet reflects it too.
+     * Live, mutable list of positions the blast is about to destroy or scar. Remove entries
+     * to spare individual blocks. Positions are storage positions for block access;
+     * use BlastScene.worldPosition for distances and visuals. The list is already capped
+     * and all terrain changes go through finalizeExplosion; chunk packets synchronize changes.
      */
     public List<BlockPos> getToBlow() {
         return this.toBlow;

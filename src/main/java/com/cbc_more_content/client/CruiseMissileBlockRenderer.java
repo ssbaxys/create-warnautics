@@ -19,7 +19,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
 /**
- * Draws a missile standing on end.
+ * Draws the live three-cell airframe in every direction, including after Sable assembly.
  * <p>
  * A blockstate can only turn a model about x and y, and neither lifts an X-aligned
  * airframe upright, so the vertical case used to ship as a second model with its
@@ -39,20 +39,23 @@ public class CruiseMissileBlockRenderer implements BlockEntityRenderer<CruiseMis
             MultiBufferSource buffers,
             int packedLight,
             int packedOverlay) {
-        Direction facing = missile.getBlockState().getValue(CruiseMissileBlock.FACING);
-        if (facing.getAxis().isHorizontal()) {
-            // The baked variants already handle these, and they batch.
+        if (!missile.isLiveAirframe()) {
             return;
         }
+        Direction facing = missile.getBlockState().getValue(CruiseMissileBlock.FACING);
 
         pose.pushPose();
         pose.translate(0.5D, 0.5D, 0.5D);
         // The model is authored nose-along-negative-X; a quarter turn about Z stands it up.
-        pose.mulPose(Axis.ZP.rotationDegrees(facing == Direction.UP ? -90.0f : 90.0f));
+        if (facing.getAxis().isVertical()) {
+            pose.mulPose(Axis.ZP.rotationDegrees(facing == Direction.UP ? -90.0f : 90.0f));
+        }
         pose.translate(-0.5D, -0.5D, -0.5D);
 
         Minecraft mc = Minecraft.getInstance();
-        BlockState flat = ModBlocks.CRUISE_MISSILE.get().defaultBlockState();
+        BlockState flat = facing.getAxis().isVertical()
+                ? ModBlocks.CRUISE_MISSILE.get().defaultBlockState()
+                : missile.getBlockState();
         BakedModel model = mc.getBlockRenderer().getBlockModel(flat);
         VertexConsumer consumer = buffers.getBuffer(RenderType.cutout());
         mc.getBlockRenderer()

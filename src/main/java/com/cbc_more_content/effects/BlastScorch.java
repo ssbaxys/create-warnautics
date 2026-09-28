@@ -4,18 +4,18 @@ import java.util.Map;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 
 public final class BlastScorch {
     private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
+    public static final float SCAR_STRENGTH = 1.15F;
 
-    private static final int SURFACE_BAND = 4;
-    private static final int MAX_SCUFFED = 12_000;
+    public static int changeBudget() {
+        return Math.min(900, com.cbc_more_content.config.WarnauticsConfig.maxBlocksPerDetonation() / 3);
+    }
 
     private static final Block[] SOIL_SCARS = {
         Blocks.DIRT, Blocks.COARSE_DIRT, Blocks.COARSE_DIRT, Blocks.ROOTED_DIRT, Blocks.PODZOL,
@@ -79,84 +79,133 @@ public final class BlastScorch {
     }
 
     private static void scuffAt(ServerLevel level, Vec3 center, double radius, float strength) {
-        if (radius <= 0.0D || strength <= 0.0f) {
+        if (radius <= 0
+                || strength <= 0
+                || !rbasamoyai.createbigcannons.config.CBCConfigs.server()
+                        .munitions
+                        .projectilesChangeSurroundings
+                        .get()
+                || rbasamoyai.createbigcannons.config.CBCConfigs.server()
+                                .munitions
+                                .damageRestriction
+                                .get()
+                                .explosiveInteraction()
+                        == net.minecraft.world.level.Explosion.BlockInteraction.KEEP) {
             return;
         }
-        int r = (int) Math.ceil(radius);
-        double radiusSqr = radius * radius;
-        int originX = (int) Math.floor(center.x);
-        int originZ = (int) Math.floor(center.z);
-        int surfaceY = (int) Math.floor(center.y);
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
-        int budget = MAX_SCUFFED;
-
-        for (int dz = -r; dz <= r && budget > 0; dz++) {
-            double dzSqr = (double) dz * dz;
-            if (dzSqr >= radiusSqr) {
-                continue;
-            }
-            int rx = (int) Math.floor(Math.sqrt(radiusSqr - dzSqr));
-            for (int dx = -rx; dx <= rx && budget > 0; dx++) {
-                double distSqr = dzSqr + (double) dx * dx;
-                if (distSqr > radiusSqr) {
-                    continue;
-                }
-                cursor.set(originX + dx, 0, originZ + dz);
-                if (!level.isLoaded(cursor)) {
-                    continue;
-                }
-                int top = level.getHeight(Heightmap.Types.WORLD_SURFACE, cursor.getX(), cursor.getZ());
-                if (top <= level.getMinBuildHeight()) {
-                    continue;
-                }
-                int fromY = Math.max(level.getMinBuildHeight(), top - SURFACE_BAND);
-                int toY = Math.min(level.getMaxBuildHeight() - 1, top + SURFACE_BAND);
-                for (int y = toY; y >= fromY; y--) {
-                    cursor.set(originX + dx, y, originZ + dz);
-                    BlockState state = level.getBlockState(cursor);
-                    if (state.isAir()) {
-                        continue;
-                    }
-                    float chance = (float) (1.0D - Math.sqrt(distSqr) / radius) * strength;
-                    if (chance <= 0.0f || level.random.nextFloat() > chance) {
-                        continue;
-                    }
-                    if (scuffOne(level, cursor, state)) {
-                        budget--;
-                        if (budget <= 0) {
-                            break;
-                        }
-                    }
-                }
+        var changes =
+                gather(level, center, radius, strength, java.util.List.of(), changeBudget(), level.random.nextLong());
+        for (BlockPos pos : BlastProtection.filter(level, center, (float) radius, changes.keySet())) {
+            Change change = changes.get(pos);
+            if (change != null) {
+                change.apply(level, pos);
             }
         }
     }
 
-    private static boolean scuffOne(ServerLevel level, BlockPos.MutableBlockPos pos, BlockState state) {
-        if (!state.getFluidState().isEmpty()) {
-            return false;
+    /** Plans the exposed soil/stone left AFTER the crater, without bypassing its protection event. */
+    public static Map<BlockPos, Change> gather(
+            ServerLevel level,
+            Vec3 center,
+            double radius,
+            float strength,
+            java.util.Collection<BlockPos> destroyed,
+            int cap,
+            long seed) {
+        Map<BlockPos, Change> result = new java.util.LinkedHashMap<>();
+        if (radius <= 0 || cap <= 0 || strength <= 0) {
+            return result;
         }
-
-        if (state.is(BlockTags.REPLACEABLE) || state.is(BlockTags.FLOWERS) || state.is(BlockTags.LEAVES)) {
-            level.setBlock(pos, Blocks.AIR.defaultBlockState(), FLAGS);
-            return true;
-        }
-
-        Block block = state.getBlock();
-        if (SOIL.contains(block)) {
-            Block scarred = SOIL_SCARS[level.random.nextInt(SOIL_SCARS.length)];
-            if (scarred == block) {
-                return false;
+        var removed = new java.util.HashSet<>(destroyed);
+        BlastScene scene = new BlastScene(level, center, radius + 1);
+        java.util.List<ScarCandidate> candidates = new java.util.ArrayList<>();
+        for (var block : scene.matching(
+                center,
+                radius,
+                state -> SOIL.contains(state.getBlock()) || DEGRADE.containsKey(state.getBlock()),
+                removed)) {
+            if (removed.contains(block.pos()) || block.state().hasBlockEntity()) {
+                continue;
             }
-            level.setBlock(pos, scarred.defaultBlockState(), FLAGS);
-            return true;
+            Vec3 delta = block.worldCenter().subtract(center);
+            long hash = seed
+                    ^ Math.round(delta.x * 4096) * 0x9E3779B97F4A7C15L
+                    ^ Math.round(delta.y * 4096) * 0xC2B2AE3D27D4EB4FL
+                    ^ Math.round(delta.z * 4096) * 0x165667B19E3779F9L;
+            var random = net.minecraft.util.RandomSource.create(hash);
+            double chance = Math.min(1, strength * Math.pow(Math.max(0, 1 - delta.length() / radius), 0.55));
+            if (random.nextDouble() > chance) {
+                continue;
+            }
+            Block replacement = SOIL.contains(block.state().getBlock())
+                    ? SOIL_SCARS[random.nextInt(SOIL_SCARS.length)]
+                    : DEGRADE.get(block.state().getBlock());
+            if (replacement != block.state().getBlock()) {
+                candidates.add(new ScarCandidate(block, replacement, random.nextDouble()));
+            }
         }
+        // Sample the whole fading footprint. A nearest-first cap spent every change
+        // inside the crater and cut off the surrounding damaged ground at a hard ring.
+        candidates.sort(java.util.Comparator.comparingDouble(ScarCandidate::priority)
+                .thenComparingDouble(candidate -> candidate.block().worldCenter().x)
+                .thenComparingDouble(candidate -> candidate.block().worldCenter().y)
+                .thenComparingDouble(candidate -> candidate.block().worldCenter().z));
+        java.util.List<BlastScene.Sample> samples = new java.util.ArrayList<>();
+        for (var candidate : candidates) {
+            var block = candidate.block();
+            Vec3 surface = block.body() == null
+                    ? block.worldCenter().add(0, 0.55, 0)
+                    : block.body()
+                            .logicalPose()
+                            .transformPosition(block.pos().getCenter().add(0, 0.55, 0));
+            scene.sample(surface, samples);
+            if (blocked(level, samples, removed, block.pos())) {
+                continue;
+            }
+            boolean exposed = true;
+            int steps = Math.max(1, (int) Math.ceil(center.distanceTo(surface) / 0.5));
+            for (int i = 1; i < steps; i++) {
+                scene.sample(center.lerp(surface, i / (double) steps), samples);
+                if (blocked(level, samples, removed, block.pos())) {
+                    exposed = false;
+                    break;
+                }
+            }
+            if (!exposed) {
+                continue;
+            }
+            result.put(
+                    block.pos(),
+                    new Change(block.state(), candidate.replacement().defaultBlockState()));
+            if (result.size() == cap) {
+                break;
+            }
+        }
+        return result;
+    }
 
-        Block degraded = DEGRADE.get(block);
-        if (degraded == null) {
-            return false;
+    private record ScarCandidate(BlastScene.Sample block, Block replacement, double priority) {}
+
+    private static boolean blocked(
+            ServerLevel level,
+            java.util.List<BlastScene.Sample> samples,
+            java.util.Set<BlockPos> removed,
+            BlockPos target) {
+        for (var block : samples) {
+            if (!block.pos().equals(target)
+                    && !removed.contains(block.pos())
+                    && !block.state().getCollisionShape(level, block.pos()).isEmpty()) {
+                return true;
+            }
         }
-        level.setBlock(pos, degraded.defaultBlockState(), FLAGS);
-        return true;
+        return false;
+    }
+
+    public record Change(BlockState before, BlockState after) {
+        public void apply(ServerLevel level, BlockPos pos) {
+            if (level.getBlockState(pos).equals(before)) {
+                level.setBlock(pos, after, FLAGS);
+            }
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.cbc_more_content.client;
 
 import com.cbc_more_content.CBCMoreContent;
+import com.cbc_more_content.compat.sable.TripwireGeometry;
 import com.cbc_more_content.entity.TripwireEntity;
 import com.cbc_more_content.item.TripwireCoilItem;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -53,13 +54,21 @@ public final class TripwirePreviewClient {
             return;
         }
 
+        Vec3 firstWorld = TripwireCoilItem.pendingPosition(player.getMainHandItem(), mc.level);
+        if (firstWorld == null) {
+            return;
+        }
+        Vec3 secondWorld = TripwireGeometry.position(mc.level, second);
         boolean legal = TripwireEntity.canAnchor(mc.level.getBlockState(second))
                 && TripwireEntity.canAnchor(mc.level.getBlockState(first))
-                && Math.sqrt(first.distSqr(second)) <= TripwireEntity.MAX_SPAN;
+                && firstWorld.distanceTo(secondWorld) <= TripwireEntity.MAX_SPAN + 1.0E-4;
 
         Vec3 camera = event.getCamera().getPosition();
-        Vec3 a = TripwireEntity.tie(first);
-        Vec3 b = TripwireEntity.tie(second);
+        Vec3 a = TripwireRenderGeometry.position(mc.level, first, TripwireGeometry.owner(mc.level, first));
+        Vec3 b = TripwireRenderGeometry.position(mc.level, second, TripwireGeometry.owner(mc.level, second));
+        if (a == null || b == null) {
+            return;
+        }
 
         PoseStack pose = event.getPoseStack();
         pose.pushPose();

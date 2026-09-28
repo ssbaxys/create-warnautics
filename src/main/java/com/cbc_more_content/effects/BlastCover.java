@@ -2,11 +2,14 @@ package com.cbc_more_content.effects;
 
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.longs.LongSets;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -63,15 +66,16 @@ public final class BlastCover {
         }
     }
 
-    public static Result evaluate(Level level, Vec3 center, Entity entity) {
+    public static Result evaluate(ServerLevel level, Vec3 center, Entity entity) {
         return evaluate(level, center, entity, LongSets.emptySet());
     }
 
-    public static Result evaluate(Level level, Vec3 center, Entity entity, LongSet destroyed) {
+    public static Result evaluate(ServerLevel level, Vec3 center, Entity entity, LongSet destroyed) {
         return evaluate(level, center, entity, destroyed, FULL_SAMPLES);
     }
 
-    public static Result evaluate(Level level, Vec3 center, Entity entity, LongSet destroyed, int samplesPerAxis) {
+    public static Result evaluate(
+            ServerLevel level, Vec3 center, Entity entity, LongSet destroyed, int samplesPerAxis) {
         AABB box = entity.getBoundingBox();
         int perAxis = Mth.clamp(samplesPerAxis, 1, FULL_SAMPLES);
         int[] budget = STEP_BUDGET.get();
@@ -86,7 +90,7 @@ public final class BlastCover {
 
         double transmissionSum = 0.0D;
         int open = 0;
-        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        BlastScene scene = new BlastScene(level, center, center.distanceTo(box.getCenter()) + box.getSize() + 1);
 
         for (int xi = 0; xi < perAxis; xi++) {
             double x = sampleAxis(box.minX, box.maxX, xi, perAxis);
@@ -94,7 +98,7 @@ public final class BlastCover {
                 double y = sampleAxis(box.minY, box.maxY, yi, perAxis);
                 for (int zi = 0; zi < perAxis; zi++) {
                     double z = sampleAxis(box.minZ, box.maxZ, zi, perAxis);
-                    double absorbed = absorbAlong(level, center, x, y, z, destroyed, cursor, slice);
+                    double absorbed = absorbAlong(level, center, x, y, z, destroyed, scene, slice);
                     if (absorbed <= 0.0D) {
                         open++;
                     }
@@ -115,13 +119,13 @@ public final class BlastCover {
     }
 
     private static double absorbAlong(
-            Level level,
+            ServerLevel level,
             Vec3 from,
             double toX,
             double toY,
             double toZ,
             LongSet destroyed,
-            BlockPos.MutableBlockPos cursor,
+            BlastScene scene,
             int stepBudget) {
         double dx = toX - from.x;
         double dy = toY - from.y;
@@ -140,50 +144,16 @@ public final class BlastCover {
         double sz = dz / steps;
 
         double absorbed = 0.0D;
-        int lastX = Integer.MIN_VALUE;
-        int lastY = Integer.MIN_VALUE;
-        int lastZ = Integer.MIN_VALUE;
-
+        Set<BlockPos> seen = new HashSet<>();
+        List<BlastScene.Sample> blocks = new ArrayList<>();
         for (int i = 1; i < steps; i++) {
-            int x = Mth.floor(from.x + sx * i);
-            int y = Mth.floor(from.y + sy * i);
-            int z = Mth.floor(from.z + sz * i);
-            if (x == lastX && y == lastY && z == lastZ) {
-                continue;
-            }
-            lastX = x;
-            lastY = y;
-            lastZ = z;
-            cursor.set(x, y, z);
-
-            if (destroyed.contains(cursor.asLong())) {
-                continue;
-            }
-            BlockState state;
-            try {
-                state = level.getBlockState(cursor);
-            } catch (Throwable ignored) {
-                continue;
-            }
-            if (state.isAir()) {
-                continue;
-            }
-            // A fluid that cannot hold a shape is the medium the pressure pulse travels
-            // through, not armour against it. Charging it (water is resistance 100)
-            // silenced every underwater blast. Waterlogged solids still count — their
-            // shape is what the blast actually has to defeat.
-            if (!state.getFluidState().isEmpty()
-                    && state.getCollisionShape(level, cursor).isEmpty()) {
-                continue;
-            }
-            double resistance;
-            try {
-                resistance = state.getExplosionResistance(level, cursor, null);
-            } catch (Throwable ignored) {
-                resistance = state.getBlock().getExplosionResistance();
-            }
-            if (resistance > 0.0D) {
-                absorbed += Math.min(resistance, MAX_BLOCK_RESISTANCE) * STEP;
+            scene.sample(new Vec3(from.x + sx * i, from.y + sy * i, from.z + sz * i), blocks);
+            for (BlastScene.Sample block : blocks) {
+                if (destroyed.contains(block.pos().asLong()) || !seen.add(block.pos())) {
+                    continue;
+                }
+                double resistance = block.state().getExplosionResistance(level, block.pos(), null);
+                absorbed += Math.min(Math.max(0, resistance), MAX_BLOCK_RESISTANCE) * STEP;
             }
         }
         return absorbed;

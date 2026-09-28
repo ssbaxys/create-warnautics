@@ -1,15 +1,15 @@
 package com.cbc_more_content.client.sound;
 
-import com.cbc_more_content.block.SirenBlock;
+import com.cbc_more_content.network.SirenWailPayload;
 import com.cbc_more_content.registry.ModSounds;
+import com.cbc_more_content.siren.SirenSource;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
-import net.minecraft.core.BlockPos;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * One layer of a wailing post, held open for as long as the post is sounding.
@@ -20,8 +20,8 @@ import net.minecraft.world.level.block.state.BlockState;
  * from a siren did not fade it — it flipped, mid-note, from a wail into a rumble. Here the
  * two curves overlap across sixty blocks and neither ever reaches an edge.
  * <p>
- * It also watches the block it belongs to. A one-shot sample cannot be recalled once it
- * has started, which is why breaking a siren left it howling for another ten seconds.
+ * The server renews a bounded lease and explicitly stops the sound when power or
+ * drive is lost. This also works when the listener does not have the ship's blocks loaded.
  */
 public final class SirenSoundInstance extends AbstractTickableSoundInstance {
     /** Loudest either layer gets at the listener. Attenuation is done here, not by the engine. */
@@ -43,7 +43,7 @@ public final class SirenSoundInstance extends AbstractTickableSoundInstance {
     /** Cut short: the post is gone, or its chunk is. A handful of ticks, not a snap. */
     private static final int FADE_OUT_TICKS = 8;
 
-    private final BlockPos pos;
+    private SirenSource source;
     private final boolean far;
     private boolean closing;
     private int fadeTicks;
@@ -67,33 +67,43 @@ public final class SirenSoundInstance extends AbstractTickableSoundInstance {
 
     private float targetVoice;
 
-    public SirenSoundInstance(BlockPos pos, boolean far, int remainingTicks, float voice) {
+    public SirenSoundInstance(SirenWailPayload payload, boolean far) {
         super(
                 far ? ModSounds.SIREN_DISTANT.get() : ModSounds.SIREN.get(),
                 far ? SoundSource.WEATHER : SoundSource.BLOCKS,
-                RandomSource.create(pos.asLong()));
-        this.pos = pos.immutable();
+                RandomSource.create(payload.source().pos().asLong()));
+        this.source = payload.source();
         this.far = far;
-        this.ticksLeft = remainingTicks;
-        this.voice = voice;
-        this.targetVoice = voice;
+        this.ticksLeft = payload.remainingTicks();
+        this.voice = payload.voice();
+        this.targetVoice = payload.voice();
         this.looping = true;
         this.delay = 0;
         // Positioned, so the post can still be located by ear, but with the engine's own
         // distance curve out of the way — the crossfade below is the whole point.
         this.attenuation = SoundInstance.Attenuation.NONE;
         this.pitch = far ? 0.92f : 1.0f;
-        this.x = pos.getX() + 0.5f;
-        this.y = pos.getY() + 0.5f;
-        this.z = pos.getZ() + 0.5f;
-        // Opened at the mix it belongs at, and never at nothing: the sound engine drops a
-        // sound whose volume is zero when it is handed over, so a voice starting silent
-        // would be thrown away before it ever got a tick to fade itself up.
-        this.volume = Math.max(0.01f, this.gain((float) listenerDistance()) * Math.max(0.05f, voice));
+        this.updatePosition();
+        this.volume = this.gain((float) listenerDistance()) * this.voice;
     }
 
-    public BlockPos pos() {
-        return this.pos;
+    public SirenSource source() {
+        return this.source;
+    }
+
+    @Override
+    public boolean canStartSilent() {
+        // A moving ship can enter the near layer after this voice was started outside it.
+        return true;
+    }
+
+    private void updatePosition() {
+        var level = Minecraft.getInstance().level;
+        Vec3 at = level == null ? this.source.worldPosition() : this.source.position(level);
+        // Give the engine world coordinates. Sable must not wrap and transform these twice.
+        this.x = at.x;
+        this.y = at.y;
+        this.z = at.z;
     }
 
     public boolean isFar() {
@@ -106,9 +116,12 @@ public final class SirenSoundInstance extends AbstractTickableSoundInstance {
     }
 
     /** A keepalive arrived: how much the post has left, and how hard its rotor is turning. */
-    public void refresh(int remainingTicks, float voice) {
-        this.ticksLeft = Math.max(this.ticksLeft, remainingTicks);
-        this.targetVoice = voice;
+    public void refresh(SirenWailPayload payload) {
+        this.source = payload.source();
+        this.ticksLeft = payload.remainingTicks();
+        this.targetVoice = payload.voice();
+        this.closing = false;
+        this.fadeTicks = 0;
     }
 
     @Override
@@ -118,19 +131,10 @@ public final class SirenSoundInstance extends AbstractTickableSoundInstance {
             this.stop();
             return;
         }
-        // Only worth asking the block when the listener actually has that chunk. Close
-        // enough to have it, a post that stops sounding — or is broken outright — goes
-        // quiet at once, which is the case that matters. Too far to have it, the post's
-        // own count is all there is to go on.
-        boolean loaded = mc.level.hasChunkAt(this.pos);
-        if (this.closing
-                || (loaded && !sounding(mc.level.getBlockState(this.pos)))
-                || (!loaded && this.ticksLeft <= 0)) {
+        this.updatePosition();
+        if (this.closing || this.ticksLeft-- <= 0) {
             this.fadeOut();
             return;
-        }
-        if (this.ticksLeft > 0) {
-            this.ticksLeft--;
         }
         this.fadeTicks = 0;
         this.voice = Mth.lerp(GLIDE, this.voice, this.targetVoice);
@@ -163,13 +167,6 @@ public final class SirenSoundInstance extends AbstractTickableSoundInstance {
         if (this.fadeTicks >= FADE_OUT_TICKS || this.volume < 0.002f) {
             this.stop();
         }
-    }
-
-    /** Whether that block is still a siren, and still sounding. */
-    public static boolean sounding(BlockState state) {
-        return state.getBlock() instanceof SirenBlock
-                && state.hasProperty(SirenBlock.SOUNDING)
-                && state.getValue(SirenBlock.SOUNDING);
     }
 
     /** Hermite ramp, so neither curve has a corner in it anywhere. */

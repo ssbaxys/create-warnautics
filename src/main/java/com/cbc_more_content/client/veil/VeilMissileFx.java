@@ -1,195 +1,96 @@
 package com.cbc_more_content.client.veil;
 
+import com.cbc_more_content.CBCMoreContent;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.light.data.PointLightData;
 import foundry.veil.api.client.render.light.renderer.LightRenderHandle;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-import org.joml.Vector3f;
 
-/**
- * A real light on the nozzle of a missile under power, so the plume throws illumination
- * onto the ground and walls it passes rather than only glowing on its own quads, plus a
- * one-shot flash for the moment a cold-launched missile's motor catches.
- * <p>
- * Only reachable when Veil is installed — {@link com.cbc_more_content.client.MissileExhaustLights}
- * calls in through {@link #follow} and {@link #ignite}, which are no-ops without it.
- */
-@OnlyIn(Dist.CLIENT)
+/** Frame-interpolated nozzle lighting. Expiration is advanced once per tick, never per missile. */
 public final class VeilMissileFx {
     private static final float RADIUS = 7.5f;
-    private static final Vector3f COLOR = new Vector3f(1.0f, 0.62f, 0.22f);
-    /** Dropped once a missile has gone this long without reporting a nozzle. */
-    private static final int STALE_TICKS = 3;
-    /** Clearance kept between the camera and a light cube, for the near plane. */
-    private static final float VOLUME_MARGIN = 2.0f;
-
-    /** Ignition burst: brief, bright, and gone — sells the motor lighting off gas alone. */
-    private static final float FLASH_RADIUS = 11.0f;
-
-    private static final Vector3f FLASH_COLOR = new Vector3f(1.0f, 0.86f, 0.62f);
-    private static final int FLASH_TICKS = 7;
-
     private static final Map<Integer, Tracked> LIGHTS = new HashMap<>();
-    private static final java.util.List<Flash> FLASHES = new java.util.ArrayList<>();
     private static boolean unavailable;
 
     private VeilMissileFx() {}
 
-    /**
-     * True while the camera is inside a light volume of this size centred on {@code at},
-     * with room to spare for the near plane.
-     */
-    private static boolean cameraInside(Vec3 at) {
-        var camera = net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera();
-        Vec3 eye = camera.getPosition();
-        double extent = RADIUS + VOLUME_MARGIN;
-        return Math.abs(eye.x - at.x) <= extent && Math.abs(eye.y - at.y) <= extent && Math.abs(eye.z - at.z) <= extent;
-    }
-
-    /** One-shot light burst at the nozzle the instant the motor catches. */
-    public static void ignite(Vec3 at) {
-        if (unavailable || cameraInside(at)) {
-            return;
-        }
-        try {
-            PointLightData light = new PointLightData()
-                    .setColor(FLASH_COLOR.x, FLASH_COLOR.y, FLASH_COLOR.z)
-                    .setRadius(FLASH_RADIUS)
-                    .setBrightness(3.0f);
-            light.setPosition(at.x, at.y, at.z);
-            LightRenderHandle<PointLightData> handle =
-                    VeilRenderSystem.renderer().getLightRenderer().addLight(light);
-            FLASHES.add(new Flash(light, handle, FLASH_TICKS));
-        } catch (Throwable ignored) {
-            unavailable = true;
-            clear();
-        }
-    }
-
-    /** Fades and frees ignition flashes; called once a client tick alongside {@link #follow}. */
-    public static void tickFlashes() {
-        if (FLASHES.isEmpty()) {
-            return;
-        }
-        Iterator<Flash> it = FLASHES.iterator();
+    public static void tick() {
+        var it = LIGHTS.values().iterator();
         while (it.hasNext()) {
-            Flash flash = it.next();
-            if (--flash.ticksLeft <= 0) {
-                release(flash.handle);
+            var light = it.next();
+            if (++light.idle > 2 || light.entity.isRemoved()) {
+                light.handle.free();
                 it.remove();
-                continue;
-            }
-            flash.light.setBrightness(3.0f * (flash.ticksLeft / (float) FLASH_TICKS));
-            if (flash.handle != null) {
-                flash.handle.markDirty();
             }
         }
     }
 
-    /** Called every client tick a missile draws its plume. */
-    public static void follow(Entity missile, Vec3 nozzle, boolean powered) {
+    public static void follow(Entity missile, Vec3 nozzle, float strength) {
         if (unavailable) {
             return;
         }
         try {
-            sweep();
-            Tracked tracked = LIGHTS.get(missile.getId());
-            // A point light is drawn as an inverted cube, and a cube the camera is
-            // standing inside turns into sheets across the view and leaves the
-            // first-person hand on a broken transform. VeilBombFx has guarded against
-            // this from the start; a missile passing close by is the one light in the mod
-            // that actually moves through the player, which is why it was the only thing
-            // that ever showed the fault.
-            if (!powered || missile.isRemoved() || cameraInside(nozzle)) {
+            Vec3 eye = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+            var tracked = LIGHTS.get(missile.getId());
+            double margin = RADIUS + 2;
+            boolean inside = Math.abs(eye.x - nozzle.x) < margin
+                    && Math.abs(eye.y - nozzle.y) < margin
+                    && Math.abs(eye.z - nozzle.z) < margin;
+            // Preserve the near-camera guard for Veil's inverted light volumes.
+            if (inside || strength <= 0 || missile.isRemoved()) {
                 if (tracked != null) {
-                    release(tracked);
+                    tracked.handle.free();
                     LIGHTS.remove(missile.getId());
                 }
                 return;
             }
-
+            if (tracked != null && (tracked.entity != missile || !tracked.handle.isValid())) {
+                tracked.handle.free();
+                LIGHTS.remove(missile.getId());
+                tracked = null;
+            }
             if (tracked == null) {
-                PointLightData light = new PointLightData()
-                        .setColor(COLOR.x, COLOR.y, COLOR.z)
+                var light = new PointLightData()
+                        .setColor(1f, .66f, .29f)
                         .setRadius(RADIUS)
-                        .setBrightness(1.0f);
+                        .setBrightness(strength);
                 light.setPosition(nozzle.x, nozzle.y, nozzle.z);
                 tracked = new Tracked(
-                        light, VeilRenderSystem.renderer().getLightRenderer().addLight(light));
+                        missile,
+                        light,
+                        VeilRenderSystem.renderer().getLightRenderer().addLight(light));
                 LIGHTS.put(missile.getId(), tracked);
             }
-
             tracked.light.setPosition(nozzle.x, nozzle.y, nozzle.z);
-            // A little flicker, so the exhaust does not read as a lamp bolted on the back.
-            tracked.light.setBrightness(0.85f + missile.level().random.nextFloat() * 0.3f);
-            if (tracked.handle != null) {
-                tracked.handle.markDirty();
-            }
+            tracked.light.setBrightness(strength * 1.3f);
+            tracked.handle.markDirty();
             tracked.idle = 0;
-        } catch (Throwable ignored) {
-            // Veil present but its light API moved: stop trying rather than log per frame.
+        } catch (LinkageError | RuntimeException failure) {
             unavailable = true;
             clear();
+            CBCMoreContent.LOGGER.warn("Missile dynamic lighting unavailable; plume remains enabled", failure);
         }
     }
 
-    private static void sweep() {
-        Iterator<Map.Entry<Integer, Tracked>> it = LIGHTS.entrySet().iterator();
-        while (it.hasNext()) {
-            Tracked tracked = it.next().getValue();
-            if (++tracked.idle > STALE_TICKS) {
-                release(tracked);
-                it.remove();
-            }
-        }
-    }
-
-    private static void release(Tracked tracked) {
-        release(tracked.handle);
-    }
-
-    private static void release(LightRenderHandle<PointLightData> handle) {
-        try {
-            if (handle != null) {
-                handle.free();
-            }
-        } catch (Throwable ignored) {
-        }
-    }
-
-    private static void clear() {
-        LIGHTS.values().forEach(VeilMissileFx::release);
+    public static void clear() {
+        LIGHTS.values().forEach(light -> light.handle.free());
         LIGHTS.clear();
-        FLASHES.forEach(flash -> release(flash.handle));
-        FLASHES.clear();
     }
 
     private static final class Tracked {
+        final Entity entity;
         final PointLightData light;
         final LightRenderHandle<PointLightData> handle;
         int idle;
 
-        Tracked(PointLightData light, LightRenderHandle<PointLightData> handle) {
+        Tracked(Entity entity, PointLightData light, LightRenderHandle<PointLightData> handle) {
+            this.entity = entity;
             this.light = light;
             this.handle = handle;
-        }
-    }
-
-    private static final class Flash {
-        final PointLightData light;
-        final LightRenderHandle<PointLightData> handle;
-        int ticksLeft;
-
-        Flash(PointLightData light, LightRenderHandle<PointLightData> handle, int ticksLeft) {
-            this.light = light;
-            this.handle = handle;
-            this.ticksLeft = ticksLeft;
         }
     }
 }

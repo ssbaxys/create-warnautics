@@ -80,7 +80,7 @@ public final class BombBurstBudget {
         REDUCED,
         /** ≤60 — minimal particles, skip expensive rays. */
         MINIMAL,
-        /** 61+ — sound+cloud only, max vaporize, no war spam. */
+        /** 61+ — sound+cloud only, no war spam. */
         ESSENTIAL;
 
         static Lod of(int count) {
@@ -151,26 +151,8 @@ public final class BombBurstBudget {
             return Math.max(scale <= 0.0f ? 0 : 1, Math.round(lodPuffs * scale));
         }
 
-        public float vaporizeChance() {
-            return switch (this) {
-                case FULL -> 0.62f;
-                case REDUCED -> 0.72f;
-                case MINIMAL -> 0.85f;
-                case ESSENTIAL -> 0.94f;
-            };
-        }
-
         public boolean useExplosionExposureRays() {
             return this == FULL || this == REDUCED;
-        }
-
-        /** Soften only under extreme carpet-bombing; crater still digs. */
-        public float terrainPowerScale() {
-            return switch (this) {
-                case FULL, REDUCED -> 1.0f;
-                case MINIMAL -> 0.92f;
-                case ESSENTIAL -> 0.82f;
-            };
         }
     }
 

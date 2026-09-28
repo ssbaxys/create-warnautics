@@ -43,7 +43,12 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * A C4 charge stuck to a surface. {@link #FACING} points away from the face it clings to,
  * so the charge lies flat against walls, floors and ceilings alike.
  */
-public class C4Block extends BaseEntityBlock {
+public class C4Block extends BaseEntityBlock implements ChainExplosiveBlock {
+    @Override
+    public void detonateCharge(ServerLevel level, Vec3 worldCenter, BlockState state) {
+        C4BlockEntity.explode(level, worldCenter);
+    }
+
     public static final MapCodec<C4Block> CODEC = simpleCodec(C4Block::new);
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
     public static final EnumProperty<Fuse> STATE = EnumProperty.create("state", Fuse.class);

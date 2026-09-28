@@ -23,5 +23,8 @@ public final class ModParticles {
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MISSILE_GAS =
             PARTICLE_TYPES.register("missile_gas", () -> new SimpleParticleType(false));
 
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MISSILE_SMOKE =
+            PARTICLE_TYPES.register("missile_smoke", () -> new SimpleParticleType(false));
+
     private ModParticles() {}
 }

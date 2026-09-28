@@ -30,8 +30,8 @@ public enum BombSize {
             0.38D,
             0.11D,
             0.55f,
-            5.35f,
-            6.75f),
+            7.5f,
+            12.0f),
     MEDIUM(
             Block.box(3.0D, 0.0D, 3.0D, 13.0D, 12.0D, 13.0D),
             Block.box(3.0D, 2.0D, 0.0D, 13.0D, 14.0D, 12.0D),
@@ -100,7 +100,7 @@ public enum BombSize {
     }
 
     public BlastVolume blastVolume() {
-        return this == MOAB ? new BlastVolume(3.4D, 0.55D) : BlastVolume.SPHERE;
+        return this == MOAB ? new BlastVolume(3.4D, 1.0D) : BlastVolume.SPHERE;
     }
 
     public boolean isSeaBomb() {

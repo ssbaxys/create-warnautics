@@ -5,9 +5,7 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 /**
  * Client-side switches for the Veil effects.
  * <p>
- * Both default on. They exist because the two Veil paths — dynamic lights and the
- * screen-space flash — fail in ways that look identical from the player's side, and
- * turning one off is the only way to tell which is misbehaving on a given driver.
+ * Each effect can be disabled separately for performance or driver compatibility.
  */
 public final class WarnauticsClientConfig {
     public static final ModConfigSpec SPEC;
@@ -16,6 +14,10 @@ public final class WarnauticsClientConfig {
     public static final ModConfigSpec.BooleanValue BOMB_LIGHTS;
     /** Veil post-processing pass for the flash and the concussion blur. */
     public static final ModConfigSpec.BooleanValue SCREEN_EFFECTS;
+
+    public static final ModConfigSpec.BooleanValue MISSILE_PLUME;
+    public static final ModConfigSpec.BooleanValue MISSILE_LIGHTS;
+    public static final ModConfigSpec.BooleanValue STABLE_LIGHTING_BUFFERS;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -30,12 +32,33 @@ public final class WarnauticsClientConfig {
                 .define("bombLights", true);
         SCREEN_EFFECTS = builder.comment(
                         "Veil post-processing: the long-range flash and the concussion blur.",
-                        "Without it the mod falls back to plain overlay quads, which look",
-                        "worse but cannot touch the framebuffer the hand is drawn into.")
+                        "Disables camera effects, including the fallback overlay; dynamic lights are controlled separately.")
                 .define("screenEffects", true);
+        MISSILE_PLUME = builder.comment(
+                        "Volumetric cruise missile exhaust through Veil. Falls back to particles when disabled.")
+                .define("missilePlume", true);
+        MISSILE_LIGHTS = builder.comment("Dynamic light following cruise missile engines.")
+                .define("missileLights", true);
+        STABLE_LIGHTING_BUFFERS = builder.comment(
+                        "Prepare Veil's normal/albedo buffers when joining a world and retain them while dynamic lights are enabled.",
+                        "Avoids shader recompilation when a rocket/explosion light enters or leaves view.",
+                        "Uses additional GPU buffer memory/bandwidth between effects; disable on bandwidth-limited GPUs.")
+                .define("stableLightingBuffers", true);
         builder.pop();
 
         SPEC = builder.build();
+    }
+
+    public static boolean missilePlume() {
+        return !SPEC.isLoaded() || MISSILE_PLUME.get();
+    }
+
+    public static boolean missileLights() {
+        return !SPEC.isLoaded() || MISSILE_LIGHTS.get();
+    }
+
+    public static boolean stableLightingBuffers() {
+        return !SPEC.isLoaded() || STABLE_LIGHTING_BUFFERS.get();
     }
 
     private WarnauticsClientConfig() {}

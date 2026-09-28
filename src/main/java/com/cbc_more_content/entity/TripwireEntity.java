@@ -1,8 +1,13 @@
 package com.cbc_more_content.entity;
 
-import com.cbc_more_content.compat.SableDropCompat;
+import com.cbc_more_content.compat.sable.TripwireGeometry;
 import com.cbc_more_content.event.TripwireSignal;
 import com.cbc_more_content.registry.ModEntityTypes;
+import dev.ryanhcode.sable.sublevel.ServerSubLevel;
+import dev.ryanhcode.sable.sublevel.tracking_points.SubLevelTrackingPointSavedData;
+import dev.ryanhcode.sable.sublevel.tracking_points.TrackingPoint;
+import java.util.Optional;
+import java.util.UUID;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -23,6 +28,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.ModList;
+import org.joml.Vector3d;
 
 /**
  * A tripwire strung between two blocks, at whatever angle they happen to sit at.
@@ -59,6 +65,13 @@ public class TripwireEntity extends Entity {
             SynchedEntityData.defineId(TripwireEntity.class, EntityDataSerializers.BLOCK_POS);
     private static final EntityDataAccessor<BlockPos> ANCHOR_B =
             SynchedEntityData.defineId(TripwireEntity.class, EntityDataSerializers.BLOCK_POS);
+    private static final EntityDataAccessor<Optional<UUID>> OWNER_A =
+            SynchedEntityData.defineId(TripwireEntity.class, EntityDataSerializers.OPTIONAL_UUID);
+    private static final EntityDataAccessor<Optional<UUID>> OWNER_B =
+            SynchedEntityData.defineId(TripwireEntity.class, EntityDataSerializers.OPTIONAL_UUID);
+    private UUID trackingA;
+    private UUID trackingB;
+
     /** Where along the run the wire is snagged, 0 at A and 1 at B. */
     private static final EntityDataAccessor<Float> CAUGHT_AT =
             SynchedEntityData.defineId(TripwireEntity.class, EntityDataSerializers.FLOAT);
@@ -87,14 +100,21 @@ public class TripwireEntity extends Entity {
         this(ModEntityTypes.TRIPWIRE.get(), level);
         this.entityData.set(ANCHOR_A, a);
         this.entityData.set(ANCHOR_B, b);
-        Vec3 mid = tie(a).add(tie(b)).scale(0.5D);
-        this.setPos(mid.x, mid.y, mid.z);
+        this.entityData.set(OWNER_A, TripwireGeometry.owner(level, a));
+        this.entityData.set(OWNER_B, TripwireGeometry.owner(level, b));
+        this.setPos(this.endA().add(this.endB()).scale(0.5));
+        this.setOldPosAndRot();
+        if (level instanceof ServerLevel server) {
+            this.updateTracking(server);
+        }
     }
 
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(ANCHOR_A, BlockPos.ZERO);
         builder.define(ANCHOR_B, BlockPos.ZERO);
+        builder.define(OWNER_A, Optional.empty());
+        builder.define(OWNER_B, Optional.empty());
         builder.define(CAUGHT_AT, 0.5f);
         builder.define(PULL_X, 0.0f);
         builder.define(PULL_Y, 0.0f);
@@ -109,11 +129,77 @@ public class TripwireEntity extends Entity {
     }
 
     public Vec3 endA() {
-        return tie(this.entityData.get(ANCHOR_A));
+        Vec3 end = TripwireGeometry.position(this.level(), this.anchorA(), this.ownerA());
+        return end == null ? this.position() : end;
     }
 
     public Vec3 endB() {
-        return tie(this.entityData.get(ANCHOR_B));
+        Vec3 end = TripwireGeometry.position(this.level(), this.anchorB(), this.ownerB());
+        return end == null ? this.position() : end;
+    }
+
+    public BlockPos anchorA() {
+        return this.entityData.get(ANCHOR_A);
+    }
+
+    public BlockPos anchorB() {
+        return this.entityData.get(ANCHOR_B);
+    }
+
+    public Optional<UUID> ownerA() {
+        return this.entityData.get(OWNER_A);
+    }
+
+    public Optional<UUID> ownerB() {
+        return this.entityData.get(OWNER_B);
+    }
+
+    private UUID track(ServerLevel level, UUID id, BlockPos pos) {
+        var data = SubLevelTrackingPointSavedData.getOrLoad(level);
+        if (id != null && data.getTrackingPoint(id) != null) {
+            return id;
+        }
+        var hull = TripwireGeometry.hull(level, pos);
+        if (hull instanceof ServerSubLevel serverHull) {
+            return data.generateTrackingPoint(tie(pos), serverHull);
+        }
+        UUID key = UUID.randomUUID();
+        Vec3 point = tie(pos);
+        data.setTrackingPoint(key, new TrackingPoint(false, null, null, new Vector3d(point.x, point.y, point.z), null));
+        return key;
+    }
+
+    private void updateTracking(ServerLevel server) {
+        if (!ModList.get().isLoaded("sable")) {
+            return;
+        }
+        this.trackingA = track(server, this.trackingA, this.anchorA());
+        this.trackingB = track(server, this.trackingB, this.anchorB());
+        var data = SubLevelTrackingPointSavedData.getOrLoad(server);
+        syncAnchor(data.getTrackingPoint(this.trackingA), ANCHOR_A, OWNER_A);
+        syncAnchor(data.getTrackingPoint(this.trackingB), ANCHOR_B, OWNER_B);
+    }
+
+    private void syncAnchor(
+            TrackingPoint point, EntityDataAccessor<BlockPos> anchor, EntityDataAccessor<Optional<UUID>> owner) {
+        this.entityData.set(anchor, BlockPos.containing(point.point().x, point.point().y, point.point().z));
+        this.entityData.set(owner, point.inSubLevel() ? Optional.ofNullable(point.subLevelID()) : Optional.empty());
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        if (reason.shouldDestroy()
+                && this.level() instanceof ServerLevel server
+                && ModList.get().isLoaded("sable")) {
+            var data = SubLevelTrackingPointSavedData.getOrLoad(server);
+            if (this.trackingA != null) {
+                data.removeTrackingPoint(this.trackingA);
+            }
+            if (this.trackingB != null) {
+                data.removeTrackingPoint(this.trackingB);
+            }
+        }
+        super.remove(reason);
     }
 
     /** How far the wire has been dragged out of line, and in which direction. */
@@ -152,21 +238,34 @@ public class TripwireEntity extends Entity {
     @Override
     public void tick() {
         super.tick();
+        if (this.level() instanceof ServerLevel server) {
+            this.updateTracking(server);
+        }
+        Vec3 a = TripwireGeometry.position(this.level(), this.anchorA(), this.ownerA());
+        Vec3 b = TripwireGeometry.position(this.level(), this.anchorB(), this.ownerB());
+        // A ship or one endpoint chunk can arrive after the entity packet/save.
+        if (a == null
+                || b == null
+                || !this.level().hasChunkAt(this.anchorA())
+                || !this.level().hasChunkAt(this.anchorB())) {
+            return;
+        }
+        this.setPos(a.add(b).scale(0.5));
+        this.setBoundingBox(new AABB(a, b).inflate(0.5));
         if (!(this.level() instanceof ServerLevel server)) {
             return;
         }
-        if (!isPost(server, this.entityData.get(ANCHOR_A)) || !isPost(server, this.entityData.get(ANCHOR_B))) {
+        if (!isPost(server, this.anchorA()) || !isPost(server, this.anchorB())) {
             this.snap();
             return;
         }
 
-        if (this.tickCount % HULL_INTERVAL == 0 && this.hullAcrossTheLine(server)) {
+        if (a.distanceToSqr(b) > (MAX_SPAN + 0.25) * (MAX_SPAN + 0.25)
+                || this.tickCount % HULL_INTERVAL == 0 && this.hullAcrossTheLine(server)) {
             this.part(server);
             return;
         }
 
-        Vec3 a = this.endA();
-        Vec3 b = this.endB();
         Vec3 face = planeNormal(a, b);
         if (face == null) {
             return;
@@ -287,7 +386,7 @@ public class TripwireEntity extends Entity {
         if (!ModList.get().isLoaded("sable")) {
             return false;
         }
-        return SableDropCompat.overlapsAnySubLevel(server, this.position(), HULL_REACH);
+        return TripwireGeometry.crossesHull(server, this.endA(), this.endB(), this.ownerA(), this.ownerB(), HULL_REACH);
     }
 
     private static boolean isPost(Level level, BlockPos pos) {
@@ -329,7 +428,8 @@ public class TripwireEntity extends Entity {
 
     /** Cuts any wire tied off at {@code post}. Called by the wire cutters. */
     public static boolean cutAt(ServerLevel server, BlockPos post) {
-        AABB around = new AABB(post).inflate(MAX_SPAN + 1);
+        Vec3 at = TripwireGeometry.position(server, post);
+        AABB around = new AABB(at, at).inflate(MAX_SPAN + 1);
         boolean cut = false;
         for (TripwireEntity wire : server.getEntitiesOfClass(TripwireEntity.class, around)) {
             if (post.equals(wire.entityData.get(ANCHOR_A)) || post.equals(wire.entityData.get(ANCHOR_B))) {
@@ -342,7 +442,8 @@ public class TripwireEntity extends Entity {
 
     /** True if a wire is already tied off at this post, so one post carries one wire. */
     public static boolean occupied(ServerLevel server, BlockPos post) {
-        AABB around = new AABB(post).inflate(MAX_SPAN + 1);
+        Vec3 at = TripwireGeometry.position(server, post);
+        AABB around = new AABB(at, at).inflate(MAX_SPAN + 1);
         for (TripwireEntity wire : server.getEntitiesOfClass(TripwireEntity.class, around)) {
             if (post.equals(wire.entityData.get(ANCHOR_A)) || post.equals(wire.entityData.get(ANCHOR_B))) {
                 return true;
@@ -357,12 +458,32 @@ public class TripwireEntity extends Entity {
     public void addAdditionalSaveData(CompoundTag tag) {
         tag.put("AnchorA", NbtUtils.writeBlockPos(this.entityData.get(ANCHOR_A)));
         tag.put("AnchorB", NbtUtils.writeBlockPos(this.entityData.get(ANCHOR_B)));
+        this.ownerA().ifPresent(id -> tag.putUUID("OwnerA", id));
+        this.ownerB().ifPresent(id -> tag.putUUID("OwnerB", id));
+        if (this.trackingA != null) {
+            tag.putUUID("TrackingA", this.trackingA);
+        }
+        if (this.trackingB != null) {
+            tag.putUUID("TrackingB", this.trackingB);
+        }
     }
 
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         this.entityData.set(ANCHOR_A, NbtUtils.readBlockPos(tag, "AnchorA").orElse(BlockPos.ZERO));
         this.entityData.set(ANCHOR_B, NbtUtils.readBlockPos(tag, "AnchorB").orElse(BlockPos.ZERO));
+        this.entityData.set(
+                OWNER_A,
+                tag.hasUUID("OwnerA")
+                        ? Optional.of(tag.getUUID("OwnerA"))
+                        : TripwireGeometry.owner(this.level(), this.anchorA()));
+        this.entityData.set(
+                OWNER_B,
+                tag.hasUUID("OwnerB")
+                        ? Optional.of(tag.getUUID("OwnerB"))
+                        : TripwireGeometry.owner(this.level(), this.anchorB()));
+        this.trackingA = tag.hasUUID("TrackingA") ? tag.getUUID("TrackingA") : null;
+        this.trackingB = tag.hasUUID("TrackingB") ? tag.getUUID("TrackingB") : null;
         this.setBoundingBox(this.makeBoundingBox());
     }
 

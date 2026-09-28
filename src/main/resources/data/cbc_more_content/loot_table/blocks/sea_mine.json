@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:block",
+  "pools": [{
+    "rolls": 1,
+    "entries": [{ "type": "minecraft:item", "name": "cbc_more_content:sea_mine" }],
+    "conditions": [{ "condition": "minecraft:survives_explosion" }]
+  }]
+}

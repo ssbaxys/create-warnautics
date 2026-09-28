@@ -33,7 +33,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
@@ -65,7 +64,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  * eject one bomb per tick while powered. Create wrench: rotate / sneak-pickup.
  */
 @EventBusSubscriber(modid = CBCMoreContent.MOD_ID)
-public class DropBombBlock extends Block implements IWrenchable {
+public class DropBombBlock extends Block implements IWrenchable, ChainExplosiveBlock {
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
     /** Tracks whether we already saw power — prevents place-into-live-wire / neighbor-chain false triggers. */
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
@@ -178,11 +177,7 @@ public class DropBombBlock extends Block implements IWrenchable {
     }
 
     protected Direction placementFacing(BlockPlaceContext context) {
-        if (this.size != BombSize.MOAB) {
-            return context.getClickedFace();
-        }
-        Direction look = context.getNearestLookingDirection();
-        return look.getAxis().isVertical() ? look : look.getOpposite();
+        return context.getClickedFace();
     }
 
     @Override
@@ -411,6 +406,7 @@ public class DropBombBlock extends Block implements IWrenchable {
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (state.getBlock() != newState.getBlock() && level instanceof ServerLevel serverLevel) {
             PROJECTILE_HITS.remove(new ProjectileHitKey(serverLevel, pos.asLong()));
+            BombSympatheticDetonation.cancelPlacedCookoff(serverLevel, pos);
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
     }
@@ -519,18 +515,21 @@ public class DropBombBlock extends Block implements IWrenchable {
     protected void ejectOne(ServerLevel level, BlockPos pos, BlockState state) {
         Direction nose = state.getValue(FACING);
         int cassette = state.getValue(CASSETTE);
+        // Removing the last physical block can invalidate the carrier's mass/body
+        // immediately. Capture world coordinates and momentum while it still exists.
+        var launch = prepareLaunchAlongNose(level, pos, nose, this.size);
 
         // Update or clear the block before spawning so the projectile cannot clip the
         // remaining cassette, especially for sideways asymmetric models.
         if (cassette <= 1) {
             level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
-            launchAlongNose(level, pos, nose, this.size);
+            launchPrepared(this.size, launch);
             return;
         }
 
         BlockState remaining = state.setValue(CASSETTE, cassette - 1);
         level.setBlock(pos, remaining, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
-        launchAlongNose(level, pos, nose, this.size);
+        launchPrepared(this.size, launch);
     }
 
     public static boolean isReceivingPower(Level level, BlockPos pos) {
@@ -555,7 +554,8 @@ public class DropBombBlock extends Block implements IWrenchable {
      * Releases the bomb into free space and lets gravity do the rest. UP is never a
      * release direction — nothing here may push a live bomb into the airframe above.
      */
-    protected void launchAlongNose(ServerLevel level, BlockPos pos, Direction nose, BombSize size) {
+    protected SableDropCompat.LaunchFrame prepareLaunchAlongNose(
+            ServerLevel level, BlockPos pos, Direction nose, BombSize size) {
         Vec3 noseVec = new Vec3(nose.getStepX(), nose.getStepY(), nose.getStepZ());
         Vec3 spawn = resolveReleasePoint(level, pos, nose, size);
 
@@ -570,8 +570,21 @@ public class DropBombBlock extends Block implements IWrenchable {
 
         // In Sable this local velocity is composed with the carrier's point velocity,
         // so the bomb keeps the aircraft's speed and adds only the arc on top.
-        DropBombUtil.spawn(size, level, spawn, velocity, noseVec, null);
-        level.playSound(null, pos, SoundEvents.DISPENSER_LAUNCH, SoundSource.BLOCKS, 0.8f, 0.85f);
+        return SableDropCompat.resolveLaunch(level, pos, spawn, velocity, noseVec);
+    }
+
+    protected void launchPrepared(BombSize size, SableDropCompat.LaunchFrame frame) {
+        DropBombUtil.spawn(size, frame, null);
+        frame.level()
+                .playSound(
+                        null,
+                        frame.pos().x,
+                        frame.pos().y,
+                        frame.pos().z,
+                        SoundEvents.DISPENSER_LAUNCH,
+                        SoundSource.BLOCKS,
+                        0.8f,
+                        0.85f);
     }
 
     /**
@@ -682,31 +695,33 @@ public class DropBombBlock extends Block implements IWrenchable {
     }
 
     @Override
-    public void wasExploded(Level level, BlockPos pos, Explosion explosion) {
-        if (!(level instanceof ServerLevel serverLevel)) {
-            return;
-        }
-        // Block#wasExploded is dispatched from Explosion#finalizeExplosion. Warnautics
-        // blasts hold the payload guard for that whole call, so a bomb leaving the rack
-        // no longer detaches and cooks off the rest of the bay.
-        if (!BombSympatheticDetonation.allowsCookoffFrom(explosion)) {
-            return;
-        }
-        BombSympatheticDetonation.scheduleDetachedBombCookoff(serverLevel, pos, this.size, 28, 92);
+    public int chargeCount(BlockState state) {
+        return this.allowsCassette() ? clampCassette(state.getValue(CASSETTE)) : 1;
+    }
+
+    @Override
+    public void detonateCharge(ServerLevel level, Vec3 worldCenter, BlockState state) {
+        DropBombUtil.detonateAsReleasedProjectile(this.size, level, worldCenter);
     }
 
     /**
      * Instant cook-off while still placed (Sable ship impact / hard world slam).
-     * Explosion is spawned in parent-world space (CBC shell pattern) so Sable Destructive
-     * can damage the ship without plot-storage vaporize racing heat-map assembly.
+     * Capture the world position before removing the last block of a physics body.
      */
     public static void detonateInPlace(ServerLevel level, BlockPos pos, BlockState state) {
-        if (!(state.getBlock() instanceof DropBombBlock bomb)) {
+        BlockState current = level.getBlockState(pos);
+        if (!(current.getBlock() instanceof DropBombBlock bomb) || !current.is(state.getBlock())) {
             return;
         }
-        BombSize size = bomb.getBombSize();
-        BlockPos anchor = bomb.detonationAnchor(level, pos, state);
-        detonateDetached(level, anchor, size);
+        BlockPos center = bomb.explosionAnchor(current, pos);
+        var target = SableDropCompat.resolveWorldBlastChecked(level, center.getCenter());
+        bomb.detonationAnchor(level, pos, current);
+        BombSympatheticDetonation.scheduleDestroyedCharges(
+                target.level(),
+                target.pos(),
+                bomb.chargeCount(current) - 1,
+                () -> bomb.detonateCharge(target.level(), target.pos(), current));
+        bomb.detonateCharge(target.level(), target.pos(), current);
     }
 
     protected BlockPos detonationAnchor(ServerLevel level, BlockPos pos, BlockState state) {

@@ -3,10 +3,12 @@ package com.cbc_more_content.client;
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.block.CruiseMissileBlock;
 import com.cbc_more_content.block.CruiseMissileBlockEntity;
+import com.cbc_more_content.compat.MissileDesignatorTargeting;
 import com.cbc_more_content.compat.SableTrackCompat;
 import com.cbc_more_content.item.TargetDesignatorItem;
 import com.cbc_more_content.network.MissileFirePayload;
 import com.cbc_more_content.registry.ModSounds;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.ArrayList;
@@ -18,7 +20,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
@@ -34,7 +35,9 @@ import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.lwjgl.opengl.GL11;
 
 /**
  * The designator, as a remote for a missile already set to remote guidance.
@@ -49,7 +52,7 @@ public final class TargetLockClient {
     /** How long the operator has to hold the aim before the lock takes. */
     private static final int LOCK_TICKS = 40;
     /** Beyond this a hull is too far to designate. */
-    private static final double MAX_RANGE = 220.0D;
+    private static final double MAX_RANGE = MissileDesignatorTargeting.MAX_RANGE;
     /** Marker size on screen, as a share of the distance to it. */
     private static final double MARKER_SCALE = 0.03D;
 
@@ -73,7 +76,9 @@ public final class TargetLockClient {
     @Nullable
     private static BlockPos boundMissile(LocalPlayer player) {
         ItemStack stack = player.getMainHandItem();
-        return stack.getItem() instanceof TargetDesignatorItem ? TargetDesignatorItem.boundMissile(stack) : null;
+        return stack.getItem() instanceof TargetDesignatorItem
+                ? TargetDesignatorItem.resolveBoundMissile(player.level(), stack)
+                : null;
     }
 
     /** The designator is not a pickaxe, and attack is the trigger. */
@@ -130,10 +135,17 @@ public final class TargetLockClient {
         }
 
         // Sampled once a tick, because that is what the speeds are differenced against.
-        tracks = SableTrackCompat.sampleMoving(mc.level);
+        tracks = SableTrackCompat.sampleMoving(mc.level).stream()
+                .filter(track -> MissileDesignatorTargeting.canControl(player, missile)
+                        && MissileDesignatorTargeting.canTarget(player, missile, track.id(), track.centre()))
+                .toList();
 
         SableTrackCompat.Track underCrosshair = aimedTrack(player);
-        aimed = underCrosshair == null ? null : underCrosshair.id();
+        UUID nextAim = underCrosshair == null ? null : underCrosshair.id();
+        if (!java.util.Objects.equals(aimed, nextAim)) {
+            progress = 0;
+        }
+        aimed = nextAim;
 
         // A hull that stops or unloads is no longer a target.
         if (locked != null && findTrack(locked) == null) {
@@ -205,7 +217,7 @@ public final class TargetLockClient {
 
     @SubscribeEvent
     public static void onRenderLevel(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES || tracks.isEmpty()) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_LEVEL || tracks.isEmpty()) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
@@ -219,12 +231,37 @@ public final class TargetLockClient {
         Vec3 right = new Vec3(-left.x(), -left.y(), -left.z());
         Vec3 up = new Vec3(upVec.x(), upVec.y(), upVec.z());
 
-        PoseStack pose = event.getPoseStack();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        VertexConsumer lines = buffers.getBuffer(RenderType.lines());
         float time = mc.player.tickCount + event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        renderMarkers(event.getModelViewMatrix(), camera, right, up, time);
+    }
 
-        pose.pushPose();
+    private static void renderMarkers(Matrix4f view, Vec3 camera, Vec3 right, Vec3 up, float time) {
+        // AFTER_LEVEL runs after LevelRenderer has popped the camera rotation from RenderSystem.
+        // Its event PoseStack is empty; restore the supplied view for this draw and then restore GL state.
+        var modelView = RenderSystem.getModelViewStack();
+        modelView.pushMatrix();
+        modelView.mul(view);
+        RenderSystem.applyModelViewMatrix();
+        // NO_DEPTH_TEST is a no-op in this Minecraft version, so it does not disable inherited depth testing.
+        boolean depthTest = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
+        RenderSystem.disableDepthTest();
+        try {
+            drawMarkers(camera, right, up, time);
+        } finally {
+            if (depthTest) {
+                RenderSystem.enableDepthTest();
+            }
+            modelView.popMatrix();
+            RenderSystem.applyModelViewMatrix();
+        }
+    }
+
+    private static void drawMarkers(Vec3 camera, Vec3 right, Vec3 up, float time) {
+        Minecraft mc = Minecraft.getInstance();
+        PoseStack pose = new PoseStack();
+        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+        VertexConsumer lines = buffers.getBuffer(TargetMarkerRenderType.LINES);
+
         pose.translate(-camera.x, -camera.y, -camera.z);
 
         for (SableTrackCompat.Track track : tracks) {
@@ -282,8 +319,7 @@ public final class TargetLockClient {
             }
         }
 
-        buffers.endBatch(RenderType.lines());
-        pose.popPose();
+        buffers.endBatch(TargetMarkerRenderType.LINES);
     }
 
     /** A camera-facing square outline, so the marker reads the same from any angle. */
@@ -359,6 +395,13 @@ public final class TargetLockClient {
                     mc.font, Component.translatable("gui.cbc_more_content.designator.locked"), x, y, 0xFFFF5A46);
             return;
         }
+        graphics.drawCenteredString(
+                mc.font,
+                Component.translatable("gui.cbc_more_content.designator.minimum_range", (int)
+                        MissileDesignatorTargeting.MIN_TARGET_RANGE),
+                x,
+                y + 12,
+                0xFFAAA79C);
         if (progress > 0) {
             int percent = Math.min(99, progress * 100 / LOCK_TICKS);
             graphics.drawCenteredString(

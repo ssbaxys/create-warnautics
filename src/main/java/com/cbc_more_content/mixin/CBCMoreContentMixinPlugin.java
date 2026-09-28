@@ -11,6 +11,7 @@ import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 public class CBCMoreContentMixinPlugin implements IMixinConfigPlugin {
     private static final boolean SABLE_LOADED = LoadingModList.get().getModFileById("sable") != null;
     private static final boolean OFFROAD_LOADED = LoadingModList.get().getModFileById("offroad") != null;
+    private static final boolean SIMULATED_LOADED = LoadingModList.get().getModFileById("simulated") != null;
     private static final boolean SODIUM_LOADED = LoadingModList.get().getModFileById("sodium") != null;
 
     @Override
@@ -28,6 +29,9 @@ public class CBCMoreContentMixinPlugin implements IMixinConfigPlugin {
         }
         if (mixinClassName.contains(".compat.offroad.")) {
             return OFFROAD_LOADED;
+        }
+        if (mixinClassName.contains(".compat.simulated.")) {
+            return SIMULATED_LOADED;
         }
         if (mixinClassName.contains(".compat.sodium.")) {
             return SODIUM_LOADED;

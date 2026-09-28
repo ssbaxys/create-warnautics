@@ -18,7 +18,11 @@ Bombs are activated with a redstone pulse, at which point they fall and explode 
 Small bombs can be combined into bundles containing 2, 3, or 4 bombs.
 
  - Right-click a placed small bomb with more small bombs to assemble a bundle in survival.
- - While powered, a bundle releases one bomb every 1.3 seconds.
+- While powered, a bundle releases one bomb at a time. Set the interval to 6–100 game ticks with the settings key; it applies to the connected rack.
+
+## In-game guides
+
+All 25 items have their own Create-style Shift/Ctrl description and an animated Ponder guide. Hover over an item and hold the Ponder key to open its lesson. The guides are available in English and Russian, including instructions for racks, sea mines, chains, the cruise missile and the AIM-9 airframe. AIM-9 is placeable but does not fly yet.
 
 ## Land mines
 
@@ -45,7 +49,7 @@ Server config, writes to `serverconfig/cbc_more_content-server.toml` upon first 
 
 | Option | Default | Effect |
 |--------|---------|--------|
-| `detonation.friendlyChainDetonation` | `false` | Let Warnautics blasts cook off other Warnautics bombs. Off means tightly packed bomb bays are safe. |
+| `detonation.friendlyChainDetonation` | `false` | Let Warnautics blasts ignite other **airborne** Warnautics bombs. Explosive blocks destroyed by a blast always chain-detonate. |
 | `detonation.externalChainDetonation` | `true` | Let TNT, shells, fire and lava cook off placed bombs. |
 | `performance.maxBlocksPerDetonation` | `2600` | Ceiling on blocks changed by one detonation. The main lever against carpet-bombing stalls. |
 | `performance.blastFxScale` | `1.0` | Multiplier on blast particles and flash packets sent to clients. |

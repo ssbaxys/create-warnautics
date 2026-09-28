@@ -1,0 +1,327 @@
+[
+  {
+    "id": "small_bomb",
+    "category": "bombs",
+    "title": "Small bomb: mounting and release",
+    "steps": [
+      "Mount the bomb under a support: its nose follows the face you click.",
+      "A Create wrench rotates the charge. Leave an open drop corridor beneath it.",
+      "Power the mount to release the bomb. It separates and falls under gravity.",
+      "Impact detonates the charge. The centre takes the most damage; the rim is weaker.",
+      "Right-click a placed small bomb with more small bombs to build a bundle of up to four.",
+      "An explosion that destroys a stored charge can start a chain reaction. Separate storage from the release path."
+    ]
+  },
+  {
+    "id": "small_bomb_2",
+    "category": "bombs",
+    "title": "Pair: 2 separate releases",
+    "steps": [
+      "This bundle holds exactly 2 small bombs in one mount.",
+      "Use the settings key on the mounted bundle to choose the spacing between releases.",
+      "The interval is 6–100 game ticks: 0.3–5 seconds at 20 TPS. It applies to the connected rack.",
+      "Keep power on: watch the bundle shrink after each of its 2 separate releases.",
+      "Remove power to pause before the next release. Restore it to use the remaining charges.",
+      "If another explosion destroys this bundle, it creates 2 delayed detonations. The release dial controls dropping, not this chain reaction."
+    ]
+  },
+  {
+    "id": "small_bomb_3",
+    "category": "bombs",
+    "title": "Triple: 3 separate releases",
+    "steps": [
+      "This bundle holds exactly 3 small bombs in one mount.",
+      "Use the settings key on the mounted bundle to choose the spacing between releases.",
+      "The interval is 6–100 game ticks: 0.3–5 seconds at 20 TPS. It applies to the connected rack.",
+      "Keep power on: watch the bundle shrink after each of its 3 separate releases.",
+      "Remove power to pause before the next release. Restore it to use the remaining charges.",
+      "If another explosion destroys this bundle, it creates 3 delayed detonations. The release dial controls dropping, not this chain reaction."
+    ]
+  },
+  {
+    "id": "small_bomb_4",
+    "category": "bombs",
+    "title": "Quadruple: 4 separate releases",
+    "steps": [
+      "This bundle holds exactly 4 small bombs in one mount.",
+      "Use the settings key on the mounted bundle to choose the spacing between releases.",
+      "The interval is 6–100 game ticks: 0.3–5 seconds at 20 TPS. It applies to the connected rack.",
+      "Keep power on: watch the bundle shrink after each of its 4 separate releases.",
+      "Remove power to pause before the next release. Restore it to use the remaining charges.",
+      "If another explosion destroys this bundle, it creates 4 delayed detonations. The release dial controls dropping, not this chain reaction."
+    ]
+  },
+  {
+    "id": "medium_bomb",
+    "category": "bombs",
+    "title": "Medium bomb: a wider impact",
+    "steps": [
+      "Install the medium bomb under a support, with room for the whole model and a clear drop path.",
+      "This is a single charge. Adding small bombs does not turn it into a cassette.",
+      "Supply redstone power to release it. The carrier keeps moving while the bomb falls.",
+      "Its broader blast damages terrain and physical ships caught within reach.",
+      "Damage weakens away from the centre. Surviving ground around the crater becomes disturbed soil.",
+      "Leave space between stored charges: a destroyed explosive can detonate in turn."
+    ]
+  },
+  {
+    "id": "large_bomb",
+    "category": "bombs",
+    "title": "Large bomb: release and blast footprint",
+    "steps": [
+      "The large bomb needs an unobstructed mount. Aim its nose into the release corridor.",
+      "Use a wrench before launch to correct the orientation; sneak with the wrench to recover it.",
+      "Power releases one heavy charge. It is still a gravity bomb, not a guided missile.",
+      "The strongest destruction is near impact. The outer region is less destructive, with a disturbed soil border.",
+      "A physical hull can lose blocks and receive an impulse. A massive hull moves less than a light one.",
+      "Nearby explosive blocks can continue the blast as a chain reaction. Give the release area extra clearance."
+    ]
+  },
+  {
+    "id": "moab",
+    "category": "bombs",
+    "title": "MOAB: three-part mount and broad crater",
+    "steps": [
+      "Clear three cells in a straight line for the nose, body and tail. The highlighted outline is the placement envelope.",
+      "Click the mounting face to point the nose outward. Sneaking uses your horizontal facing instead.",
+      "Use a wrench to rotate the complete bomb. All three destination cells must remain clear.",
+      "Redstone releases the entire MOAB as one charge; the tail is not a separate bomb.",
+      "The blast opens a broad, rounded crater with a deeper centre and a weaker outer rim. This scene is a reduced-scale illustration.",
+      "Physical ships within the blast can break and be pushed. Keep launch paths and ammunition storage apart."
+    ]
+  },
+  {
+    "id": "sea_bomb",
+    "category": "naval",
+    "title": "Sea torpedo: water, air and re-entry",
+    "steps": [
+      "Install the torpedo in water with its nose aimed into an open channel. It can launch from a physical ship.",
+      "Redstone releases it from the mount. Leave enough space to clear the carrier's hull.",
+      "In water it travels forward. The blue section shows its underwater route.",
+      "After leaving water, gravity bends the trajectory downward. It cannot keep cruising through the air.",
+      "Re-entering water restores its water-running movement. A gap between pools does not freeze it in mid-air.",
+      "Impact detonates the torpedo against terrain or a hull. Water spray appears only when water is at or near the blast."
+    ]
+  },
+  {
+    "id": "small_mine",
+    "category": "mines",
+    "title": "Small mine: contact and concealment",
+    "steps": [
+      "Place the small mine on solid, dry support. It can also be hidden on a bed.",
+      "There is a 20-tick arming delay: one second at normal tick rate. Step away promptly.",
+      "Use a shovel over soil, sand or other shovel-diggable ground to lower the mine into it.",
+      "Repeated clicks bury it further, up to eight steps. Sneak with the shovel to uncover it.",
+      "A living creature stepping on the armed mine triggers a ground-level explosion.",
+      "Burial conceals the model; it does not make the mine safe to walk over."
+    ]
+  },
+  {
+    "id": "bounding_mine",
+    "category": "mines",
+    "title": "Bounding mine: proximity and airburst",
+    "steps": [
+      "Set the bounding mine on a dry support and leave during its 20-tick arming delay.",
+      "A shovel can hide it in suitable ground. Stone and planks cannot be dug into.",
+      "Its trigger reaches half a block beyond its cell. A nearby creature can trigger it without stepping on the centre.",
+      "The triggered charge leaves the ground and rises before it bursts.",
+      "The burst happens above the surface. Its main threat is to nearby creatures, including those behind low cover.",
+      "This differs from a heavy ground-blasting mine: do not judge its effect by crater size alone."
+    ]
+  },
+  {
+    "id": "large_mine",
+    "category": "mines",
+    "title": "Antivehicle mine: hulls and wheels",
+    "steps": [
+      "Place the antivehicle mine on the route of a physical hull or supported vehicle wheel.",
+      "It arms after 20 ticks. Its broad disc covers the cell so wheel contact can reach it.",
+      "Use a shovel to conceal the disc in diggable ground; uncover it with sneak-clicks.",
+      "Unlike the small mine, an ordinary living creature walking over it is not the vehicle trigger.",
+      "Contact from a Sable hull or a supported Offroad wheel triggers the charge.",
+      "The hull may lose blocks and receive an impulse. Greater mass reduces its movement from the same blast."
+    ]
+  },
+  {
+    "id": "sea_mine",
+    "category": "naval",
+    "title": "Sea mine: buoyancy and corrosion",
+    "steps": [
+      "Place the mine in water. It assembles into its own floating physical body.",
+      "A hull, swimmer or boat contacting the active mine can trigger its charge.",
+      "Water exposure advances corrosion: 0, 1, 2, 3. These are four total states, including the new mine.",
+      "Each stage needs 36,000 wet game ticks: 30 minutes at 20 TPS. Dry time does not advance corrosion.",
+      "The contact misfire chance rises from 0% to 15%, 35% and 65%. A dull knock is a misfire, not a successful explosion.",
+      "A rusty mine is still dangerous: a later contact may work. Underwater detonation damages nearby hulls and produces water effects."
+    ]
+  },
+  {
+    "id": "cruise_missile",
+    "category": "guidance",
+    "title": "Cruise missile: setup before launch",
+    "steps": [
+      "Leave three clear cells for the missile and an open path beyond its nose.",
+      "Right-click with the settings key. Select a guidance mode before supplying launch power.",
+      "For a fixed point, save its coordinates and launch with redstone. For a moving ship, choose remote mode.",
+      "In remote mode, pair the designator with this missile, hold use to acquire the marked hull, then press attack.",
+      "Designated targets must be at least 50 blocks from the launcher. The operator's own hull does not block aiming.",
+      "The impact blast resembles a weaker MOAB. Intercept mode instead needs a compatible Create Radar setup and a bound controller."
+    ]
+  },
+  {
+    "id": "target_designator",
+    "category": "guidance",
+    "title": "Target designator: bind, lock, fire",
+    "steps": [
+      "First use the settings key to put a cruise missile into remote guidance mode.",
+      "Right-click the missile with the designator. The tool now identifies that particular launcher.",
+      "Moving physical hulls receive markers. The target must be at least 50 blocks from the launcher; the designator range is 220 blocks.",
+      "Keep the marker under the crosshair and hold use for 40 ticks. Changing targets restarts acquisition.",
+      "After confirmation, press attack once to launch. Binding alone does not fire the missile.",
+      "Your own hull is ignored by aiming. Terrain and other hulls still obstruct it; a stopped or unloaded target loses its lock."
+    ]
+  },
+  {
+    "id": "aim9",
+    "category": "guidance",
+    "title": "AIM-9: placing the airframe",
+    "steps": [
+      "The AIM-9 airframe occupies three cells: nose, body and tail. Clear this space before placing it.",
+      "The clicked face sets the nose direction. Hold sneak for horizontal placement along your facing.",
+      "Its placement can shift the centre to fit beside a floor or wall, but all three cells must be free.",
+      "A Create wrench turns the whole airframe when the destination is clear.",
+      "Sneak with the wrench to pick it up. Breaking one segment removes the complete airframe, not three separate items.",
+      "This version is a placeable airframe: redstone, the designator and radar do not give it flight or a working warhead."
+    ]
+  },
+  {
+    "id": "c4",
+    "category": "tools",
+    "title": "C4: attach, configure and arm",
+    "steps": [
+      "Use C4 to throw it a short distance. It sticks where it lands, including walls and ceilings.",
+      "Open the attached charge with the settings key. Choose a four-digit code you will remember.",
+      "Timer mode allows 5–45 seconds. Confirming the arming panel starts the countdown.",
+      "Remote mode arms the receiver without a countdown. Pair that waiting charge with a detonator.",
+      "To disarm, reopen with the settings key and enter the same code. Wire cutters offer a separate, uncertain wire puzzle.",
+      "Breaking an armed charge is not a safe substitute for disarming it. Deal with its fuse first."
+    ]
+  },
+  {
+    "id": "detonator",
+    "category": "tools",
+    "title": "Detonator: build and fire a charge group",
+    "steps": [
+      "Prepare C4 in remote mode with the settings key. A timed or idle charge cannot be paired this way.",
+      "Right-click the waiting charge with the detonator. Repeat on other charges to add up to twelve.",
+      "The tooltip lists paired positions. Sneak-click one charge to remove only that pairing.",
+      "Use the detonator in the air to fire the group. Charges must be loaded and within 250 blocks.",
+      "Out-of-range charges stay on the list. Move within range instead of assuming every charge has fired.",
+      "Sneak-use clears the group unless you are wearing a bomb vest: then it toggles the vest link instead."
+    ]
+  },
+  {
+    "id": "bomb_vest",
+    "category": "tools",
+    "title": "Bomb vest: equipment and remote link",
+    "steps": [
+      "Equip the bomb vest in the chest slot. Holding it in the inventory is not the same as wearing it.",
+      "With the vest on, sneak and use a detonator in the air to create the link.",
+      "The item status and periodic ticking indicate the link. Check that status before relying on the control.",
+      "Using the linked detonator normally activates the vest on its wearer.",
+      "Sneak-use the detonator again while wearing the vest to unlink it.",
+      "Removing the vest prevents that worn-vest activation. Equipping it does not turn it into a thrown C4 charge."
+    ]
+  },
+  {
+    "id": "wire_cutters",
+    "category": "tools",
+    "title": "Wire cutters: cut or disarm",
+    "steps": [
+      "For a tripwire, right-click either anchor block with the cutters.",
+      "The wire is removed without the crossing signal. The spent wire does not return a coil.",
+      "For C4, use the cutters on an armed charge to open its wire panel.",
+      "The three wire roles are randomized when armed: defuse, immediate detonation, or a shorter remaining fuse.",
+      "Colours are not a reusable solution. Closing and reopening the panel does not reset cuts or reroll this charge.",
+      "If you know the arming code, the settings key provides the direct code-based disarming route."
+    ]
+  },
+  {
+    "id": "tripwire_coil",
+    "category": "tools",
+    "title": "Tripwire: two anchors and one crossing",
+    "steps": [
+      "Choose two solid, dry anchor blocks. Fluids and replaceable blocks cannot hold this wire.",
+      "Right-click the first anchor with the coil, then the second. The direct distance must not exceed eight blocks.",
+      "The line follows its anchors on Sable sublevels too. Each anchor can carry only one tripwire.",
+      "Crossing the line parts it and sends a pulse to both anchors. Merely touching and backing away is different from crossing.",
+      "Connect a redstone-controlled device near an anchor. The wire itself contains no explosive charge.",
+      "The wire is spent after triggering. Cutters remove it without the crossing pulse; sneak-use cancels a first-end selection."
+    ]
+  },
+  {
+    "id": "chain_coil",
+    "category": "naval",
+    "title": "Chain coil: connect a physical load",
+    "steps": [
+      "Place two compatible connection points: chain connectors, native rope connectors, or one winch and a connector.",
+      "Click the first endpoint with the chain coil. Move to the second while checking the preview.",
+      "Click the second endpoint to complete the chain. One coil is consumed for a valid connection.",
+      "The link uses Simulated's rope constraints: a physical load can move until the connection becomes taut.",
+      "A winch can operate the connection using its normal controls. Two winches cannot be linked directly to each other.",
+      "Sneak-click a block to cancel an unfinished endpoint selection. The ordinary rope item remains a separate item."
+    ]
+  },
+  {
+    "id": "chain_connector",
+    "category": "naval",
+    "title": "Chain connector: mounting and water",
+    "steps": [
+      "Mount the connector on the body you want to attach. The socket is an endpoint, not a chain by itself.",
+      "Use the Warnautics chain coil to select this socket, then choose a compatible second endpoint.",
+      "This socket accepts the chain coil only. A native rope coil is rejected here.",
+      "On a physical body, the attachment travels with that body while the connection limits its separation.",
+      "Place the socket underwater: water fills the block around the model, rather than leaving a dry cube.",
+      "Choose a winch as the other endpoint when adjustable length is needed. Its normal Simulated controls still apply."
+    ]
+  },
+  {
+    "id": "siren",
+    "category": "tools",
+    "title": "Siren: drive, signal and detection",
+    "steps": [
+      "Place the siren above a vertical shaft. Its mechanical input is underneath the stand.",
+      "Supply rotation. Volume rises with speed and reaches full strength at 64 RPM; a stalled rotor is silent.",
+      "A redstone signal requests sound while held. Without mechanical drive, that signal alone produces no voice.",
+      "Use the settings key to enable automatic detection and choose missiles, bombs, or both.",
+      "Detection radius is adjustable from 16 to 256 blocks. Linger keeps a detected-threat alarm sounding after the sighting.",
+      "On a moving ship, sound follows the siren. If it is quiet, check shaft speed, network stress and the alarm settings."
+    ]
+  },
+  {
+    "id": "settings_key",
+    "category": "tools",
+    "title": "Settings key: one tool, different panels",
+    "steps": [
+      "Right-click a small-bomb rack to open its release dial. The interval applies to the connected rack, not just the clicked bundle.",
+      "On a cruise missile, the same key opens target coordinates and guidance modes.",
+      "On a siren, configure detection radius, threat filters and alarm linger.",
+      "On C4, set an arming code and fuse mode; on active C4, enter its code to disarm.",
+      "With compatible Create Radar installed, click a radar device and then an intercept-mode missile to bind them.",
+      "While bound to a radar, the key has a different job. Sneak-use in the air returns it to ordinary settings; sneak-click a radar opens its intercept conditions."
+    ]
+  },
+  {
+    "id": "music_disc_breaker_of_skies",
+    "category": "tools",
+    "title": "Breaker of Skies: playing the record",
+    "steps": [
+      "Place a jukebox where you want the music to play. This disc uses the normal record system.",
+      "Use Breaker of Skies on the empty jukebox to insert it.",
+      "The jukebox plays the track. Adjust the Jukebox/Note Blocks volume if the music is quiet.",
+      "A comparator can read the occupied jukebox, following normal Minecraft jukebox behaviour.",
+      "Use the jukebox again to eject the disc and stop playback. The record can be used again.",
+      "This is a record, not a siren mode: automatic threat warnings use the separate kinetic siren."
+    ]
+  }
+]

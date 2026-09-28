@@ -6,7 +6,11 @@ import com.cbc_more_content.munitions.SeaBombProjectile;
 import com.cbc_more_content.network.SirenWailPayload;
 import com.cbc_more_content.siren.BlastLog;
 import com.cbc_more_content.siren.SirenSettings;
+import com.cbc_more_content.siren.SirenSource;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -88,6 +92,9 @@ public class SirenBlockEntity extends KineticBlockEntity {
     /** Loudness last sent out, so a drifting speed does not spam every listener. */
     private float announcedVoice = -1.0f;
 
+    private final Set<UUID> listeners = new HashSet<>();
+    private SirenSource announcedSource;
+
     public SirenBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
     }
@@ -166,7 +173,6 @@ public class SirenBlockEntity extends KineticBlockEntity {
             this.lingerTicks = wanted;
             this.setChanged();
         }
-        this.refresh();
     }
 
     @Override
@@ -216,6 +222,8 @@ public class SirenBlockEntity extends KineticBlockEntity {
         if (wailing && !was) {
             this.keepalive = KEEPALIVE_TICKS;
             this.announce();
+        } else if (!wailing && this.announcedSource != null) {
+            this.stopAnnouncing();
         }
     }
 
@@ -234,21 +242,46 @@ public class SirenBlockEntity extends KineticBlockEntity {
         int remaining = Math.max(this.lingerTicks, this.held ? HELD_GRACE : 0);
         float voice = this.voice();
         this.announcedVoice = voice;
-        var payload = new SirenWailPayload(this.worldPosition, remaining, voice);
-        double reachSqr = AUDIBLE * AUDIBLE;
-        double x = this.worldPosition.getX() + 0.5D;
-        double y = this.worldPosition.getY() + 0.5D;
-        double z = this.worldPosition.getZ() + 0.5D;
+        this.announcedSource = SirenSource.capture(server, this.worldPosition);
+        var payload = new SirenWailPayload(this.announcedSource, remaining, voice);
+        var stop = new SirenWailPayload(this.announcedSource, 0, 0);
+        Set<UUID> nextListeners = new HashSet<>();
         for (ServerPlayer player : server.players()) {
-            if (player.distanceToSqr(x, y, z) <= reachSqr) {
+            if (player.distanceToSqr(this.announcedSource.worldPosition()) <= AUDIBLE * AUDIBLE) {
                 PacketDistributor.sendToPlayer(player, payload);
+                nextListeners.add(player.getUUID());
+            } else if (this.listeners.contains(player.getUUID())) {
+                PacketDistributor.sendToPlayer(player, stop);
             }
         }
+        this.listeners.clear();
+        this.listeners.addAll(nextListeners);
+    }
+
+    private void stopAnnouncing() {
+        if (this.level instanceof ServerLevel server && this.announcedSource != null) {
+            var stop = new SirenWailPayload(this.announcedSource, 0, 0);
+            for (ServerPlayer player : server.players()) {
+                if (this.listeners.contains(player.getUUID())) {
+                    PacketDistributor.sendToPlayer(player, stop);
+                }
+            }
+        }
+        this.listeners.clear();
+        this.announcedSource = null;
+        this.announcedVoice = -1;
+        this.keepalive = 0;
+    }
+
+    @Override
+    public void invalidate() {
+        this.stopAnnouncing();
+        super.invalidate();
     }
 
     /** Anything inbound, falling or already going off worth shouting about. */
     private boolean threatNearby(ServerLevel level, BlockPos pos) {
-        Vec3 here = Vec3.atCenterOf(pos);
+        Vec3 here = SirenSource.capture(level, pos).worldPosition();
         double radius = this.settings.radius();
         AABB watched = new AABB(here, here).inflate(radius);
         double radiusSqr = radius * radius;
@@ -345,7 +378,7 @@ public class SirenBlockEntity extends KineticBlockEntity {
     protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
         super.read(tag, registries, clientPacket);
         this.settings = SirenSettings.load(tag.getCompound("Settings"));
-        this.lingerTicks = tag.getInt("Linger");
+        this.lingerTicks = Mth.clamp(tag.getInt("Linger"), 0, SirenSettings.LINGER_CEILING * 20);
     }
 
     @Override

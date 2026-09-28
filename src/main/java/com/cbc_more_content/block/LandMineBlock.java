@@ -3,7 +3,6 @@ package com.cbc_more_content.block;
 import com.cbc_more_content.compat.SableDropCompat;
 import com.cbc_more_content.damage.MineDamageSource;
 import com.cbc_more_content.effects.BombExplosionHandler;
-import com.cbc_more_content.effects.BombSympatheticDetonation;
 import com.cbc_more_content.effects.MineExplosionHandler;
 import com.cbc_more_content.entity.BoundingMineEntity;
 import com.cbc_more_content.mine.MineType;
@@ -37,7 +36,6 @@ import net.minecraft.world.item.ShovelItem;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
@@ -63,7 +61,7 @@ import net.neoforged.neoforge.event.level.BlockEvent;
  * Flat land mine. Arms after a short delay so the placer is safe.
  * Small = infantry {@link #stepOn}; large = Sable / Offroad wheel (via callbacks).
  */
-public class LandMineBlock extends Block implements IWrenchable {
+public class LandMineBlock extends Block implements IWrenchable, ChainExplosiveBlock {
     public static final BooleanProperty ARMED = BooleanProperty.create("armed");
     /** How far the mine has been dug in: 0 sitting proud, {@link #MAX_BURIAL} flush. */
     public static final IntegerProperty BURIAL = IntegerProperty.create("burial", 0, 8);
@@ -157,7 +155,10 @@ public class LandMineBlock extends Block implements IWrenchable {
             BlockPos pos,
             BlockPos neighborPos) {
         if (direction == Direction.DOWN && !state.canSurvive(level, pos)) {
-            return Blocks.AIR.defaultBlockState();
+            // Let an explosion finish its affected-block callbacks before loss of
+            // support turns the mine into an item. Otherwise shuffle order decides
+            // whether the mine detonates or disappears when the floor is hit first.
+            level.scheduleTick(pos, this, 1);
         }
         return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
     }
@@ -171,6 +172,10 @@ public class LandMineBlock extends Block implements IWrenchable {
 
     @Override
     protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+        if (!state.canSurvive(level, pos)) {
+            level.destroyBlock(pos, true);
+            return;
+        }
         if (!state.getValue(ARMED)) {
             level.setBlock(pos, state.setValue(ARMED, true), Block.UPDATE_CLIENTS);
             level.playSound(null, pos, SoundEvents.STONE_BUTTON_CLICK_ON, SoundSource.BLOCKS, 0.35f, 0.6f);
@@ -511,16 +516,18 @@ public class LandMineBlock extends Block implements IWrenchable {
         if (!level.isLoaded(pos) || level.getBlockState(pos).getBlock() != this) {
             return;
         }
-        level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-
         var thrown = BoundingMineEntity.pop(level, Vec3.atBottomCenterOf(pos).add(0.0D, 0.15D, 0.0D));
+        var launch = SableDropCompat.resolveLaunch(level, thrown.position(), thrown.getDeltaMovement(), null);
+        thrown.setPos(launch.pos());
+        thrown.setDeltaMovement(launch.vel());
+        level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
         level.addFreshEntity(thrown);
         thrown.playPop();
         level.sendParticles(
                 ParticleTypes.LARGE_SMOKE,
-                pos.getX() + 0.5D,
-                pos.getY() + 0.1D,
-                pos.getZ() + 0.5D,
+                launch.pos().x,
+                launch.pos().y,
+                launch.pos().z,
                 8,
                 0.18D,
                 0.02D,
@@ -536,27 +543,14 @@ public class LandMineBlock extends Block implements IWrenchable {
         if (!level.isLoaded(pos) || level.getBlockState(pos).getBlock() != mine) {
             return;
         }
-        MineType type = mine.type;
-        level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
-
         Vec3 local = Vec3.atCenterOf(pos);
         var target = SableDropCompat.resolveWorldBlastChecked(level, local);
+        level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL);
         ServerLevel blastLevel = target.level();
         Vec3 blastPos = target.pos();
         // Mines report their own death cause, so "blown up by a bomb" no longer shows
         // for someone who stepped on an antipersonnel charge.
-        if (type == MineType.SMALL || type == MineType.BOUNDING) {
-            MineExplosionHandler.detonateSmallShrapnel(
-                    blastLevel, null, MineDamageSource.create(blastLevel, type), blastPos, type.entityBlastPower);
-        } else {
-            BombExplosionHandler.detonateAntiTankMine(
-                    blastLevel,
-                    null,
-                    MineDamageSource.create(blastLevel, type),
-                    blastPos,
-                    type.blockBlastPower,
-                    type.entityBlastPower);
-        }
+        mine.detonateCharge(blastLevel, blastPos, state);
     }
 
     @Override
@@ -590,9 +584,18 @@ public class LandMineBlock extends Block implements IWrenchable {
     }
 
     @Override
-    public void wasExploded(Level level, BlockPos pos, Explosion explosion) {
-        if (level instanceof ServerLevel serverLevel && BombSympatheticDetonation.allowsCookoffFrom(explosion)) {
-            detonate(serverLevel, pos, level.getBlockState(pos));
+    public void detonateCharge(ServerLevel level, Vec3 worldCenter, BlockState state) {
+        if (this.type == MineType.SMALL || this.type == MineType.BOUNDING) {
+            MineExplosionHandler.detonateSmallShrapnel(
+                    level, null, MineDamageSource.create(level, this.type), worldCenter, this.type.entityBlastPower);
+        } else {
+            BombExplosionHandler.detonateAntiTankMine(
+                    level,
+                    null,
+                    MineDamageSource.create(level, this.type),
+                    worldCenter,
+                    this.type.blockBlastPower,
+                    this.type.entityBlastPower);
         }
     }
 

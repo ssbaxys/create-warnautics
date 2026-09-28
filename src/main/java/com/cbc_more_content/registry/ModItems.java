@@ -18,6 +18,9 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 public final class ModItems {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(CBCMoreContent.MOD_ID);
 
+    public static final DeferredItem<BlockItem> CHAIN_CONNECTOR = ITEMS.register(
+            "chain_connector", () -> new BlockItem(ModBlocks.CHAIN_CONNECTOR.get(), new Item.Properties()));
+
     /**
      * Creative / Simulated aliases first — {@link Block#asItem()} must resolve to
      * {@link #SMALL_BOMB}, so the base bomb is registered last among this group.
@@ -55,12 +58,20 @@ public final class ModItems {
     public static final DeferredItem<BlockItem> LARGE_MINE = ITEMS.register(
             "large_mine", () -> new BlockItem(ModBlocks.LARGE_MINE.get(), new Item.Properties().stacksTo(16)));
 
+    public static final DeferredItem<BlockItem> SEA_MINE = ITEMS.register(
+            "sea_mine",
+            () -> new com.cbc_more_content.item.SeaMineItem(
+                    ModBlocks.SEA_MINE.get(), new Item.Properties().stacksTo(16)));
+
     public static final DeferredItem<BlockItem> SIREN =
             ITEMS.register("siren", () -> new BlockItem(ModBlocks.SIREN.get(), new Item.Properties().stacksTo(16)));
 
     public static final DeferredItem<CruiseMissileItem> CRUISE_MISSILE = ITEMS.register(
             "cruise_missile",
             () -> new CruiseMissileItem(ModBlocks.CRUISE_MISSILE.get(), new Item.Properties().stacksTo(8)));
+
+    public static final DeferredItem<CruiseMissileItem> AIM9 = ITEMS.register(
+            "aim9", () -> new CruiseMissileItem(ModBlocks.AIM9.get(), new Item.Properties().stacksTo(8)));
 
     public static final DeferredItem<Item> MUSIC_DISC_BREAKER_OF_SKIES = ITEMS.register(
             "music_disc_breaker_of_skies",
@@ -98,6 +109,9 @@ public final class ModItems {
 
     public static final DeferredItem<BombSettingsKeyItem> SETTINGS_KEY =
             ITEMS.register("settings_key", () -> new BombSettingsKeyItem(new Item.Properties().stacksTo(1)));
+
+    public static final DeferredItem<com.cbc_more_content.item.ChainCoilItem> CHAIN_COIL = ITEMS.register(
+            "chain_coil", () -> new com.cbc_more_content.item.ChainCoilItem(new Item.Properties().stacksTo(64)));
 
     private ModItems() {}
 }

@@ -1,165 +1,199 @@
 package com.cbc_more_content.entity;
 
 import com.cbc_more_content.registry.ModEntityTypes;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
-/**
- * A chunk thrown clear of a blast, carrying whatever block it broke off.
- * <p>
- * Not a falling block — it never places anything back down. It tumbles, lands, sits for a
- * moment, then shrinks into the ground and is gone, the way a piece of ice does rather
- * than the way a dropped item does.
- */
+/** Cosmetic, bounded wreckage. The server resolves collisions; clients only interpolate. */
 public class BlastDebrisEntity extends Entity {
     private static final EntityDataAccessor<BlockState> BLOCK_STATE =
             SynchedEntityData.defineId(BlastDebrisEntity.class, EntityDataSerializers.BLOCK_STATE);
-    private static final EntityDataAccessor<Boolean> SETTLED =
-            SynchedEntityData.defineId(BlastDebrisEntity.class, EntityDataSerializers.BOOLEAN);
-
-    private static final double GRAVITY = 0.05D;
-    private static final double DRAG = 0.985D;
-    /** One bounce off whatever it lands on, then it stays put. */
-    private static final double BOUNCE = 0.35D;
-    /** Ticks resting before it starts shrinking away, so a bounce is not mistaken for landing. */
-    private static final int SETTLE_TICKS = 5;
-    /** How long the shrink takes once it starts. */
-    public static final int MELT_TICKS = 34;
-
-    private static final int MAX_LIFETIME = 400;
-
-    private boolean bounced;
-    private int settledTicks;
-    private int meltTicks;
+    private static final EntityDataAccessor<Long> REST_TIME =
+            SynchedEntityData.defineId(BlastDebrisEntity.class, EntityDataSerializers.LONG);
+    public static final int HOLD_TICKS = 20;
+    public static final int MELT_TICKS = 44;
+    public static final int MAX_LIFETIME = 180;
+    private int impacts;
+    private int quietTicks;
+    private int lerpSteps;
+    private Vec3 lerpTarget = Vec3.ZERO;
+    private float spinAge;
+    private float previousSpinAge;
+    private Shape shape;
+    private int shapeId = Integer.MIN_VALUE;
 
     public BlastDebrisEntity(EntityType<? extends BlastDebrisEntity> type, Level level) {
         super(type, level);
     }
 
     public static BlastDebrisEntity create(ServerLevel level, BlockState state, Vec3 pos, Vec3 velocity) {
-        BlastDebrisEntity debris = new BlastDebrisEntity(ModEntityTypes.BLAST_DEBRIS.get(), level);
-        debris.setPos(pos.x, pos.y, pos.z);
-        debris.setDeltaMovement(velocity);
+        var debris = new BlastDebrisEntity(ModEntityTypes.BLAST_DEBRIS.get(), level);
         debris.entityData.set(BLOCK_STATE, state);
+        debris.setPos(pos);
+        debris.setDeltaMovement(
+                velocity.lengthSqr() > 3.24 ? velocity.normalize().scale(1.8) : velocity);
         return debris;
     }
 
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(BLOCK_STATE, Blocks.STONE.defaultBlockState());
-        builder.define(SETTLED, false);
+        builder.define(REST_TIME, -1L);
     }
 
     public BlockState blockState() {
-        return this.entityData.get(BLOCK_STATE);
+        return entityData.get(BLOCK_STATE);
     }
 
-    /** Once true the piece has stopped tumbling and is sitting where it landed. */
-    public boolean isSettled() {
-        return this.entityData.get(SETTLED);
-    }
-
-    /** 0 while intact, 1 the tick it finally disappears. */
-    public float meltProgress(float partialTick) {
-        if (!this.isSettled()) {
-            return 0.0f;
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (BLOCK_STATE.equals(key)) {
+            shape = null;
         }
-        float ticks = Math.max(0, this.settledTicks - SETTLE_TICKS) + partialTick;
-        return Mth.clamp(ticks / MELT_TICKS, 0.0f, 1.0f);
     }
 
-    /**
-     * The cut of the block this piece shows: a box smaller than the full cube, picked
-     * from the entity's own id so every viewer draws the same shape without a single
-     * extra byte over the wire.
-     */
-    public float[] cutBox() {
-        RandomSource random = RandomSource.create(this.getId() * 104_729L);
-        float sx = 0.28f + random.nextFloat() * 0.34f;
-        float sy = 0.28f + random.nextFloat() * 0.34f;
-        float sz = 0.28f + random.nextFloat() * 0.34f;
-        float ox = random.nextFloat() * (1.0f - sx);
-        float oy = random.nextFloat() * (1.0f - sy);
-        float oz = random.nextFloat() * (1.0f - sz);
-        return new float[] {ox, oy, oz, ox + sx, oy + sy, oz + sz};
+    public boolean isSettled() {
+        return entityData.get(REST_TIME) >= 0;
     }
 
-    /** A stable tumble, so a piece looks the same on every client watching it fall. */
-    public float[] spinDegreesPerTick() {
-        RandomSource random = RandomSource.create(this.getId() * 104_729L + 1);
-        return new float[] {
-            6.0f + random.nextFloat() * 14.0f, 6.0f + random.nextFloat() * 14.0f, 6.0f + random.nextFloat() * 14.0f,
-        };
+    public float restingAge(float partial) {
+        return isSettled() ? Math.max(0, level().getGameTime() - entityData.get(REST_TIME) + partial) : 0;
+    }
+
+    public float meltProgress(float partial) {
+        return Math.max(
+                Mth.clamp((restingAge(partial) - HOLD_TICKS) / MELT_TICKS, 0, 1),
+                Mth.clamp((tickCount + partial - (MAX_LIFETIME - 24f)) / 24f, 0, 1));
+    }
+
+    public float spinAge(float partial) {
+        return Mth.lerp(partial, previousSpinAge, spinAge);
+    }
+
+    /** Cached once per piece, rather than creating RNGs and arrays on every rendered frame. */
+    public Shape shape() {
+        if (shape == null || shapeId != getId()) {
+            shapeId = getId();
+            var random = RandomSource.create(getId() * 104729L);
+            int material = material(blockState());
+            float size = .18f + random.nextFloat() * .30f;
+            shape = new Shape(
+                    material,
+                    material == 1 ? size * 1.55f : size,
+                    material == 1 ? size * .32f : material == 2 ? size * .20f : size * .72f,
+                    material == 1 ? size * .4f : size * (.65f + random.nextFloat() * .35f),
+                    (random.nextFloat() - .5f) * 32,
+                    (random.nextFloat() - .5f) * 25,
+                    (random.nextFloat() - .5f) * 28,
+                    random.nextFloat() * 360,
+                    random.nextLong());
+        }
+        return shape;
+    }
+
+    private static int material(BlockState state) {
+        if (state.is(BlockTags.LOGS)
+                || state.is(BlockTags.PLANKS)
+                || state.is(BlockTags.WOODEN_STAIRS)
+                || state.is(BlockTags.WOODEN_SLABS)) {
+            return 1;
+        }
+        var sound = state.getSoundType();
+        if (sound == SoundType.METAL
+                || sound == SoundType.COPPER
+                || sound == SoundType.CHAIN
+                || sound == SoundType.NETHERITE_BLOCK) {
+            return 2;
+        }
+        return state.is(BlockTags.DIRT) || state.is(BlockTags.SAND) || state.is(Blocks.GRAVEL) ? 3 : 0;
+    }
+
+    @Override
+    public void lerpTo(double x, double y, double z, float yaw, float pitch, int steps) {
+        lerpTarget = new Vec3(x, y, z);
+        lerpSteps = Math.clamp(steps, 1, 3);
     }
 
     @Override
     public void tick() {
-        this.baseTick();
-
-        if (this.tickCount > MAX_LIFETIME) {
-            this.discard();
-            return;
+        baseTick();
+        previousSpinAge = spinAge;
+        if (!isSettled()) {
+            spinAge += 1;
         }
-
-        if (this.isSettled()) {
-            if (this.level().isClientSide) {
-                return;
-            }
-            if (++this.settledTicks - SETTLE_TICKS >= MELT_TICKS) {
-                this.discard();
+        if (level().isClientSide) {
+            if (lerpSteps > 0) {
+                setPos(position().lerp(lerpTarget, 1.0 / lerpSteps--));
             }
             return;
         }
-
-        Vec3 motion = this.getDeltaMovement().subtract(0.0D, GRAVITY, 0.0D).scale(DRAG);
-        this.setDeltaMovement(motion);
-        this.move(MoverType.SELF, this.getDeltaMovement());
-
-        if (this.level().isClientSide) {
+        if (tickCount >= MAX_LIFETIME || meltProgress(0) >= 1 || getY() < level().getMinBuildHeight() - 16) {
+            discard();
             return;
         }
-
-        if (this.verticalCollision && this.getDeltaMovement().y < -0.01D) {
-            if (!this.bounced) {
-                this.bounced = true;
-                Vec3 rebound = this.getDeltaMovement();
-                this.setDeltaMovement(rebound.x * 0.6D, -rebound.y * BOUNCE, rebound.z * 0.6D);
+        if (isSettled()) {
+            return;
+        } // Sleeping fragments perform no collision queries.
+        boolean water = isInWater();
+        Vec3 incoming = getDeltaMovement().add(0, water ? -.012 : -.05, 0).scale(water ? .78 : .985);
+        Vec3 before = position();
+        setDeltaMovement(incoming);
+        move(MoverType.SELF, incoming);
+        Vec3 travelled = position().subtract(before);
+        boolean xHit = Math.abs(travelled.x - incoming.x) > 1.0e-5;
+        boolean yHit = Math.abs(travelled.y - incoming.y) > 1.0e-5;
+        boolean zHit = Math.abs(travelled.z - incoming.z) > 1.0e-5;
+        double restitution =
+                switch (shape().material) {
+                    case 1 -> .28;
+                    case 2 -> .42;
+                    case 3 -> .10;
+                    default -> .34;
+                };
+        if (water) {
+            restitution *= .4;
+        }
+        // move() zeroes blocked motion. Reflect the saved incoming velocity, not that zero.
+        double vx = xHit ? -incoming.x * restitution : incoming.x;
+        double vy = yHit ? -incoming.y * restitution : incoming.y;
+        double vz = zHit ? -incoming.z * restitution : incoming.z;
+        if (xHit || yHit || zHit) {
+            impacts++;
+            if (yHit && incoming.y < 0) {
+                vx *= .67;
+                vz *= .67;
+                if (Math.abs(vy) < .055 || impacts > 5) {
+                    vy = 0;
+                }
             } else {
-                this.settle();
+                vy *= .8;
             }
-        } else if (this.onGround()) {
-            this.settle();
         }
-    }
-
-    private void settle() {
-        this.setDeltaMovement(Vec3.ZERO);
-        this.entityData.set(SETTLED, true);
-        this.settledTicks = 0;
-        if (this.level() instanceof ServerLevel server) {
-            server.sendParticles(
-                    ParticleTypes.POOF, this.getX(), this.getY() + 0.1D, this.getZ(), 3, 0.08D, 0.02D, 0.08D, 0.01D);
+        setDeltaMovement(vx, vy, vz);
+        if (onGround() && vx * vx + vz * vz < .0025 && Math.abs(vy) < .055) {
+            if (++quietTicks >= 3) {
+                setDeltaMovement(Vec3.ZERO);
+                entityData.set(REST_TIME, level().getGameTime());
+            }
+        } else {
+            quietTicks = 0;
         }
-    }
-
-    @Override
-    public EntityDimensions getDimensions(net.minecraft.world.entity.Pose pose) {
-        return EntityDimensions.scalable(0.4f, 0.4f);
     }
 
     @Override
@@ -173,33 +207,47 @@ public class BlastDebrisEntity extends Entity {
     }
 
     @Override
-    public boolean shouldRenderAtSqrDistance(double distanceSqr) {
-        return distanceSqr < 64.0D * 64.0D;
-    }
-
-    @Override
-    protected void readAdditionalSaveData(CompoundTag tag) {
-        BlockState state = NbtUtils.readBlockState(
-                this.level().holderLookup(net.minecraft.core.registries.Registries.BLOCK),
-                tag.getCompound("BlockState"));
-        this.entityData.set(BLOCK_STATE, state);
-        this.entityData.set(SETTLED, tag.getBoolean("Settled"));
-        this.settledTicks = tag.getInt("SettledTicks");
-        this.bounced = tag.getBoolean("Bounced");
-    }
-
-    @Override
-    protected void addAdditionalSaveData(CompoundTag tag) {
-        tag.put("BlockState", NbtUtils.writeBlockState(this.blockState()));
-        tag.putBoolean("Settled", this.isSettled());
-        tag.putInt("SettledTicks", this.settledTicks);
-        tag.putBoolean("Bounced", this.bounced);
+    public boolean shouldRenderAtSqrDistance(double distance) {
+        return distance < 96 * 96;
     }
 
     @Override
     public boolean fireImmune() {
-        // A charred stone chip surviving the blast that made it should not then burn
-        // away in whatever fire the blast started.
         return true;
     }
+
+    @Override
+    protected void readAdditionalSaveData(CompoundTag tag) {
+        entityData.set(
+                BLOCK_STATE,
+                NbtUtils.readBlockState(
+                        level().holderLookup(net.minecraft.core.registries.Registries.BLOCK),
+                        tag.getCompound("BlockState")));
+        entityData.set(
+                REST_TIME,
+                tag.contains("RestTime")
+                        ? tag.getLong("RestTime")
+                        : tag.getBoolean("Settled") ? level().getGameTime() : -1);
+        impacts = tag.getInt("Impacts");
+        tickCount = tag.getInt("Age");
+    }
+
+    @Override
+    protected void addAdditionalSaveData(CompoundTag tag) {
+        tag.put("BlockState", NbtUtils.writeBlockState(blockState()));
+        tag.putLong("RestTime", entityData.get(REST_TIME));
+        tag.putInt("Impacts", impacts);
+        tag.putInt("Age", tickCount);
+    }
+
+    public record Shape(
+            int material,
+            float width,
+            float height,
+            float depth,
+            float spinX,
+            float spinY,
+            float spinZ,
+            float heading,
+            long seed) {}
 }

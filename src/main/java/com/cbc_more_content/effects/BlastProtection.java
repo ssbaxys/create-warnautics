@@ -22,24 +22,19 @@ public final class BlastProtection {
     private BlastProtection() {}
 
     /**
-     * @return the subset of {@code candidates} still allowed to break. On failure the raw
-     *         list comes back — a broken listener must not make explosives inert.
+     * @return the subset of {@code candidates} allowed by protection listeners.
      */
     public static Set<BlockPos> filter(ServerLevel level, Vec3 center, float power, Collection<BlockPos> candidates) {
         Set<BlockPos> allowed = new HashSet<>(Math.max(16, candidates.size() * 2));
         if (candidates.isEmpty()) {
             return allowed;
         }
-        try {
-            Explosion explosion = new Explosion(
-                    level, null, center.x, center.y, center.z, power, false, Explosion.BlockInteraction.DESTROY);
-            List<BlockPos> toBlow = explosion.getToBlow();
-            toBlow.addAll(candidates);
-            NeoForge.EVENT_BUS.post(new ExplosionEvent.Detonate(level, explosion, new ArrayList<>()));
-            allowed.addAll(toBlow);
-        } catch (Throwable ignored) {
-            allowed.addAll(candidates);
-        }
+        Explosion explosion = new Explosion(
+                level, null, center.x, center.y, center.z, power, false, Explosion.BlockInteraction.DESTROY);
+        List<BlockPos> toBlow = explosion.getToBlow();
+        toBlow.addAll(candidates);
+        NeoForge.EVENT_BUS.post(new ExplosionEvent.Detonate(level, explosion, new ArrayList<>()));
+        allowed.addAll(toBlow);
         return allowed;
     }
 }

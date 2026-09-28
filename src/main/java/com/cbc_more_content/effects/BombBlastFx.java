@@ -7,7 +7,6 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -31,17 +30,23 @@ public final class BombBlastFx {
 
     public static void play(ServerLevel level, Vec3 pos, BombSize size, float blockPower) {
         // Prefer BombExplosionHandler path which supplies a shared burst snapshot.
-        play(
-                level,
-                pos,
-                size,
-                blockPower,
-                new BombBurstBudget.Snapshot(1, BombBurstBudget.Lod.FULL, new BombBurstBudget.DimState()));
+        play(level, pos, size, blockPower, BombBurstBudget.begin(level));
     }
 
     public static void play(
             ServerLevel level, Vec3 pos, BombSize size, float blockPower, BombBurstBudget.Snapshot budget) {
-        FxProfile profile = FxProfile.of(size, blockPower, level.random);
+        play(level, pos, size, blockPower, budget, false);
+    }
+
+    public static void play(
+            ServerLevel level,
+            Vec3 pos,
+            BombSize size,
+            float blockPower,
+            BombBurstBudget.Snapshot budget,
+            boolean torpedo) {
+        waterBurst(level, pos, blockPower);
+        FxProfile profile = FxProfile.of(size, blockPower, level.random, torpedo);
         BombBurstBudget.Lod lod = budget.lod();
 
         // Reliable boom — do not depend on CBC blast-wave particle reaching the client.
@@ -108,7 +113,7 @@ public final class BombBlastFx {
         // Smoke after the flash peak so clouds don't cover the fireball. Under a
         // detonation burst only a bounded number of delayed tasks are necessary.
         if (allowDelayedSmoke(budget)) {
-            schedule(level, 5, () -> spawnDelayedSmoke(level, pos, size, profile, lod));
+            schedule(level, 5, () -> spawnDelayedSmoke(level, pos, size, profile, lod, torpedo));
         }
     }
 
@@ -117,6 +122,7 @@ public final class BombBlastFx {
      * This path deliberately uses one shake wave and a tiny bounded smoke charge.
      */
     public static void playCompactMine(ServerLevel level, Vec3 pos, float blockPower, BombBurstBudget.Snapshot budget) {
+        waterBurst(level, pos, blockPower);
         float pitch = 0.88f + level.random.nextFloat() * 0.08f;
         float volume = Math.max(9.0f, blockPower * 2.1f);
         level.playSound(
@@ -175,84 +181,85 @@ public final class BombBlastFx {
         }
     }
 
-    /** Ticks before a sea bomb seat bursts into foam, so the shock reads as outgoing. */
-    private static final int SEAT_BURST_DELAY_TICKS = 2;
-    /** How long the pressure wave takes to reach the surface, per block of depth, in ticks. */
-    private static final int SPOUT_TICKS_PER_BLOCK_DEPTH = 2;
-
-    /**
-     * Underwater burst dressing for the sea bomb: churned foam at the seat, and a
-     * spout standing on the surface above — arriving late by the depth, because the
-     * pressure wave has to climb to get there.
-     * <p>
-     * Everything rides the ordinary particle and sound paths, so Sound Physics
-     * Remastered keeps shaping the audio; the extra sounds are chosen to sit under the
-     * roar already fired by the blast profile, not over it.
-     */
-    public static void underwaterBurst(ServerLevel level, Vec3 pos) {
-        int depth = Math.max(0, surfaceHeight(level, pos) - Mth.floor(pos.y));
-
-        // A muffled crack under the water, then the splash to come.
-        level.playSound(
-                null, pos.x, pos.y, pos.z, SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_INSIDE, SoundSource.BLOCKS, 3.0f, 0.55f);
-        level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.GENERIC_SPLASH, SoundSource.BLOCKS, 2.5f, 0.7f);
-
-        int waves = Math.max(3, Math.min(7, depth / 2));
-        int foam = Math.max(10, Math.min(30, depth));
-
-        schedule(level, SEAT_BURST_DELAY_TICKS, () -> {
-            emitFar(level, ParticleTypes.BUBBLE_POP, pos.x, pos.y + 0.3D, pos.z, foam, 2.4D, 1.6D, 2.4D, 0.12D);
-            emitFar(level, ParticleTypes.BUBBLE, pos.x, pos.y + 0.5D, pos.z, foam * 2, 1.8D, 1.2D, 1.8D, 0.045D);
-            emitFar(level, ParticleTypes.BUBBLE_COLUMN_UP, pos.x, pos.y + 0.8D, pos.z, foam, 1.4D, 0.9D, 1.4D, 0.02D);
-            emitFar(level, ParticleTypes.CLOUD, pos.x, pos.y + 0.4D, pos.z, foam / 3, 2.2D, 1.0D, 2.2D, 0.05D);
-        });
-
-        // The wave reaches the surface late by the depth; the water says so.
-        schedule(level, SEAT_BURST_DELAY_TICKS + depth * SPOUT_TICKS_PER_BLOCK_DEPTH, () -> {
-            double surfaceY = pos.y + depth;
-            emitFar(level, ParticleTypes.SPLASH, pos.x, surfaceY - 0.2D, pos.z, waves * 6, 1.6D, 0.1D, 1.6D, 0.35D);
+    /** Water reacts only where water exists, including a nearby shore; hulls and roofs stop the spray. */
+    public static void waterBurst(ServerLevel level, Vec3 pos, float power) {
+        BlastWater.Contact water = BlastWater.find(level, pos, Math.clamp(power * 0.35, 1.0, 3.0));
+        if (water == null) {
+            return;
+        }
+        Vec3 wet = water.water();
+        int foam = (int) Math.clamp(power * 3, 8, 32);
+        if (BlastWater.contains(level, pos)) {
+            level.playSound(
+                    null,
+                    wet.x,
+                    wet.y,
+                    wet.z,
+                    SoundEvents.BUBBLE_COLUMN_WHIRLPOOL_INSIDE,
+                    SoundSource.BLOCKS,
+                    2.0F,
+                    0.65F);
+        }
+        emitFar(level, ParticleTypes.BUBBLE, wet.x, wet.y, wet.z, foam, 0.1, 0.1, 0.1, 0.04);
+        Vec3 surface = water.surface();
+        if (surface == null) {
+            return;
+        }
+        int delay = 2 + (int) Math.clamp((surface.y - wet.y) * 0.3, 0, 10);
+        schedule(level, delay, () -> {
+            if (!BlastWater.contains(level, surface.add(0, -0.05, 0))) {
+                return;
+            }
+            BlastWater.Contact current = BlastWater.find(level, surface.add(0, -0.05, 0), 0.1);
+            if (current == null
+                    || current.surface() == null
+                    || current.surface().distanceToSqr(surface) > 0.04) {
+                return;
+            }
+            float strength = (float) Math.clamp(power / 8.0, 0.3, 2.0);
+            level.playSound(
+                    null,
+                    surface.x,
+                    surface.y,
+                    surface.z,
+                    SoundEvents.GENERIC_SPLASH,
+                    SoundSource.BLOCKS,
+                    strength * 2,
+                    0.75F);
+            emitFar(
+                    level,
+                    ParticleTypes.SPLASH,
+                    surface.x,
+                    surface.y,
+                    surface.z,
+                    foam * 2,
+                    0.2,
+                    0.05,
+                    0.2,
+                    0.2 * strength);
             emitFar(
                     level,
                     ParticleTypes.FALLING_WATER,
-                    pos.x,
-                    surfaceY + 0.4D,
-                    pos.z,
-                    waves * 3,
-                    1.8D,
-                    0.2D,
-                    1.8D,
-                    0.05D);
-            // Steam where hot gas met water, and a white pillar standing off it.
-            emitFar(level, ParticleTypes.CLOUD, pos.x, surfaceY + 0.3D, pos.z, waves, 1.9D, 0.15D, 1.9D, 0.02D);
+                    surface.x,
+                    surface.y + 0.25,
+                    surface.z,
+                    foam,
+                    0.25,
+                    0.1,
+                    0.25,
+                    0.08 * strength);
             emitFar(
                     level,
-                    ParticleTypes.CAMPFIRE_COSY_SMOKE,
-                    pos.x,
-                    surfaceY + 0.6D,
-                    pos.z,
-                    waves * 2,
-                    1.0D,
-                    0.2D,
-                    1.0D,
-                    0.02D);
+                    ParticleTypes.CLOUD,
+                    surface.x,
+                    surface.y + 0.2,
+                    surface.z,
+                    Math.max(2, foam / 6),
+                    0.25,
+                    0.1,
+                    0.25,
+                    0.01);
         });
-    }
-
-    /**
-     * The height of the first air block straight up from {@code pos} — where the sea
-     * surface actually is, not where the last sea-lantern wishes it were.
-     */
-    private static int surfaceHeight(ServerLevel level, Vec3 pos) {
-        int top = level.getMaxBuildHeight();
-        int x = Mth.floor(pos.x);
-        int z = Mth.floor(pos.z);
-        int startY = Math.min(top, Mth.floor(pos.y) + 40);
-        for (int y = startY; y < top; y++) {
-            if (level.getBlockState(new net.minecraft.core.BlockPos(x, y, z)).isAir()) {
-                return y;
-            }
-        }
-        return startY;
     }
 
     /**
@@ -353,11 +360,11 @@ public final class BombBlastFx {
             task.run();
             return;
         }
-        server.tell(new TickTask(server.getTickCount() + Math.max(1, delayTicks), task));
+        BlastFxScheduler.schedule(level, delayTicks, task);
     }
 
     private static void spawnDelayedSmoke(
-            ServerLevel level, Vec3 pos, BombSize size, FxProfile profile, BombBurstBudget.Lod lod) {
+            ServerLevel level, Vec3 pos, BombSize size, FxProfile profile, BombBurstBudget.Lod lod, boolean torpedo) {
         for (ServerPlayer player : level.players()) {
             double distSqr = player.distanceToSqr(pos);
             if (distSqr > profile.farSyncDistSqr) {
@@ -391,11 +398,14 @@ public final class BombBlastFx {
                         0.0D,
                         0.0D);
             } else if (size == BombSize.MEDIUM || size == BombSize.SMALL || size == BombSize.SEA) {
-                int basePuffs = scaleFx(size, size == BombSize.SMALL ? 6 : (size == BombSize.MEDIUM ? 20 : 5));
+                int basePuffs =
+                        scaleFx(size, size == BombSize.SMALL ? 6 : (size == BombSize.MEDIUM ? 20 : (torpedo ? 18 : 5)));
                 int puffs = lod.puffCount(basePuffs);
                 float puffScale = size == BombSize.SMALL
                         ? profile.smokeScale * 0.32f
-                        : (size == BombSize.MEDIUM ? profile.smokeScale * 0.48f : profile.smokeScale * 0.38f);
+                        : (size == BombSize.MEDIUM || torpedo
+                                ? profile.smokeScale * 0.48f
+                                : profile.smokeScale * 0.38f);
                 for (int i = 0; i < puffs; i++) {
                     double ox = (level.random.nextDouble() - 0.5D) * profile.smokeScale;
                     double oy = level.random.nextDouble() * profile.smokeScale * 0.45D;
@@ -701,7 +711,7 @@ public final class BombBlastFx {
             float warAirAbsorption,
             double shakeFalloff) {
 
-        static FxProfile of(BombSize size, float blockPower, RandomSource random) {
+        static FxProfile of(BombSize size, float blockPower, RandomSource random, boolean torpedo) {
             return switch (size) {
                 case SMALL -> new FxProfile(
                         ModSounds.BOMB_EXPLOSION_SMALL.get(),
@@ -722,10 +732,10 @@ public final class BombBlastFx {
                         6.2f,
                         34.0D);
                 case SEA -> new FxProfile(
-                        // A step up from the small bomb's report: a moored charge is a
+                        // A step up from the small bomb's report: an underwater charge is a
                         // ship-killer, and it should sound like one through the water.
                         ModSounds.BOMB_EXPLOSION_MEDIUM.get(),
-                        Math.max(2.0f, blockPower * 0.30f),
+                        torpedo ? Math.max(3.2f, blockPower * 0.42f) : Math.max(2.0f, blockPower * 0.30f),
                         true,
                         Math.max(18.0D, blockPower * 6.0D),
                         Math.max(13.5f, blockPower * 1.9f),

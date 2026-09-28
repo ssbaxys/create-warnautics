@@ -41,7 +41,6 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.neoforged.fml.ModList;
 
 /**
  * Three-block cruise missile airframe.
@@ -50,7 +49,23 @@ import net.neoforged.fml.ModList;
  * segment draws it; the nose and tail segments are invisible and exist to carry the
  * collision box and to keep the three cells bound together.
  */
-public class CruiseMissileBlock extends BaseEntityBlock {
+public class CruiseMissileBlock extends BaseEntityBlock implements ChainExplosiveBlock {
+    @Override
+    public void detonateCharge(ServerLevel level, Vec3 worldCenter, BlockState state) {
+        com.cbc_more_content.munitions.CruiseMissileProjectile.detonateWarhead(level, null, worldCenter);
+    }
+
+    @Override
+    public BlockPos explosionAnchor(BlockState state, BlockPos pos) {
+        return bodyOf(state, pos);
+    }
+
+    @Override
+    public java.util.List<BlockPos> explosionParts(BlockState state, BlockPos anchor) {
+        Direction facing = state.getValue(FACING);
+        return java.util.List.of(anchor, anchor.relative(facing), anchor.relative(facing.getOpposite()));
+    }
+
     public static final MapCodec<CruiseMissileBlock> CODEC = simpleCodec(CruiseMissileBlock::new);
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
     public static final EnumProperty<Part> PART = EnumProperty.create("part", Part.class);
@@ -289,6 +304,13 @@ public class CruiseMissileBlock extends BaseEntityBlock {
             return;
         }
         Direction nose = bodyState.getValue(FACING);
+        Vec3 localHeading = new Vec3(nose.getStepX(), nose.getStepY(), nose.getStepZ());
+        // Capture the carrier before clearing its last blocks: assembly may consist of only this missile.
+        var frame = SableDropCompat.resolveLaunch(level, body.getCenter(), Vec3.ZERO, localHeading);
+        var missile = ModEntityTypes.CRUISE_MISSILE.get().create(frame.level());
+        if (missile == null) {
+            return;
+        }
 
         // Read the flight plan first. Clearing the cells destroys the block entity that
         // holds it, so doing this afterwards left every missile unguided no matter what
@@ -308,41 +330,38 @@ public class CruiseMissileBlock extends BaseEntityBlock {
         // rack it just left.
         for (BlockPos cell : new BlockPos[] {body.relative(nose), body, body.relative(nose.getOpposite())}) {
             if (level.getBlockState(cell).is(state.getBlock())) {
-                level.setBlock(cell, Blocks.AIR.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+                level.setBlock(
+                        cell,
+                        level.getBlockState(cell).getFluidState().createLegacyBlock(),
+                        Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
             }
-        }
-
-        var missile = ModEntityTypes.CRUISE_MISSILE.get().create(level);
-        if (missile == null) {
-            return;
-        }
-        var centre = Vec3.atCenterOf(body);
-        var heading = new Vec3(nose.getStepX(), nose.getStepY(), nose.getStepZ());
-        var spawnLevel = level;
-
-        // A rack on a Sable hull points along the hull's own axes, so both the spawn
-        // point and the heading are mapped into world space before launch. Without this
-        // a missile on a pitched deck flies flat instead of along the rail it left.
-        if (ModList.get().isLoaded("sable")) {
-            var frame = SableDropCompat.resolveLaunch(level, centre, heading, heading);
-            spawnLevel = frame.level();
-            centre = frame.pos();
-            heading = frame.orientation() == null ? frame.vel() : frame.orientation();
         }
 
         missile.setGuidance(mode, aim, lock);
         missile.setController(radar);
-        missile.setPos(centre);
+        missile.setPos(frame.pos());
         if (nose == Direction.UP) {
             // Cold launch. A rack standing on end throws the airframe clear on gas and
             // lights the motor well above whatever it was standing in.
-            missile.ejectUpward();
+            missile.eject(frame.orientation(), frame.vel());
         } else {
-            missile.launch(heading);
+            missile.launch(frame.orientation(), frame.vel());
         }
-        spawnLevel.addFreshEntity(missile);
-
-        level.playSound(null, body, ModSounds.CRUISE_MISSILE_LAUNCH.get(), SoundSource.BLOCKS, 4.0f, 1.0f);
+        frame.level().addFreshEntity(missile);
+        frame.level()
+                .playSound(
+                        null,
+                        frame.pos().x,
+                        frame.pos().y,
+                        frame.pos().z,
+                        ModSounds.CRUISE_MISSILE_LAUNCH.get(),
+                        SoundSource.BLOCKS,
+                        4.0f,
+                        1.0f);
+        for (BlockPos cell : new BlockPos[] {body, body.relative(nose), body.relative(nose.getOpposite())}) {
+            level.getBlockState(cell).updateNeighbourShapes(level, cell, Block.UPDATE_ALL);
+            level.updateNeighborsAt(cell, state.getBlock());
+        }
     }
 
     @Nullable
@@ -365,7 +384,7 @@ public class CruiseMissileBlock extends BaseEntityBlock {
     @Override
     protected RenderShape getRenderShape(BlockState state) {
         // Only the middle segment draws; the model already covers all three cells.
-        return state.getValue(PART) == Part.BODY ? RenderShape.MODEL : RenderShape.INVISIBLE;
+        return state.getValue(PART) == Part.BODY ? RenderShape.ENTITYBLOCK_ANIMATED : RenderShape.INVISIBLE;
     }
 
     public enum Part implements StringRepresentable {

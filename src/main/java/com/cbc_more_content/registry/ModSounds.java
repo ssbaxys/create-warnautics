@@ -23,6 +23,8 @@ public final class ModSounds {
     public static final DeferredHolder<SoundEvent, SoundEvent> BOMB_FALLING = register("bomb_falling");
     public static final DeferredHolder<SoundEvent, SoundEvent> SEA_BOMB_PROPELLER = register("sea_bomb_propeller");
     public static final DeferredHolder<SoundEvent, SoundEvent> SEA_BOMB_SPLASH = register("sea_bomb_splash");
+    /** One-shot confirmation when the floating mine finishes arming. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> SEA_MINE_ARMED = register("sea_mine_armed");
     /** Ringing ears after surviving a near miss. */
     public static final DeferredHolder<SoundEvent, SoundEvent> BOMB_CONCUSSION = register("bomb_concussion");
     /** C4 countdown; a single beep, spaced tighter as the fuse runs out. */

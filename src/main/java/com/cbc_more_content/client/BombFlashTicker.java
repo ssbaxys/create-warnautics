@@ -14,5 +14,6 @@ public final class BombFlashTicker {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         BombFlashClient.tick();
+        FlashExposure.tick();
     }
 }

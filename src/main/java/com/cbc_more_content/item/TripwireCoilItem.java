@@ -1,7 +1,10 @@
 package com.cbc_more_content.item;
 
+import com.cbc_more_content.compat.sable.TripwireGeometry;
 import com.cbc_more_content.entity.TripwireEntity;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import javax.annotation.Nullable;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -21,6 +24,7 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * A coil of tripwire, strung the way a lead is tied: one post, then the other.
@@ -55,8 +59,8 @@ public class TripwireCoilItem extends Item {
                 say(player, "message.cbc_more_content.tripwire.occupied", ChatFormatting.RED);
                 return InteractionResult.CONSUME;
             }
-            setPending(stack, pos);
-            level.playSound(null, pos, SoundEvents.LEASH_KNOT_PLACE, SoundSource.BLOCKS, 0.7f, 1.2f);
+            setPending(stack, level, pos);
+            playTieSound(level, pos, 0.7f, 1.2f);
             say(player, "message.cbc_more_content.tripwire.first", ChatFormatting.GRAY);
             return InteractionResult.CONSUME;
         }
@@ -66,26 +70,31 @@ public class TripwireCoilItem extends Item {
             say(player, "message.cbc_more_content.tripwire.dropped", ChatFormatting.GRAY);
             return InteractionResult.CONSUME;
         }
-        if (!TripwireEntity.canAnchor(level.getBlockState(first))) {
+        Vec3 from = pendingPosition(stack, level);
+        if (from == null || !TripwireEntity.canAnchor(level.getBlockState(first))) {
             clearPending(stack);
             say(player, "message.cbc_more_content.tripwire.dropped", ChatFormatting.GRAY);
             return InteractionResult.CONSUME;
         }
         // Straight-line distance, so a diagonal run is held to the same length as one
         // along an axis rather than quietly reaching half again as far.
-        if (Math.sqrt(first.distSqr(pos)) > TripwireEntity.MAX_SPAN) {
+        if (from.distanceTo(TripwireGeometry.position(level, pos)) > TripwireEntity.MAX_SPAN + 1.0E-4) {
             say(player, "message.cbc_more_content.tripwire.too_far", ChatFormatting.RED);
             return InteractionResult.CONSUME;
         }
-        if (level instanceof ServerLevel server && TripwireEntity.occupied(server, pos)) {
+        if (level instanceof ServerLevel server
+                && (TripwireEntity.occupied(server, pos) || TripwireEntity.occupied(server, first))) {
             say(player, "message.cbc_more_content.tripwire.occupied", ChatFormatting.RED);
             return InteractionResult.CONSUME;
         }
 
         TripwireEntity wire = new TripwireEntity(level, first, pos);
-        level.addFreshEntity(wire);
+        if (!level.addFreshEntity(wire)) {
+            wire.discard();
+            return InteractionResult.FAIL;
+        }
         clearPending(stack);
-        level.playSound(null, pos, SoundEvents.LEASH_KNOT_PLACE, SoundSource.BLOCKS, 0.9f, 0.85f);
+        playTieSound(level, pos, 0.9f, 0.85f);
         say(player, "message.cbc_more_content.tripwire.set", ChatFormatting.GREEN);
         if (player == null || !player.getAbilities().instabuild) {
             stack.shrink(1);
@@ -114,18 +123,51 @@ public class TripwireCoilItem extends Item {
         return tag.contains("X") ? new BlockPos(tag.getInt("X"), tag.getInt("Y"), tag.getInt("Z")) : null;
     }
 
-    private static void setPending(ItemStack stack, BlockPos post) {
+    @Nullable
+    public static Vec3 pendingPosition(ItemStack stack, Level level) {
+        BlockPos post = pendingPost(stack);
+        if (post == null) {
+            return null;
+        }
+        CompoundTag tag = stack.get(DataComponents.CUSTOM_DATA).copyTag().getCompound(PENDING);
+        if (tag.contains("Dimension")
+                && !tag.getString("Dimension")
+                        .equals(level.dimension().location().toString())) {
+            return null;
+        }
+        Optional<UUID> owner = tag.hasUUID("SubLevel")
+                ? Optional.of(tag.getUUID("SubLevel"))
+                : tag.contains("Dimension") ? Optional.empty() : TripwireGeometry.owner(level, post);
+        return TripwireGeometry.position(level, post, owner);
+    }
+
+    private static void playTieSound(Level level, BlockPos post, float volume, float pitch) {
+        Vec3 at = TripwireGeometry.position(level, post);
+        level.playSound(null, at.x, at.y, at.z, SoundEvents.LEASH_KNOT_PLACE, SoundSource.BLOCKS, volume, pitch);
+    }
+
+    private static void setPending(ItemStack stack, Level level, BlockPos post) {
         CompoundTag inner = new CompoundTag();
         inner.putInt("X", post.getX());
         inner.putInt("Y", post.getY());
         inner.putInt("Z", post.getZ());
-        CompoundTag root = new CompoundTag();
+        inner.putString("Dimension", level.dimension().location().toString());
+        TripwireGeometry.owner(level, post).ifPresent(id -> inner.putUUID("SubLevel", id));
+        CompoundTag root =
+                stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
         root.put(PENDING, inner);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
     }
 
     private static void clearPending(ItemStack stack) {
-        stack.remove(DataComponents.CUSTOM_DATA);
+        CompoundTag root =
+                stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        root.remove(PENDING);
+        if (root.isEmpty()) {
+            stack.remove(DataComponents.CUSTOM_DATA);
+        } else {
+            stack.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
+        }
     }
 
     private static void say(@Nullable Player player, String key, ChatFormatting colour) {

@@ -84,10 +84,21 @@ neoForge {
 }
 
 configurations {
+    simulatedBundle
     runtimeClasspath.extendsFrom localRuntime
 }
 
+// Simulated is distributed inside Aeronautics. Compile against that nested JAR,
+// without embedding a second copy in Warnautics.
+def simulatedApi = providers.provider {
+    zipTree(configurations.simulatedBundle.singleFile).matching {
+        include 'META-INF/jarjar/dev.simulated_team.simulated.simulated-neoforge-*.jar'
+    }.singleFile
+}
+
 dependencies {
+    simulatedBundle('maven.modrinth:create-aeronautics:1.3.2+mc1.21.1') { transitive = false }
+    compileOnly(files(simulatedApi))
     implementation("com.simibubi.create:create-${minecraft_version}:${create_neoforge_version}:slim") { transitive = false }
     implementation("net.createmod.ponder:ponder-neoforge:${ponder_neoforge_version}+mc${minecraft_version}")
     compileOnly("dev.engine-room.flywheel:flywheel-neoforge-api-${minecraft_version}:${flywheel_neoforge_version}")
@@ -150,7 +161,7 @@ publishing {
 
 spotless {
     java {
-        target 'src/main/java/**/*.java'
+        target 'src/main/java/**/*.java', 'src/gameTest/java/**/*.java'
         palantirJavaFormat('2.50.0')
         removeUnusedImports()
         endWithNewline()
@@ -181,5 +192,117 @@ idea {
     module {
         downloadSources = true
         downloadJavadoc = true
+    }
+}
+
+// Opt-in integration tests run in a disposable server with the real Sable/Aeronautics stack.
+// Test classes/resources never enter the release JAR.
+if (providers.gradleProperty('seaMineTests').isPresent()) {
+    sourceSets {
+        gameTest {
+            compileClasspath += sourceSets.main.output
+            runtimeClasspath += sourceSets.main.output
+        }
+    }
+    configurations.gameTestCompileOnly.extendsFrom(configurations.compileOnly)
+    configurations.gameTestImplementation.extendsFrom(configurations.implementation)
+    configurations.gameTestRuntimeOnly.extendsFrom(configurations.runtimeOnly)
+    neoForge.addModdingDependenciesTo(sourceSets.gameTest)
+    neoForge.mods.named(mod_id) { sourceSet(sourceSets.gameTest) }
+    neoForge.runs.register('seaMineTest') {
+        type = 'gameTestServer'
+        logLevel = org.slf4j.event.Level.INFO
+        sourceSet = sourceSets.gameTest
+        gameDirectory = file("build/game-tests/${System.currentTimeMillis()}")
+        systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+        systemProperty 'neoforge.gameTestServer', 'true'
+        programArguments.addAll '--mixin', 'cbc_more_content.gametest.mixins.json'
+    }
+    def chainClientDirectory = file("build/chain-client-check/${System.currentTimeMillis()}")
+    neoForge.runs.register('chainClientCheck') {
+        type = 'client'
+        logLevel = org.slf4j.event.Level.INFO
+        sourceSet = sourceSets.gameTest
+        gameDirectory = chainClientDirectory
+        systemProperty 'warnautics.chainClientCheck', 'true'
+        programArguments.addAll '--width', '640', '--height', '480'
+    }
+    tasks.matching { it.name == 'runChainClientCheck' }.configureEach {
+        doLast {
+            def result = new File(chainClientDirectory, 'chain-client-check.txt')
+            if (!result.exists() || !result.getText('UTF-8').startsWith('PASS')) {
+                throw new GradleException("Client chain check failed: ${result}")
+            }
+        }
+    }
+    def missileFlightDirectory = file("build/missile-flight-check/${System.currentTimeMillis()}")
+    neoForge.runs.register('missileFlightCheck') {
+        type = 'client'
+        logLevel = org.slf4j.event.Level.INFO
+        sourceSet = sourceSets.gameTest
+        gameDirectory = missileFlightDirectory
+        systemProperty 'warnautics.missileFlightCheck', 'true'
+        systemProperty 'warnautics.missileFlightFabulous', providers.gradleProperty('missileFlightFabulous').isPresent().toString()
+        jvmArguments.addAll '-Xmx3G', '-XX:ActiveProcessorCount=4'
+        programArguments.addAll '--width', '640', '--height', '480'
+    }
+    tasks.matching { it.name == 'runMissileFlightCheck' }.configureEach {
+        doLast {
+            def result = new File(missileFlightDirectory, 'missile-flight-check.txt')
+            if (!result.exists() || !result.getText('UTF-8').startsWith('PASS')) {
+                throw new GradleException("Missile flight check failed: ${result}")
+            }
+        }
+    }
+    def blastFxDirectory = file("build/blast-fx-check/${System.currentTimeMillis()}")
+    neoForge.runs.register('blastFxCheck') {
+        type = 'client'
+        logLevel = org.slf4j.event.Level.INFO
+        sourceSet = sourceSets.gameTest
+        gameDirectory = blastFxDirectory
+        systemProperty 'warnautics.blastFxCheck', 'true'
+        systemProperty 'warnautics.expectSodium', providers.gradleProperty('fxSodiumJar').isPresent().toString()
+        systemProperty 'warnautics.blastFxIncludeFlight', providers.gradleProperty('blastFxIncludeFlight').isPresent().toString()
+        systemProperty 'warnautics.blastFxFabulous', providers.gradleProperty('blastFxFabulous').isPresent().toString()
+        jvmArguments.addAll '-Xmx3G', '-XX:ActiveProcessorCount=4'
+        programArguments.addAll '--width', '640', '--height', '480'
+    }
+    tasks.matching { it.name == 'runBlastFxCheck' }.configureEach {
+        doLast {
+            def result = new File(blastFxDirectory, 'blast-fx-check.txt')
+            if (!result.exists() || !result.getText('UTF-8').startsWith('PASS')) {
+                throw new GradleException("Blast FX client check failed: ${result}")
+            }
+            if (providers.gradleProperty('blastFxIncludeFlight').isPresent()) {
+                def flight = new File(blastFxDirectory, 'missile-flight-check.txt')
+                if (!flight.exists() || !flight.getText('UTF-8').startsWith('PASS')) {
+                    throw new GradleException("Chained flight check failed: ${flight}")
+                }
+            }
+        }
+    }
+    dependencies {
+        gameTestRuntimeOnly('maven.modrinth:create-aeronautics:1.3.2+mc1.21.1') { transitive = false }
+        if (providers.gradleProperty('fxSodiumJar').isPresent()) {
+            gameTestRuntimeOnly(files(providers.gradleProperty('fxSodiumJar').get()))
+        }
+    }
+    def ponderCheckDirectory = file("build/ponder-check/${System.currentTimeMillis()}")
+    neoForge.runs.register('ponderCheck') {
+        type = 'client'
+        logLevel = org.slf4j.event.Level.INFO
+        sourceSet = sourceSets.gameTest
+        gameDirectory = ponderCheckDirectory
+        systemProperty 'warnautics.ponderCheck', 'true'
+        jvmArguments.addAll '-Xmx3G', '-XX:ActiveProcessorCount=4'
+        programArguments.addAll '--width', '960', '--height', '720'
+    }
+    tasks.matching { it.name == 'runPonderCheck' }.configureEach {
+        doLast {
+            def result = new File(ponderCheckDirectory, 'ponder-check.txt')
+            if (!result.exists() || !result.getText('UTF-8').startsWith('PASS')) {
+                throw new GradleException("Ponder client check failed: ${result}")
+            }
+        }
     }
 }

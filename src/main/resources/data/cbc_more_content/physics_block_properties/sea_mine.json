@@ -1,0 +1,8 @@
+{
+  "selector": "cbc_more_content:sea_mine",
+  "priority": 2000,
+  "properties": {
+    "sable:mass": 0.35,
+    "sable:volume": 0.0
+  }
+}

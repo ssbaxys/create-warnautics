@@ -65,6 +65,9 @@ public final class BombFlashClient {
     }
 
     public static void tick() {
+        if (Minecraft.getInstance().isPaused()) {
+            return;
+        }
         ClientLevel level = Minecraft.getInstance().level;
         Iterator<Flash> it = FLASHES.iterator();
         while (it.hasNext()) {

@@ -1,0 +1,6 @@
+{
+  "parent": "cbc_more_content:block/chain_connector/item",
+  "textures": {
+    "particle": "cbc_more_content:block/winch"
+  }
+}

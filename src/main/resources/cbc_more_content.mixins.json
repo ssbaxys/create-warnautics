@@ -9,13 +9,20 @@
     "TripwireSignalMixin",
     "compat.sable.DropBombBlockMixin",
     "compat.sable.LandMineBlockMixin",
-    "compat.offroad.WheelMountBlockEntityMixin"
+    "compat.sable.SeaMineBlockMixin",
+    "compat.offroad.WheelMountBlockEntityMixin",
+    "compat.simulated.ChainConnectionMixin",
+    "compat.simulated.ChainConnectorItemMixin",
+    "compat.simulated.ChainPlacementSoundMixin"
   ],
   "client": [
     "client.AbstractContainerScreenAccessor",
     "client.CreativeModeInventoryScreenMixin",
     "client.CreativeModeTabMixin",
-    "compat.sodium.SodiumShaderLodBiasMixin"
+    "compat.sodium.SodiumShaderLodBiasMixin",
+    "compat.simulated.ChainRenderTypeMixin",
+    "compat.simulated.ChainConnectorRenderTypeMixin",
+    "compat.simulated.ChainPreviewMixin"
   ],
   "injectors": {
     "defaultRequire": 1
