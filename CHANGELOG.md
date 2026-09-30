@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.1
+## 1.1
 
 Small flying targets exposed a problem with the cruise missile's fuze: it could go off before touching the hull, or simply because it had started flying away after a miss. A missile locked onto a physical ship now waits for contact. Coordinate and radar targets keep a proximity fuze, but it checks the actual flight segment and only fires close to the target. Warhead power is unchanged.
 
@@ -11,8 +11,6 @@ Missile exhaust follows the client's view distance, with cheaper rendering for s
 Ponder scenes have more distinct settings and show the controls working while the explanation is on screen. Falling charges accelerate, missiles turn towards the target, exhaust follows the nozzle, and impacts throw the mod's own fractured debris. Every item keeps its Create-style description; redundant old static tooltip text has been removed. Stored charge locations and other live status information are still shown.
 
 Disturbed soil reaches farther beyond the crater and also covers smaller explosive rounds, C4, mines and the vest. Freshly exposed crater ground is processed after destruction. A floating sea mine also clears copied water from its plot after assembly, including when the copy finishes later than its placement callback. The music disc's loot modifiers now use the directory expected by NeoForge.
-
-## 1.1
 
 This update is largely about making a battle behave the same way on a moving ship as it does on ordinary terrain. Bombs now cut into physical hulls, blasts leave rounder craters and disturbed ground, and a ship can be pushed as well as broken. The old balance and the broad footprint of the MOAB remain; the biggest change is where the damage actually lands.
 
