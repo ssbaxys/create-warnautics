@@ -21,22 +21,25 @@ import org.lwjgl.glfw.GLFW;
  */
 @OnlyIn(Dist.CLIENT)
 public class MissileTargetScreen extends Screen {
-    private static final int PANEL_W = 176;
-    private static final int PANEL_H = 112;
+    private static final int PANEL_W = 252;
+    private static final int PANEL_H = 204;
 
-    private static final int MODE_W = 50;
+    private static final int MODE_W = 70;
     private static final int MODE_H = 16;
     private static final int MODE_Y = 20;
 
-    private static final int FIELD_W = 46;
+    private static final int FIELD_W = 60;
     private static final int FIELD_H = 20;
     private static final int FIELD_GAP = 6;
-    private static final int FIELDS_Y = 50;
+    private static final int FIELDS_Y = 137;
 
-    private static final int BUTTON_W = 72;
+    private static final int BUTTON_W = 100;
     private static final int BUTTON_H = 18;
-    private static final int BUTTON_X = 52;
-    private static final int BUTTON_Y = 78;
+    private static final int BUTTON_X = 76;
+    private static final int BUTTON_Y = 168;
+    private static final int PROFILE_Y = 51;
+    private static final int PROFILE_W = 74;
+    private static final int PROFILE_H = 63;
 
     private static final String[] LABELS = {"X", "Y", "Z"};
 
@@ -57,6 +60,9 @@ public class MissileTargetScreen extends Screen {
     /** 0 typed coordinates, 1 handed to a designator, 2 handed to a radar set. */
     private int mode;
 
+    private int flightProfile;
+    private final float[] profileGlow = new float[3];
+
     private int guiLeft;
     private int guiTop;
 
@@ -65,10 +71,11 @@ public class MissileTargetScreen extends Screen {
      * @param mode    the guidance already chosen, so reopening the screen shows what the
      *                missile is actually set to rather than resetting it to coordinates
      */
-    public MissileTargetScreen(BlockPos pos, BlockPos current, int mode) {
+    public MissileTargetScreen(BlockPos pos, BlockPos current, int mode, int flightProfile) {
         super(Component.translatable("gui.cbc_more_content.missile.target"));
         this.pos = pos;
         this.mode = Mth.clamp(mode, 0, MODES - 1);
+        this.flightProfile = Mth.clamp(flightProfile, 0, 2);
         if (current != null) {
             this.fields[0] = Integer.toString(current.getX());
             this.fields[1] = Integer.toString(current.getY());
@@ -85,6 +92,9 @@ public class MissileTargetScreen extends Screen {
     @Override
     public void tick() {
         this.time += 1.0f;
+        for (int i = 0; i < 3; i++) {
+            this.profileGlow[i] = Mth.lerp(.2f, this.profileGlow[i], i == this.flightProfile ? 1f : 0f);
+        }
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null
                 || !(mc.level.getBlockState(this.pos).getBlock()
@@ -102,12 +112,23 @@ public class MissileTargetScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         this.renderBackground(graphics, mouseX, mouseY, partialTick);
-        WarnauticsGuiTextures.C4_PANEL.render(graphics, this.guiLeft, this.guiTop);
+        graphics.fill(this.guiLeft, this.guiTop, this.guiLeft + PANEL_W, this.guiTop + PANEL_H, 0xFF111915);
+        graphics.fill(
+                this.guiLeft + 2, this.guiTop + 2, this.guiLeft + PANEL_W - 2, this.guiTop + PANEL_H - 2, 0xFF263129);
+        graphics.fill(this.guiLeft + 3, this.guiTop + 3, this.guiLeft + PANEL_W - 3, this.guiTop + 18, 0xFF17221D);
+        graphics.fill(this.guiLeft + 4, this.guiTop + 43, this.guiLeft + PANEL_W - 4, this.guiTop + 44, 0xFF71815C);
 
         graphics.drawCenteredString(this.font, this.title, this.guiLeft + PANEL_W / 2, this.guiTop + 6, 0xE8E2CF);
 
         float now = this.time + partialTick;
         this.renderMode(graphics, mouseX, mouseY);
+        this.renderProfiles(graphics, mouseX, mouseY, now);
+        graphics.drawCenteredString(
+                this.font,
+                Component.translatable("gui.cbc_more_content.missile.profile." + this.flightProfile + ".detail"),
+                this.guiLeft + PANEL_W / 2,
+                this.guiTop + 121,
+                0xFFCED9C7);
         if (this.mode != 0) {
             graphics.drawCenteredString(
                     this.font,
@@ -116,7 +137,7 @@ public class MissileTargetScreen extends Screen {
                                     ? "gui.cbc_more_content.missile.remote.armed"
                                     : "gui.cbc_more_content.missile.intercept.armed"),
                     this.guiLeft + PANEL_W / 2,
-                    this.guiTop + FIELDS_Y + 6,
+                    this.guiTop + FIELDS_Y + 7,
                     0xFFB036);
         } else {
             for (int i = 0; i < 3; i++) {
@@ -134,10 +155,73 @@ public class MissileTargetScreen extends Screen {
                             default -> "gui.cbc_more_content.missile.target.hint";
                         }),
                 this.guiLeft + PANEL_W / 2,
-                this.guiTop + PANEL_H - 16,
+                this.guiTop + PANEL_H - 13,
                 0x9AA08C);
 
         super.render(graphics, mouseX, mouseY, partialTick);
+    }
+
+    /** Three instrument-card drawings use actual paths, with a marker travelling along the preview. */
+    private void renderProfiles(GuiGraphics graphics, int mouseX, int mouseY, float now) {
+        for (int profile = 0; profile < 3; profile++) {
+            int x = this.profileX(profile);
+            int y = this.guiTop + PROFILE_Y;
+            boolean hot = mouseX >= x && mouseX < x + PROFILE_W && mouseY >= y && mouseY < y + PROFILE_H;
+            int glow = (int) (this.profileGlow[profile] * 80);
+            graphics.fill(x, y, x + PROFILE_W, y + PROFILE_H, 0xFF101712);
+            graphics.fill(x + 1, y + 1, x + PROFILE_W - 1, y + PROFILE_H - 1, hot ? 0xFF344437 : 0xFF223028);
+            graphics.fill(
+                    x + 1,
+                    y + PROFILE_H - 2,
+                    x + PROFILE_W - 1,
+                    y + PROFILE_H - 1,
+                    this.flightProfile == profile ? 0xFFFFB43C : 0xFF526551);
+            String name =
+                    switch (profile) {
+                        case 1 -> "gui.cbc_more_content.missile.profile.arc";
+                        case 2 -> "gui.cbc_more_content.missile.profile.evasive";
+                        default -> "gui.cbc_more_content.missile.profile.direct";
+                    };
+            graphics.drawCenteredString(
+                    this.font,
+                    Component.translatable(name),
+                    x + PROFILE_W / 2,
+                    y + 5,
+                    this.flightProfile == profile ? 0xFFFFCF72 : 0xFFB9C2AD);
+            graphics.fill(x + 6, y + 45, x + PROFILE_W - 6, y + 46, 0xFF60715F);
+            for (int step = 0; step <= 43; step++) {
+                double t = step / 43.0;
+                int px = x + 10 + step * 54 / 43;
+                int py = y
+                        + 34
+                        + switch (profile) {
+                            case 1 -> (int) (-15 * Math.sin(t * Math.PI));
+                            case 2 -> (int) (5 * Math.sin(t * 5 * Math.PI) * Math.sin(t * Math.PI));
+                            default -> 0;
+                        };
+                graphics.fill(px, py, px + 2, py + 2, 0xFF8EBD94 + (glow << 16));
+            }
+            double moving = (now * (profile == 2 ? .021 : .014)) % 1.0;
+            int markerX = x + 10 + (int) (moving * 54);
+            int markerY = y
+                    + 34
+                    + switch (profile) {
+                        case 1 -> (int) (-15 * Math.sin(moving * Math.PI));
+                        case 2 -> (int) (5 * Math.sin(moving * 5 * Math.PI) * Math.sin(moving * Math.PI));
+                        default -> 0;
+                    };
+            graphics.fill(markerX - 2, markerY - 2, markerX + 3, markerY + 3, 0xFFFFC35A);
+            graphics.drawCenteredString(
+                    this.font,
+                    Component.translatable("gui.cbc_more_content.missile.profile." + profile + ".stats"),
+                    x + PROFILE_W / 2,
+                    y + 50,
+                    0xFFB6BAA5);
+        }
+    }
+
+    private int profileX(int index) {
+        return this.guiLeft + 9 + index * (PROFILE_W + 6);
     }
 
     /** Two exclusive modes, because a missile cannot both hold a point and wait on a remote. */
@@ -236,6 +320,15 @@ public class MissileTargetScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        for (int i = 0; i < 3; i++) {
+            int x = this.profileX(i);
+            int y = this.guiTop + PROFILE_Y;
+            if (mouseX >= x && mouseX < x + PROFILE_W && mouseY >= y && mouseY < y + PROFILE_H) {
+                this.flightProfile = i;
+                this.click(1.1f + i * .14f);
+                return true;
+            }
+        }
         for (int i = 0; i < MODES; i++) {
             int mx = this.modeX(i);
             int my = this.guiTop + MODE_Y;
@@ -313,8 +406,8 @@ public class MissileTargetScreen extends Screen {
     }
 
     private void append(String digit) {
-        // Six characters is more than the world is wide, and keeps the field readable.
-        if (this.fields[this.active].length() < 6) {
+        // A signed border coordinate needs nine characters (-30000000).
+        if (this.fields[this.active].length() < 9) {
             this.fields[this.active] += digit;
             this.click(1.0f + this.active * 0.06f);
         }
@@ -326,7 +419,12 @@ public class MissileTargetScreen extends Screen {
         }
         this.sent = true;
         PacketDistributor.sendToServer(new MissileTargetPayload(
-                this.pos, parse(this.fields[0]), parse(this.fields[1]), parse(this.fields[2]), this.mode));
+                this.pos,
+                parse(this.fields[0]),
+                parse(this.fields[1]),
+                parse(this.fields[2]),
+                this.mode,
+                this.flightProfile));
         this.click(1.25f);
         this.onClose();
     }

@@ -16,13 +16,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.server.level.TicketType;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
-import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -35,8 +33,6 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @GameTestHolder(CBCMoreContent.MOD_ID)
 @PrefixGameTestTemplate(false)
 public class MoabPlacementGameTests {
-    private static final TicketType<Long> POWER_FIXTURE =
-            TicketType.create("warnautics_moab_power_fixture", Long::compareTo, 80);
 
     private static MoabBlock bomb() {
         return (MoabBlock) ModBlocks.MOAB.get();
@@ -253,47 +249,62 @@ public class MoabPlacementGameTests {
 
     @GameTest(template = "empty", batch = "moab_segment_power", timeoutTicks = 80)
     public static void powerOnAnySegmentReleasesExactlyOneWholeBomb(GameTestHelper helper) {
+        // Keep the powered block inside the GameTest's ticking chunk. A region
+        // ticket on a distant fixture loads it but does not run scheduled block ticks.
+        var support = helper.absolutePos(new BlockPos(2, 8, 2));
+        // Exercise each segment in turn so an earlier projectile cannot disturb
+        // another fixture's redstone before its assertion runs.
+        helper.runAfterDelay(5, () -> powerOneSegment(helper, support, -1));
+    }
+
+    private static void powerOneSegment(GameTestHelper helper, BlockPos support, int offset) {
         var level = helper.getLevel();
-        for (int offset = -1; offset <= 1; offset++) {
-            var support = helper.absolutePos(new BlockPos(12 + offset * 8, 100, 12));
-            // The last fixture can cross outside the template's ticking chunks.
-            level.getChunkSource().addRegionTicket(POWER_FIXTURE, new ChunkPos(support), 2, support.asLong());
-            for (int y = 1; y <= 3; y++) {
-                level.removeBlock(support.above(y).east(), false);
-                level.removeBlock(support.above(y), false);
-            }
-            level.setBlockAndUpdate(support, Blocks.STONE.defaultBlockState());
-            helper.assertTrue(place(player(helper), support, Direction.UP).consumesAction(), "Place before powering");
-            assertAirframe(helper, support.above(2), Direction.UP);
+        for (int y = 1; y <= 3; y++) {
+            level.removeBlock(support.above(y).east(), false);
+            level.removeBlock(support.above(y), false);
         }
-        // Region tickets activate ticking asynchronously; power only after all fixtures can process block ticks.
-        helper.runAfterDelay(5, () -> {
-            for (int offset = -1; offset <= 1; offset++) {
-                var support = helper.absolutePos(new BlockPos(12 + offset * 8, 100, 12));
-                level.setBlockAndUpdate(support.above(2 + offset).east(), Blocks.REDSTONE_BLOCK.defaultBlockState());
+        level.setBlockAndUpdate(support, Blocks.STONE.defaultBlockState());
+        helper.assertTrue(place(player(helper), support, Direction.UP).consumesAction(), "Place before powering");
+        var body = support.above(2);
+        assertAirframe(helper, body, Direction.UP);
+        var signal = body.offset(1, offset, 0);
+        level.setBlockAndUpdate(signal, Blocks.REDSTONE_BLOCK.defaultBlockState());
+        var poweredPart = body.offset(0, offset, 0);
+        helper.assertTrue(
+                DropBombBlock.isReceivingPower(level, poweredPart),
+                "Powered segment must detect adjacent redstone: " + offset);
+        helper.assertTrue(
+                level.getBlockState(poweredPart).getValue(DropBombBlock.POWERED),
+                "Powered segment must schedule launch: " + offset);
+        helper.assertTrue(
+                level.getBlockTicks().hasScheduledTick(poweredPart, bomb()),
+                "Powered segment must have a scheduled block tick: " + offset);
+        long start = level.getGameTime();
+        helper.runAfterDelay(10, () -> {
+            for (int y = -1; y <= 1; y++) {
+                var part = body.offset(0, y, 0);
+                helper.assertFalse(
+                        level.getBlockState(part).is(bomb()),
+                        "Released bomb leaves no segments: powered=" + offset + ", remaining=" + y + ", state="
+                                + level.getBlockState(part) + ", signal=" + level.getBlockState(signal)
+                                + ", receiving=" + DropBombBlock.isReceivingPower(level, part)
+                                + ", ticking=" + level.isPositionEntityTicking(part)
+                                + ", scheduled=" + level.getBlockTicks().hasScheduledTick(poweredPart, bomb())
+                                + ", elapsed=" + (level.getGameTime() - start));
             }
-        });
-        helper.runAfterDelay(8, () -> {
-            for (int offset = -1; offset <= 1; offset++) {
-                var body = helper.absolutePos(new BlockPos(12 + offset * 8, 102, 12));
-                for (int y = -1; y <= 1; y++) {
-                    helper.assertFalse(
-                            level.getBlockState(body.offset(0, y, 0)).is(bomb()),
-                            "Released bomb leaves no segments: powered=" + offset + ", remaining=" + y);
-                }
-                var projectiles = level.getEntitiesOfClass(
-                        DropBombProjectile.class,
-                        new AABB(body).inflate(3),
-                        entity -> entity.getType() == ModEntityTypes.MOAB.get());
-                helper.assertTrue(
-                        projectiles.size() == 1, "Each powered segment releases one projectile: offset=" + offset);
-                projectiles.forEach(DropBombProjectile::discard);
-                var support = body.below(2);
-                level.removeBlock(support.above(2 + offset).east(), false);
-                level.removeBlock(support, false);
-                level.getChunkSource().removeRegionTicket(POWER_FIXTURE, new ChunkPos(support), 2, support.asLong());
+            var projectiles = level.getEntitiesOfClass(
+                    DropBombProjectile.class,
+                    new AABB(body).inflate(3),
+                    entity -> entity.getType() == ModEntityTypes.MOAB.get());
+            helper.assertTrue(projectiles.size() == 1, "Each powered segment releases one projectile: " + offset);
+            projectiles.forEach(DropBombProjectile::discard);
+            level.removeBlock(signal, false);
+            level.removeBlock(support, false);
+            if (offset < 1) {
+                helper.runAfterDelay(2, () -> powerOneSegment(helper, support, offset + 1));
+            } else {
+                helper.succeed();
             }
-            helper.succeed();
         });
     }
 

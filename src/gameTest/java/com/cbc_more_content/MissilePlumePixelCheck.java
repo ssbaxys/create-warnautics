@@ -49,14 +49,22 @@ final class MissilePlumePixelCheck {
                 new Vector3f(2, -9, 0),
                 new Vector3f(2, 0, 0)
             };
-            for (int i = 0; i < 15; i++) {
+            for (int i = 0; i < 17; i++) {
                 boolean blocked = i == 8, dead = i == 9, secondFrame = i == 7;
-                var eye = i >= 11
-                        ? new Vector3f(i == 11 ? 48 : 210, 0, 0)
-                        : i == 10 ? new Vector3f(.6f, 2, 10) : eyes[i < 7 ? i : 0];
+                var eye = i >= 15
+                        ? new Vector3f(480, 0, 0)
+                        : i >= 11
+                                ? new Vector3f(i == 11 ? 48 : 210, 0, 0)
+                                : i == 10 ? new Vector3f(.6f, 2, 10) : eyes[i < 7 ? i : 0];
                 var aim = i == 10 ? new Vector3f(.6f, 0, 0) : i == 6 ? new Vector3f(4, 0, 0) : new Vector3f(2, 0, 0);
                 var up = i == 4 || i == 5 ? new Vector3f(0, 0, 1) : new Vector3f(0, 1, 0);
                 var matrix = new Matrix4f().lookAt(eye, aim, up);
+                if (i == 16) {
+                    // A spyglass magnifies the same distant source using the current projection.
+                    RenderSystem.setProjectionMatrix(
+                            new Matrix4f().perspective((float) Math.toRadians(10), 1, .05f, 1024),
+                            VertexSorting.DISTANCE_TO_ORIGIN);
+                }
                 target.setClearColor(0, 0, 0, 0);
                 target.clear(Minecraft.ON_OSX);
                 target.bindWrite(true);
@@ -106,9 +114,9 @@ final class MissilePlumePixelCheck {
                         worldProjection,
                         secondFrame ? 2.2f : 1.3f,
                         dead ? 0 : 1,
-                        i == 5 || i >= 11,
-                        i == 14 ? Float.MAX_VALUE : i >= 11 ? 240 : 140,
-                        i == 14 ? Float.MAX_VALUE : i >= 11 ? 256 : 160);
+                        i >= 15 ? 8 : i == 5 || i >= 11 ? 36 : 12,
+                        i == 14 ? Float.MAX_VALUE : i >= 15 ? 500 : i >= 11 ? 240 : 140,
+                        i == 14 ? Float.MAX_VALUE : i >= 15 ? 512 : i >= 11 ? 256 : 160);
                 if (i == 13) {
                     RenderSystem.setProjectionMatrix(worldProjection, VertexSorting.DISTANCE_TO_ORIGIN);
                     RenderSystem.setShaderFogStart(140);

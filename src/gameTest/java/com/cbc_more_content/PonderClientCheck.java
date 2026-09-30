@@ -126,8 +126,11 @@ public final class PonderClientCheck {
                     guideIndex = 0;
                     mc.options.languageCode = "en_us";
                     mc.getLanguageManager().setSelected("en_us");
+                    // Only translations change here; a full pack reload was exercised
+                    // at the start. Keep the unchanged font assets for the second locale.
+                    mc.setScreen(null);
+                    mc.getLanguageManager().onResourceManagerReload(mc.getResourceManager());
                     PonderIndex.reload();
-                    reload();
                 } else {
                     Files.writeString(Path.of("ponder-check.txt"), "PASS\n" + String.join("\n", RESULTS));
                     finished = true;
@@ -177,7 +180,11 @@ public final class PonderClientCheck {
 
     private static void reload() {
         reloading = true;
-        Minecraft.getInstance().reloadResourcePacks().whenComplete((result, failure) -> {
+        var mc = Minecraft.getInstance();
+        // Switching language from its settings screen closes Ponder before reloading.
+        // Keeping the old UI underneath the loading overlay can draw freed font providers.
+        mc.setScreen(null);
+        mc.reloadResourcePacks().whenComplete((result, failure) -> {
             if (failure != null) {
                 fail(failure);
             }

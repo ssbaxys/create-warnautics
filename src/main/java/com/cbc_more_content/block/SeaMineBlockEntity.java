@@ -95,6 +95,12 @@ public class SeaMineBlockEntity extends BlockEntity implements BlockEntitySubLev
         if (!(level instanceof ServerLevel server) || mine.detonated || mine.isRemoved()) {
             return;
         }
+        if (state.getValue(SeaMineBlock.WATERLOGGED) && SableDropCompat.isInsideSubLevel(server, pos)) {
+            // Assembly may copy the block after SeaMineBlock's placement callback.
+            // A physical casing must never carry the source water from its storage plot.
+            state = state.setValue(SeaMineBlock.WATERLOGGED, false);
+            server.setBlock(pos, state, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
+        }
         if (mine.triggered) {
             mine.detonate(server);
             return;

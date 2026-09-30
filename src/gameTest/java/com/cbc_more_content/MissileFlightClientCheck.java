@@ -39,7 +39,7 @@ public final class MissileFlightClientCheck {
     private static int lastSample = -1;
     private static int[] before;
     private static final List<String> RESULTS = new ArrayList<>();
-    private static final double[] DISTANCES = {12, 24, 48, 72, 120, 150, 176, 210, 55, 130};
+    private static final double[] DISTANCES = {12, 24, 48, 72, 120, 150, 176, 210, 55, 130, 300, 420, 480};
     private static final List<String> FAILURES = new ArrayList<>();
     private static boolean chained;
 
@@ -47,8 +47,9 @@ public final class MissileFlightClientCheck {
 
     static void beginInExistingWorld() throws Exception {
         MissilePlumePixelCheck.run();
-        // The preceding flash scene uses eight chunks; the flight includes a 210-block view.
-        Minecraft.getInstance().options.renderDistance().set(16);
+        // The preceding flash scene uses eight chunks; the flight reaches 480 blocks.
+        Minecraft.getInstance().options.renderDistance().set(32);
+        Minecraft.getInstance().options.broadcastOptions();
         chained = creating = true;
         ticks = 100;
     }
@@ -77,7 +78,8 @@ public final class MissileFlightClientCheck {
             }
             ticks = 0;
             mc.options.pauseOnLostFocus = false;
-            mc.options.renderDistance().set(16);
+            mc.options.renderDistance().set(32);
+            mc.options.broadcastOptions();
             if (Boolean.getBoolean("warnautics.missileFlightFabulous")) {
                 mc.options.graphicsMode().set(net.minecraft.client.GraphicsStatus.FABULOUS);
             }
@@ -117,6 +119,7 @@ public final class MissileFlightClientCheck {
             var server = mc.getSingleplayerServer();
             server.execute(() -> {
                 var level = server.overworld();
+                server.getPlayerList().setViewDistance(32);
                 level.setDayTime(1000);
                 level.getGameRules().getRule(GameRules.RULE_DAYLIGHT).set(false, server);
                 level.getGameRules().getRule(GameRules.RULE_DOMOBSPAWNING).set(false, server);
@@ -138,6 +141,15 @@ public final class MissileFlightClientCheck {
         }
         var missile = missile();
         if (missile == null) {
+            if (ticks == 100) {
+                var server = mc.getSingleplayerServer();
+                server.execute(() -> {
+                    var entity = server.overworld().getEntity(missileId);
+                    var player = server.getPlayerList().getPlayers().getFirst();
+                    System.out.println("MISSILE_TRACKING_DIAGNOSTIC entity=" + entity + " view="
+                            + server.getPlayerList().getViewDistance() + " player=" + player.position());
+                });
+            }
             if (++ticks > 400) {
                 finish("Missing tracked missile");
             }
@@ -161,7 +173,7 @@ public final class MissileFlightClientCheck {
                     (float) -Math.toDegrees(Math.atan2(look.y, Math.sqrt(look.x * look.x + look.z * look.z))));
             mc.player.setOldPosAndRot();
         }
-        if (missile.tickCount > 215) {
+        if (missile.tickCount > 10 + DISTANCES.length * 20 + 5) {
             if (RESULTS.size() != DISTANCES.length) {
                 FAILURES.add("Missing flight snapshots: " + RESULTS.size());
             }
@@ -189,7 +201,7 @@ public final class MissileFlightClientCheck {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void before(RenderLevelStageEvent event) {
-        if (!enabled() || finished || event.getStage() != RenderLevelStageEvent.Stage.AFTER_LEVEL) {
+        if (!enabled() || finished || event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
             return;
         }
         var missile = missile();
@@ -207,7 +219,7 @@ public final class MissileFlightClientCheck {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void after(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_LEVEL || before == null) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES || before == null) {
             return;
         }
         var missile = missile();
@@ -262,6 +274,10 @@ public final class MissileFlightClientCheck {
         } catch (Exception failure) {
             failure.printStackTrace();
         }
-        Minecraft.getInstance().stop();
+        if (error == null) {
+            MissileSettingsClientCheck.begin();
+        } else {
+            Minecraft.getInstance().stop();
+        }
     }
 }

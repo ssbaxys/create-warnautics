@@ -119,6 +119,7 @@ public final class BlastScorch {
         var removed = new java.util.HashSet<>(destroyed);
         BlastScene scene = new BlastScene(level, center, radius + 1);
         java.util.List<ScarCandidate> candidates = new java.util.ArrayList<>();
+        java.util.List<ScarCandidate> smallBlastFallbacks = new java.util.ArrayList<>();
         for (var block : scene.matching(
                 center,
                 radius,
@@ -134,14 +135,17 @@ public final class BlastScorch {
                     ^ Math.round(delta.z * 4096) * 0x165667B19E3779F9L;
             var random = net.minecraft.util.RandomSource.create(hash);
             double chance = Math.min(1, strength * Math.pow(Math.max(0, 1 - delta.length() / radius), 0.55));
-            if (random.nextDouble() > chance) {
-                continue;
-            }
+            boolean selected = random.nextDouble() <= chance;
             Block replacement = SOIL.contains(block.state().getBlock())
                     ? SOIL_SCARS[random.nextInt(SOIL_SCARS.length)]
                     : DEGRADE.get(block.state().getBlock());
             if (replacement != block.state().getBlock()) {
-                candidates.add(new ScarCandidate(block, replacement, random.nextDouble()));
+                var candidate = new ScarCandidate(block, replacement, random.nextDouble());
+                if (selected) {
+                    candidates.add(candidate);
+                } else if (radius <= 3) {
+                    smallBlastFallbacks.add(candidate);
+                }
             }
         }
         // Sample the whole fading footprint. A nearest-first cap spent every change
@@ -152,39 +156,55 @@ public final class BlastScorch {
                 .thenComparingDouble(candidate -> candidate.block().worldCenter().z));
         java.util.List<BlastScene.Sample> samples = new java.util.ArrayList<>();
         for (var candidate : candidates) {
-            var block = candidate.block();
-            Vec3 surface = block.body() == null
-                    ? block.worldCenter().add(0, 0.55, 0)
-                    : block.body()
-                            .logicalPose()
-                            .transformPosition(block.pos().getCenter().add(0, 0.55, 0));
-            scene.sample(surface, samples);
-            if (blocked(level, samples, removed, block.pos())) {
-                continue;
+            if (addVisible(level, scene, center, removed, candidate, samples, result) && result.size() == cap) {
+                break;
             }
-            boolean exposed = true;
-            int steps = Math.max(1, (int) Math.ceil(center.distanceTo(surface) / 0.5));
-            for (int i = 1; i < steps; i++) {
-                scene.sample(center.lerp(surface, i / (double) steps), samples);
-                if (blocked(level, samples, removed, block.pos())) {
-                    exposed = false;
+        }
+        // A tiny shell can have just a few intact soil blocks in reach. Randomly
+        // skipping all of them left no mark at all despite a clear, exposed rim.
+        if (result.isEmpty() && !smallBlastFallbacks.isEmpty()) {
+            smallBlastFallbacks.sort(java.util.Comparator.comparingDouble(
+                    candidate -> candidate.block().worldCenter().distanceToSqr(center)));
+            for (var candidate : smallBlastFallbacks) {
+                if (addVisible(level, scene, center, removed, candidate, samples, result)) {
                     break;
                 }
-            }
-            if (!exposed) {
-                continue;
-            }
-            result.put(
-                    block.pos(),
-                    new Change(block.state(), candidate.replacement().defaultBlockState()));
-            if (result.size() == cap) {
-                break;
             }
         }
         return result;
     }
 
     private record ScarCandidate(BlastScene.Sample block, Block replacement, double priority) {}
+
+    private static boolean addVisible(
+            ServerLevel level,
+            BlastScene scene,
+            Vec3 center,
+            java.util.Set<BlockPos> removed,
+            ScarCandidate candidate,
+            java.util.List<BlastScene.Sample> samples,
+            Map<BlockPos, Change> result) {
+        var block = candidate.block();
+        Vec3 surface = block.body() == null
+                ? block.worldCenter().add(0, 0.55, 0)
+                : block.body()
+                        .logicalPose()
+                        .transformPosition(block.pos().getCenter().add(0, 0.55, 0));
+        scene.sample(surface, samples);
+        if (blocked(level, samples, removed, block.pos())) {
+            return false;
+        }
+        int steps = Math.max(1, (int) Math.ceil(center.distanceTo(surface) / 0.5));
+        for (int i = 1; i < steps; i++) {
+            scene.sample(center.lerp(surface, i / (double) steps), samples);
+            if (blocked(level, samples, removed, block.pos())) {
+                return false;
+            }
+        }
+        result.put(
+                block.pos(), new Change(block.state(), candidate.replacement().defaultBlockState()));
+        return true;
+    }
 
     private static boolean blocked(
             ServerLevel level,

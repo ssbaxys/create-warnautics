@@ -15,6 +15,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -28,7 +29,7 @@ public final class ModNetworking {
     private ModNetworking() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        event.registrar("2")
+        event.registrar("3")
                 .playToClient(BombFlashPayload.TYPE, BombFlashPayload.STREAM_CODEC, ModNetworking::handleClient)
                 .playToClient(ConcussionPayload.TYPE, ConcussionPayload.STREAM_CODEC, ModNetworking::handleConcussion)
                 .playToClient(
@@ -320,6 +321,9 @@ public final class ModNetworking {
                             instanceof com.cbc_more_content.block.CruiseMissileBlockEntity guidance)) {
                 return;
             }
+            if (payload.flightProfile() < 0 || payload.flightProfile() > 2) {
+                return;
+            }
             if (payload.mode() == 1) {
                 guidance.armRemote();
             } else if (payload.mode() == 2) {
@@ -336,6 +340,8 @@ public final class ModNetworking {
                         Mth.clamp(payload.y(), level.getMinBuildHeight(), level.getMaxBuildHeight()),
                         Mth.clamp(payload.z(), -30_000_000, 30_000_000)));
             }
+            guidance.setFlightProfile(
+                    com.cbc_more_content.munitions.MissileFlightProfile.byId(payload.flightProfile()));
             level.playSound(null, pos, SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.BLOCKS, 0.6f, 1.4f);
         });
     }
@@ -378,21 +384,14 @@ public final class ModNetworking {
             if (!(context.player() instanceof ServerPlayer player) || !(player.level() instanceof ServerLevel level)) {
                 return;
             }
-            BlockPos missile = payload.missile();
-            if (!com.cbc_more_content.compat.MissileDesignatorTargeting.canControl(player, missile)
-                    || !holdsDesignator(player)) {
+            ItemStack designator = player.getMainHandItem().getItem() instanceof TargetDesignatorItem
+                    ? player.getMainHandItem()
+                    : player.getOffhandItem();
+            if (!(designator.getItem() instanceof TargetDesignatorItem)) {
                 return;
             }
-            BlockPos bound =
-                    com.cbc_more_content.item.TargetDesignatorItem.resolveBoundMissile(level, player.getMainHandItem());
-            if (bound == null || !bound.equals(missile)) {
-                return;
-            }
-            BlockState state = level.getBlockState(missile);
-            if (!(state.getBlock() instanceof com.cbc_more_content.block.CruiseMissileBlock)
-                    || !(level.getBlockEntity(missile)
-                            instanceof com.cbc_more_content.block.CruiseMissileBlockEntity guidance)
-                    || guidance.guidance() != com.cbc_more_content.block.CruiseMissileBlockEntity.Guidance.REMOTE) {
+            var missiles = com.cbc_more_content.item.TargetDesignatorItem.resolveBoundMissiles(level, designator);
+            if (!missiles.contains(payload.missile())) {
                 return;
             }
             if (!net.neoforged.fml.ModList.get().isLoaded("sable")) {
@@ -405,19 +404,32 @@ public final class ModNetworking {
             if (runtimeId < 0 || centre == null) {
                 return;
             }
-            if (!com.cbc_more_content.compat.MissileDesignatorTargeting.canTarget(
-                    player, missile, payload.subLevel(), centre)) {
-                return;
+            var fired = new java.util.ArrayList<BlockPos>();
+            for (BlockPos missile : missiles) {
+                if (!com.cbc_more_content.compat.MissileDesignatorTargeting.canControl(player, missile)
+                        || !com.cbc_more_content.compat.MissileDesignatorTargeting.canTarget(
+                                player, missile, payload.subLevel(), centre)) {
+                    continue;
+                }
+                BlockState state = level.getBlockState(missile);
+                if (!(state.getBlock() instanceof com.cbc_more_content.block.CruiseMissileBlock)
+                        || !(level.getBlockEntity(missile)
+                                instanceof com.cbc_more_content.block.CruiseMissileBlockEntity guidance)
+                        || guidance.guidance() != com.cbc_more_content.block.CruiseMissileBlockEntity.Guidance.REMOTE) {
+                    continue;
+                }
+                guidance.lockOnto(runtimeId, centre);
+                com.cbc_more_content.block.CruiseMissileBlock.launch(level, missile, state);
+                fired.add(missile);
             }
-
-            guidance.lockOnto(runtimeId, centre);
-            com.cbc_more_content.block.CruiseMissileBlock.launch(level, missile, state);
+            com.cbc_more_content.item.TargetDesignatorItem.removeLaunched(designator, fired);
+            if (!fired.isEmpty()) {
+                player.displayClientMessage(
+                        Component.translatable("message.cbc_more_content.designator.fired", fired.size())
+                                .withStyle(net.minecraft.ChatFormatting.GREEN),
+                        true);
+            }
         });
-    }
-
-    private static boolean holdsDesignator(Player player) {
-        return player.getMainHandItem().getItem() instanceof TargetDesignatorItem
-                || player.getOffhandItem().getItem() instanceof TargetDesignatorItem;
     }
 
     private static boolean holdsWireCutters(Player player) {

@@ -136,6 +136,10 @@ public class CassetteDetonationGameTests {
         var level = helper.getLevel();
         var pos = helper.absolutePos(new BlockPos(40, 70, 40));
         place(level, pos, 4);
+        // This test observes the released entity several ticks later. Leave a drop
+        // shaft open; with bedrock directly underneath, an impact fuze correctly
+        // consumes the projectile before the assertion can see it.
+        level.removeBlock(pos.below(), false);
         level.setBlockAndUpdate(pos.east(), Blocks.REDSTONE_BLOCK.defaultBlockState());
         helper.runAfterDelay(3, () -> {
             level.removeBlock(pos.east(), false);

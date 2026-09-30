@@ -11,6 +11,7 @@ import com.cbc_more_content.block.SeaMineBlock;
 import com.cbc_more_content.block.SirenBlock;
 import com.cbc_more_content.registry.ModBlocks;
 import com.cbc_more_content.registry.ModItems;
+import com.cbc_more_content.registry.ModParticles;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.foundation.ponder.CreateSceneBuilder;
@@ -60,6 +61,7 @@ public final class WarnauticsScenes {
         scene.setSceneOffsetY(-1);
         scene.showBasePlate();
         scene.world().showSection(box(0, 1, 0, 8, 2, 8), Direction.UP);
+        landscape();
         scene.idle(12);
         switch (guide.id()) {
             case "small_bomb" -> dropBomb(ModBlocks.SMALL_BOMB.get(), 1);
@@ -94,6 +96,60 @@ public final class WarnauticsScenes {
 
     private Selection box(int x, int y, int z, int xx, int yy, int zz) {
         return util.select().fromTo(x, y, z, xx, yy, zz);
+    }
+
+    /** A small setting for each range, built from the guide's own blocks rather than a flat test plate. */
+    private void landscape() {
+        boolean naval = guide.category().equals("naval");
+        boolean guidance = guide.category().equals("guidance");
+        boolean tools = guide.category().equals("tools");
+        Block[] edge = naval
+                ? new Block[] {Blocks.GRAVEL, Blocks.STONE, Blocks.SAND, Blocks.GRAVEL}
+                : guidance
+                        ? new Block[] {Blocks.DEEPSLATE_TILES, Blocks.POLISHED_ANDESITE, Blocks.STONE_BRICKS}
+                        : tools
+                                ? new Block[] {Blocks.TUFF_BRICKS, Blocks.ANDESITE, Blocks.POLISHED_ANDESITE}
+                                : new Block[] {Blocks.COARSE_DIRT, Blocks.PODZOL, Blocks.GRAVEL, Blocks.ROOTED_DIRT};
+        for (int x = 0; x < 9; x++) {
+            for (int z = 0; z < 9; z++) {
+                if (x == 0 || x == 8 || z == 0 || z == 8) {
+                    Block material = edge[Math.floorMod(x * 3 + z * 5, edge.length)];
+                    scene.world().setBlock(new BlockPos(x, 2, z), material.defaultBlockState(), false);
+                } else {
+                    Block ground;
+                    if (guidance && ((x <= 3 && z >= 3 && z <= 5) || (x >= 4 && x <= 6 && z <= 3))) {
+                        ground = (x + z) % 4 == 0 ? Blocks.POLISHED_ANDESITE : Blocks.DEEPSLATE_TILES;
+                    } else if (tools) {
+                        ground = (x + z) % 5 == 0 ? Blocks.TUFF_BRICKS : Blocks.POLISHED_ANDESITE;
+                    } else if (naval && (x == 1 || x == 7 || z == 1 || z == 7)) {
+                        ground = (x + z) % 3 == 0 ? Blocks.GRAVEL : Blocks.SAND;
+                    } else if (!guidance && !naval && !tools && (x * 7 + z * 11) % 9 < 2) {
+                        ground = (x + z) % 2 == 0 ? Blocks.COARSE_DIRT : Blocks.ROOTED_DIRT;
+                    } else {
+                        ground = Blocks.GRASS_BLOCK;
+                    }
+                    scene.world().setBlock(new BlockPos(x, 2, z), ground.defaultBlockState(), false);
+                }
+            }
+        }
+        if (naval) {
+            for (int x = 1; x < 8; x++) {
+                scene.world().setBlock(new BlockPos(x, 2, 0), Blocks.STONE.defaultBlockState(), false);
+            }
+            scene.world().setBlock(new BlockPos(0, 3, 1), Blocks.MOSSY_COBBLESTONE_WALL.defaultBlockState(), false);
+        } else if (guidance) {
+            for (int x = 1; x < 8; x++) {
+                scene.world().setBlock(new BlockPos(x, 2, 0), Blocks.DEEPSLATE_TILES.defaultBlockState(), false);
+            }
+            scene.world().setBlock(new BlockPos(8, 3, 0), Blocks.IRON_BARS.defaultBlockState(), false);
+        } else if (tools) {
+            scene.world().setBlock(new BlockPos(0, 3, 0), Blocks.COPPER_BLOCK.defaultBlockState(), false);
+            scene.world().setBlock(new BlockPos(8, 3, 8), Blocks.CRAFTING_TABLE.defaultBlockState(), false);
+        } else {
+            scene.world().setBlock(new BlockPos(0, 3, 0), Blocks.MOSSY_COBBLESTONE_WALL.defaultBlockState(), false);
+            scene.world().setBlock(new BlockPos(8, 3, 8), Blocks.MOSSY_COBBLESTONE_WALL.defaultBlockState(), false);
+        }
+        scene.world().showSection(box(0, 2, 0, 8, 3, 8), Direction.UP);
     }
 
     private Selection at(BlockPos pos) {
@@ -164,6 +220,13 @@ public final class WarnauticsScenes {
     }
 
     private void burst(BlockPos pos, int radius) {
+        scene.addInstruction(ponder -> {
+            BlockState material = ponder.getWorld().getBlockState(new BlockPos(pos.getX(), 2, pos.getZ()));
+            if (material.isAir() || !material.getFluidState().isEmpty()) {
+                material = Blocks.STONE.defaultBlockState();
+            }
+            ponder.addElement(new PonderBlastDebris(Vec3.atCenterOf(pos), material));
+        });
         scene.effects()
                 .emitParticles(
                         Vec3.atCenterOf(pos),
@@ -179,9 +242,9 @@ public final class WarnauticsScenes {
         scene.effects()
                 .emitParticles(
                         Vec3.atCenterOf(pos).add(0, .3, 0),
-                        scene.effects().simpleParticleEmitter(ParticleTypes.SMOKE, new Vec3(0, .06, 0)),
-                        .4f,
-                        38);
+                        scene.effects().simpleParticleEmitter(ModParticles.MISSILE_SMOKE.get(), new Vec3(0, .06, 0)),
+                        .25f,
+                        24);
         for (int x = -radius - 1; x <= radius + 1; x++) {
             for (int z = -radius - 1; z <= radius + 1; z++) {
                 int distance = x * x + z * z;
@@ -220,8 +283,8 @@ public final class WarnauticsScenes {
         text(1, mount);
         int fallingTime = caption(2, CENTRE);
         power(lever, mount);
-        scene.world().moveSection(falling, new Vec3(0, -3, 0), 60);
-        scene.idle(fallingTime + 12);
+        fall(falling, 3);
+        scene.idle(fallingTime - 40 + 12);
         int impactTime = caption(3, CENTRE.below());
         scene.world().hideIndependentSection(falling, Direction.DOWN);
         burst(CENTRE, radius);
@@ -247,6 +310,20 @@ public final class WarnauticsScenes {
         put(reserve, ModBlocks.SMALL_BOMB.get());
         highlight(at(reserve), PonderPalette.RED);
         text(5, reserve);
+    }
+
+    private void fall(ElementLink<WorldSectionElement> falling, double distance) {
+        // Equal time slices travel farther as gravity accelerates the falling charge.
+        for (int step = 1; step <= 5; step++) {
+            scene.world().moveSection(falling, new Vec3(0, -distance * (2 * step - 1) / 25, 0), 8);
+            scene.idle(8);
+        }
+    }
+
+    private void trail(ElementLink<WorldSectionElement> airframe, BlockPos body, int duration, int coldTicks) {
+        scene.world().configureCenterOfRotation(airframe, Vec3.atCenterOf(body));
+        scene.addInstruction(ponder ->
+                ponder.addElement(new PonderMissileTrail(airframe, Vec3.atCenterOf(body), duration, coldTicks)));
     }
 
     private void cassette(int count) {
@@ -336,8 +413,8 @@ public final class WarnauticsScenes {
         int fallingTime = caption(3, body.below());
         power(lever, body);
         var falling = scene.world().makeSectionIndependent(shape);
-        scene.world().moveSection(falling, new Vec3(0, -1.5, 0), 65);
-        scene.idle(fallingTime + 12);
+        fall(falling, 1.5);
+        scene.idle(fallingTime - 40 + 12);
         int impactTime = caption(4, CENTRE.below());
         scene.world().hideIndependentSection(falling, Direction.DOWN);
         burst(CENTRE, 3);
@@ -549,12 +626,30 @@ public final class WarnauticsScenes {
         BlockPos launcher = new BlockPos(2, 4, 4);
         Selection shape = airframe(ModBlocks.CRUISE_MISSILE.get(), launcher, Direction.UP);
         scene.world().showSection(shape, Direction.DOWN);
+        if (designator) {
+            // Two live racks make the group pairing and salvo visible, not merely described.
+            BlockPos wingman = new BlockPos(5, 4, 2);
+            scene.world().showSection(airframe(ModBlocks.CRUISE_MISSILE.get(), wingman, Direction.UP), Direction.DOWN);
+        }
         BlockPos target = new BlockPos(6, 3, 6);
         var moving = hull(target);
         use(ModItems.SETTINGS_KEY.get(), launcher);
         text(0, launcher);
         use(designator ? ModItems.TARGET_DESIGNATOR.get() : ModItems.SETTINGS_KEY.get(), launcher);
         text(1, launcher);
+        if (designator) {
+            use(ModItems.TARGET_DESIGNATOR.get(), new BlockPos(5, 4, 2));
+            highlight(box(2, 3, 4, 2, 5, 4), PonderPalette.GREEN);
+            highlight(box(5, 3, 2, 5, 5, 2), PonderPalette.GREEN);
+        } else {
+            Vec3 start = Vec3.atCenterOf(launcher.above());
+            Vec3 finish = Vec3.atCenterOf(target);
+            scene.overlay().showLine(PonderPalette.GREEN, start, finish, 110);
+            scene.overlay().showLine(PonderPalette.BLUE, start, new Vec3(4.5, 7.5, 5.5), 110);
+            scene.overlay().showLine(PonderPalette.BLUE, new Vec3(4.5, 7.5, 5.5), finish, 110);
+            scene.overlay().showLine(PonderPalette.RED, start, new Vec3(4.5, 5.8, 6.5), 110);
+            scene.overlay().showLine(PonderPalette.RED, new Vec3(4.5, 5.8, 6.5), finish, 110);
+        }
         scene.world().moveSection(moving, new Vec3(-.5, 0, 0), 50);
         scene.overlay().chaseBoundingBoxOutline(PonderPalette.BLUE, "target", new AABB(5.5, 3, 6, 8.5, 4, 8), 100);
         text(2, target);
@@ -572,15 +667,14 @@ public final class WarnauticsScenes {
                     .leftClick()
                     .withItem(new ItemStack(ModItems.TARGET_DESIGNATOR.get()));
             var rocket = scene.world().makeSectionIndependent(shape);
+            trail(rocket, launcher, 55, 12);
             scene.world().moveSection(rocket, new Vec3(0, 3, 0), 55);
-            scene.effects()
-                    .emitParticles(
-                            Vec3.atCenterOf(launcher),
-                            scene.effects().simpleParticleEmitter(ParticleTypes.FLAME, new Vec3(0, -.04, 0)),
-                            1.5f,
-                            45);
+            var wingman = scene.world().makeSectionIndependent(box(5, 3, 2, 5, 5, 2));
+            trail(wingman, new BlockPos(5, 4, 2), 55, 12);
+            scene.world().moveSection(wingman, new Vec3(.6, 2.8, .4), 55);
             scene.idle(55);
             scene.world().hideIndependentSection(rocket, Direction.UP);
+            scene.world().hideIndependentSection(wingman, Direction.UP);
             scene.idle(launchTime - 55 + 12);
         } else {
             highlight(box(0, 3, 2, 3, 5, 3), PonderPalette.BLUE);
@@ -594,14 +688,15 @@ public final class WarnauticsScenes {
         } else {
             int impactTime = caption(5, target);
             var rocket = scene.world().makeSectionIndependent(shape);
-            scene.world().moveSection(rocket, new Vec3(4, -1, 2), 65);
-            scene.effects()
-                    .emitParticles(
-                            Vec3.atCenterOf(launcher),
-                            scene.effects().simpleParticleEmitter(ParticleTypes.FLAME, new Vec3(0, -.03, 0)),
-                            1,
-                            45);
-            scene.idle(65);
+            trail(rocket, launcher, 65, 12);
+            scene.world().moveSection(rocket, new Vec3(0, 1, 0), 12);
+            scene.idle(12);
+            scene.world().rotateSection(rocket, 0, -26, -65, 20);
+            scene.world().moveSection(rocket, new Vec3(1.8, .7, 1), 20);
+            scene.idle(20);
+            scene.world().rotateSection(rocket, 0, 0, -40, 33);
+            scene.world().moveSection(rocket, new Vec3(2.2, -2.7, 1), 33);
+            scene.idle(33);
             scene.world().hideIndependentSection(rocket, Direction.DOWN);
             scene.world().destroyBlock(target);
             scene.world().destroyBlock(target.east());

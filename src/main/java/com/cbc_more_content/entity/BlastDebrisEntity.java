@@ -42,6 +42,11 @@ public class BlastDebrisEntity extends Entity {
     }
 
     public static BlastDebrisEntity create(ServerLevel level, BlockState state, Vec3 pos, Vec3 velocity) {
+        return create((Level) level, state, pos, velocity);
+    }
+
+    /** Also used by the isolated Ponder world; no entity is inserted or networked here. */
+    public static BlastDebrisEntity create(Level level, BlockState state, Vec3 pos, Vec3 velocity) {
         var debris = new BlastDebrisEntity(ModEntityTypes.BLAST_DEBRIS.get(), level);
         debris.entityData.set(BLOCK_STATE, state);
         debris.setPos(pos);

@@ -49,7 +49,7 @@ public final class ModEntityTypes {
                     // The exhaust is drawn client-side, so it only exists while the
                     // client is tracking the entity. A short range made a missile that
                     // outran its own tracking distance lose its plume mid-flight.
-                    .clientTrackingRange(16)
+                    .clientTrackingRange(32)
                     .updateInterval(1)
                     .setShouldReceiveVelocityUpdates(true)
                     .build("cruise_missile"));

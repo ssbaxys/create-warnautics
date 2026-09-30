@@ -1,5 +1,6 @@
 package com.cbc_more_content.block;
 
+import com.cbc_more_content.munitions.MissileFlightProfile;
 import com.cbc_more_content.registry.ModBlockEntities;
 import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
@@ -40,6 +41,7 @@ public class CruiseMissileBlockEntity extends BlockEntity {
     private BlockPos target;
 
     private Guidance guidance = Guidance.NONE;
+    private MissileFlightProfile flightProfile = MissileFlightProfile.DIRECT;
     /** Sub-level this missile was slaved to, when the designator locked one. */
     private int lockedSubLevel = -1;
     /** Radar set this missile takes its picture from, in intercept mode. */
@@ -86,6 +88,15 @@ public class CruiseMissileBlockEntity extends BlockEntity {
 
     public Guidance guidance() {
         return this.guidance;
+    }
+
+    public MissileFlightProfile flightProfile() {
+        return this.flightProfile;
+    }
+
+    public void setFlightProfile(MissileFlightProfile profile) {
+        this.flightProfile = profile;
+        this.sync();
     }
 
     public int lockedSubLevel() {
@@ -173,6 +184,7 @@ public class CruiseMissileBlockEntity extends BlockEntity {
                 ? new BlockPos(tag.getInt("RadarX"), tag.getInt("RadarY"), tag.getInt("RadarZ"))
                 : null;
         this.guidance = Guidance.byId(tag.getInt("Guidance"));
+        this.flightProfile = MissileFlightProfile.byId(tag.getInt("FlightProfile"));
     }
 
     @Override
@@ -191,6 +203,7 @@ public class CruiseMissileBlockEntity extends BlockEntity {
             tag.putInt("RadarZ", this.controller.getZ());
         }
         tag.putInt("Guidance", this.guidance.ordinal());
+        tag.putInt("FlightProfile", this.flightProfile.id());
     }
 
     /** The screen shows the current aim point, so it all travels. */

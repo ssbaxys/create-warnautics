@@ -161,9 +161,9 @@
     "title": "Cruise missile: setup before launch",
     "steps": [
       "Leave three clear cells for the missile and an open path beyond its nose.",
-      "Right-click with the settings key. Select a guidance mode before supplying launch power.",
-      "For a fixed point, save its coordinates and launch with redstone. For a moving ship, choose remote mode.",
-      "In remote mode, pair the designator with this missile, hold use to acquire the marked hull, then press attack.",
+      "Use the settings key to choose coordinates or remote guidance. The three animated diagrams select direct, climbing arc or weaving flight.",
+      "Direct flight saves fuel; the arc climbs before descending; weaving changes course and speed and burns fuel faster.",
+      "Save a fixed point and launch with redstone, or right-click with a designator to arm remote guidance immediately.",
       "Designated targets must be at least 50 blocks from the launcher. The operator's own hull does not block aiming.",
       "The impact blast resembles a weaker MOAB. Intercept mode instead needs a compatible Create Radar setup and a bound controller."
     ]
@@ -173,11 +173,11 @@
     "category": "guidance",
     "title": "Target designator: bind, lock, fire",
     "steps": [
-      "First use the settings key to put a cruise missile into remote guidance mode.",
-      "Right-click the missile with the designator. The tool now identifies that particular launcher.",
+      "Place two missiles with a clear launch path. The same designator can control a group of up to eight.",
+      "Right-click each missile with the designator. It switches to remote guidance and the action bar confirms the group size.",
       "Moving physical hulls receive markers. The target must be at least 50 blocks from the launcher; the designator range is 220 blocks.",
       "Keep the marker under the crosshair and hold use for 40 ticks. Changing targets restarts acquisition.",
-      "After confirmation, press attack once to launch. Binding alone does not fire the missile.",
+      "After confirmation, press attack once to launch the linked group. Binding alone does not fire the missiles.",
       "Your own hull is ignored by aiming. Terrain and other hulls still obstruct it; a stopped or unloaded target loses its lock."
     ]
   },

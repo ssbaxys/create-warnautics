@@ -10,7 +10,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 public final class MissileTargetClient {
     private MissileTargetClient() {}
 
-    public static void open(BlockPos pos, BlockPos current, int mode) {
-        Minecraft.getInstance().setScreen(new MissileTargetScreen(pos, current, mode));
+    public static void open(BlockPos pos, BlockPos current, int mode, int flightProfile) {
+        Minecraft.getInstance().setScreen(new MissileTargetScreen(pos, current, mode, flightProfile));
     }
 }

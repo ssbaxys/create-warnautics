@@ -142,9 +142,6 @@ public class BombVestItem extends ArmorItem {
     @Override
     public void appendHoverText(
             ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.translatable("tooltip.cbc_more_content.bomb_vest").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("tooltip.cbc_more_content.bomb_vest.link")
-                .withStyle(ChatFormatting.DARK_GRAY));
         if (isLinked(stack)) {
             tooltip.add(Component.translatable("tooltip.cbc_more_content.bomb_vest.armed")
                     .withStyle(ChatFormatting.RED));

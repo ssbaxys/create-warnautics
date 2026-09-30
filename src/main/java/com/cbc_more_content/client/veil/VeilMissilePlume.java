@@ -29,7 +29,9 @@ public final class VeilMissilePlume extends RenderType {
                     .setTransparencyState(LIGHTNING_TRANSPARENCY)
                     .setDepthTestState(LEQUAL_DEPTH_TEST)
                     .setCullState(NO_CULL)
-                    .setWriteMaskState(COLOR_WRITE)
+                    // Record the first lit sample so clouds in front obscure the exhaust,
+                    // while clouds behind it still fail the depth test.
+                    .setWriteMaskState(COLOR_DEPTH_WRITE)
                     .createCompositeState(false));
 
     private VeilMissilePlume() {
@@ -47,7 +49,7 @@ public final class VeilMissilePlume extends RenderType {
             Matrix4f projection,
             float time,
             float strength,
-            boolean reduced,
+            int samples,
             float fogStart,
             float fogEnd) {
         var shader = VeilRenderSystem.renderer().getShaderManager().getShader(SHADER);
@@ -60,7 +62,7 @@ public final class VeilMissilePlume extends RenderType {
         shader.getUniformSafe("CameraLocal").setVector(camera);
         shader.getUniformSafe("Time").setFloat(time);
         shader.getUniformSafe("Strength").setFloat(strength);
-        shader.getUniformSafe("Samples").setInt(reduced ? 20 : 36);
+        shader.getUniformSafe("Samples").setInt(Math.clamp(samples, 8, 36));
         shader.getUniformSafe("FogRange").setVector(fogStart, fogEnd);
         // Filter the incandescent core across a pixel instead of letting it flicker between rays.
         float pixelsPerBlock = Math.abs(projection.m11())

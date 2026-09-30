@@ -24,14 +24,26 @@ Small bombs can be combined into bundles containing 2, 3, or 4 bombs.
 
 All 25 items have their own Create-style Shift/Ctrl description and an animated Ponder guide. Hover over an item and hold the Ponder key to open its lesson. The guides are available in English and Russian, including instructions for racks, sea mines, chains, the cruise missile and the AIM-9 airframe. AIM-9 is placeable but does not fly yet.
 
+## Cruise missiles
+
+Right-click a placed missile with the settings key to choose its flight plan. **Direct** has the lowest fuel cost, **Arc** climbs before descending onto the target, and **Evasive** changes its heading and throttle during the approach. The illustrated cards show the selected plan; it is saved with the missile and survives assembly into a Sable ship.
+
+Right-click missiles with one target designator to form a group of up to eight. This immediately enables remote guidance, so there is no need to open each missile's settings first. Hold the use key while aiming at a target at least 50 blocks away to acquire it, then press attack to launch the group. Your own ship's walls do not block target acquisition; other ships and terrain do. A missile locked onto a physical hull detonates on contact, including against small flying targets.
+
+## Sea mines and chains
+
+A sea mine floats as a physical body and can be connected using the separate chain coil. The chain connector accepts chains; the original Simulated rope and its connectors remain available. Chains use Simulated's connection and winch physics, and our connector can be waterlogged.
+
+Wet mines rust through states **0–3**, with contact misfire chances of **0%, 15%, 35%, and 65%**. Each transition takes 36,000 wet game ticks (30 minutes at 20 TPS). A dry mine keeps its current corrosion progress. For operator testing, `/cw debug sea_mine stage 0` through `stage 3` changes the targeted mine, and `/cw debug sea_mine status` reports its state.
+
 ## Land mines
 
  - Small Mine — antipersonnel mine that produces shrapnel, intended for use on people.
  - Large Mine — anti-vehicle charge designed for heavier targets and moving structures.
 
-# Optional Compatibility  
+# Compatibility
 
- - **Sable** - Very much recommended as this mod is mostly useless without it. Bombs damage and launch from physics objects. Physics objects also activate large mines. 
+ - **Sable** — Bombs damage and launch from physics objects. Physical hulls also activate large mines.
  - **Sable Player Ragdoll / Ragdoll Reactions** — Ragdoll when near an explosion.
  - **Veil** — Recommended as it enhanced the explosions effects.
 
@@ -42,6 +54,8 @@ All 25 items have their own Create-style Shift/Ctrl description and an animated 
  - Required: Create 6.0.10 or newer
  - Required: Create Big Cannons 5.11.x
  - Required by CBC: Ritchie's Projectile Library 2.1.2
+ - Required: Sable 2.0.3 or newer
+ - Required: Create Aeronautics with Simulated 1.3.2 or newer; tested with Aeronautics 1.3.2
 
 # Configuration
 

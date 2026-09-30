@@ -22,10 +22,14 @@ public final class BombFlashOverlay {
         if (mc.level == null || mc.player == null || !FlashExposure.visible()) {
             return;
         }
-        if (net.neoforged.fml.ModList.get().isLoaded("veil")
-                && !FlashRenderMode.sodiumExtrasLoaded()
-                && com.cbc_more_content.config.WarnauticsClientConfig.screenEffects()) {
-            return;
+        if (net.neoforged.fml.ModList.get().isLoaded("veil")) {
+            try {
+                if (com.cbc_more_content.client.veil.VeilBombFx.isHandlingFlash()) {
+                    return;
+                }
+            } catch (RuntimeException | LinkageError ignored) {
+                // The lightweight overlay still works if Veil cannot load the pipeline.
+            }
         }
         float alpha = Mth.clamp(FlashExposure.exposure() * .48f + FlashExposure.glow(), 0, .68f);
         if (alpha < .003f) {

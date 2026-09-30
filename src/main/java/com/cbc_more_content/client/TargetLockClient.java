@@ -75,10 +75,21 @@ public final class TargetLockClient {
     /** The missile this designator is paired with, or null when it is not in hand. */
     @Nullable
     private static BlockPos boundMissile(LocalPlayer player) {
-        ItemStack stack = player.getMainHandItem();
+        List<BlockPos> bound = boundMissiles(player);
+        return bound.isEmpty() ? null : bound.getFirst();
+    }
+
+    private static List<BlockPos> boundMissiles(LocalPlayer player) {
+        ItemStack stack = designatorStack(player);
         return stack.getItem() instanceof TargetDesignatorItem
-                ? TargetDesignatorItem.resolveBoundMissile(player.level(), stack)
-                : null;
+                ? TargetDesignatorItem.resolveBoundMissiles(player.level(), stack)
+                : List.of();
+    }
+
+    private static ItemStack designatorStack(LocalPlayer player) {
+        return player.getMainHandItem().getItem() instanceof TargetDesignatorItem
+                ? player.getMainHandItem()
+                : player.getOffhandItem();
     }
 
     /** The designator is not a pickaxe, and attack is the trigger. */
@@ -125,8 +136,8 @@ public final class TargetLockClient {
             return;
         }
 
-        BlockPos missile = boundMissile(player);
-        if (missile == null || mc.screen != null) {
+        List<BlockPos> missiles = boundMissiles(player);
+        if (missiles.isEmpty() || mc.screen != null) {
             tracks = List.of();
             aimed = null;
             locked = null;
@@ -136,8 +147,9 @@ public final class TargetLockClient {
 
         // Sampled once a tick, because that is what the speeds are differenced against.
         tracks = SableTrackCompat.sampleMoving(mc.level).stream()
-                .filter(track -> MissileDesignatorTargeting.canControl(player, missile)
-                        && MissileDesignatorTargeting.canTarget(player, missile, track.id(), track.centre()))
+                .filter(track -> missiles.stream()
+                        .anyMatch(missile -> MissileDesignatorTargeting.canControl(player, missile)
+                                && MissileDesignatorTargeting.canTarget(player, missile, track.id(), track.centre())))
                 .toList();
 
         SableTrackCompat.Track underCrosshair = aimedTrack(player);
@@ -171,7 +183,7 @@ public final class TargetLockClient {
         // Attack fires, once, on the press rather than for as long as it is held.
         boolean attack = mc.options.keyAttack.isDown();
         if (attack && !firePrimed && locked != null) {
-            PacketDistributor.sendToServer(new MissileFirePayload(missile, locked));
+            PacketDistributor.sendToServer(new MissileFirePayload(missiles.getFirst(), locked));
             player.playSound(ModSounds.C4_BUTTON.get(), 1.0f, 1.2f);
             locked = null;
             confirm = 0;
@@ -376,8 +388,7 @@ public final class TargetLockClient {
         int x = graphics.guiWidth() / 2;
         int y = graphics.guiHeight() / 2 + 22;
 
-        // The missile has to be told it answers to a remote before any of this matters,
-        // and the operator has no other way of finding that out from over here.
+        // Old saved bindings may still point at a missile configured before pairing auto-armed it.
         if (mc.level.getBlockEntity(missile) instanceof CruiseMissileBlockEntity guidance
                 && guidance.guidance() != CruiseMissileBlockEntity.Guidance.REMOTE) {
             graphics.drawCenteredString(
@@ -389,6 +400,13 @@ public final class TargetLockClient {
                     0xFFFFFFFF);
             return;
         }
+        int groupSize = TargetDesignatorItem.boundCount(designatorStack(mc.player));
+        graphics.drawCenteredString(
+                mc.font,
+                Component.translatable("gui.cbc_more_content.designator.group", groupSize),
+                x,
+                y - 12,
+                0xFFB8D9D2);
 
         if (locked != null) {
             graphics.drawCenteredString(

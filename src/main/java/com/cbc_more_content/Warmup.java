@@ -31,7 +31,6 @@ public final class Warmup {
         "com.cbc_more_content.client.BombFlashClient",
         "com.cbc_more_content.client.BombFlashOverlay",
         "com.cbc_more_content.client.ConcussionClient",
-        "com.cbc_more_content.client.FlashRenderMode",
     };
 
     private Warmup() {}

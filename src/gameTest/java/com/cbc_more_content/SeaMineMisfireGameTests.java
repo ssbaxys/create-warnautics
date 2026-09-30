@@ -124,14 +124,16 @@ public class SeaMineMisfireGameTests {
         var level = helper.getLevel();
         var mine = mine(helper, false);
         var pos = mine.getBlockPos();
+        var at = pos.getCenter();
         List<Vec3> blasts = new ArrayList<>();
         Consumer<ExplosionEvent.Detonate> listener = event -> {
-            if (event.getExplosion() instanceof WarnauticsExplosion blast) {
+            if (event.getLevel() == level
+                    && event.getExplosion() instanceof WarnauticsExplosion blast
+                    && blast.center().distanceToSqr(at) < 1.0) {
                 blasts.add(blast.center());
             }
         };
         NeoForge.EVENT_BUS.addListener(listener);
-        var at = pos.getCenter();
         var explosion = new Explosion(level, null, at.x, at.y, at.z, 2, false, Explosion.BlockInteraction.DESTROY);
         explosion.getToBlow().add(pos);
         level.random.setSeed(4096L);

@@ -4,7 +4,6 @@ import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.client.BombFlashClient;
 import com.cbc_more_content.client.FlashExposure;
-import com.cbc_more_content.client.FlashRenderMode;
 import com.cbc_more_content.config.WarnauticsClientConfig;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.light.data.PointLightData;
@@ -35,10 +34,19 @@ public final class VeilBombFx {
 
     private VeilBombFx() {}
 
-    public static void onFlash(BombFlashClient.Flash flash) {
-        if (FlashRenderMode.sodiumExtrasLoaded()) {
-            return;
+    /** A loaded Veil mod is not enough: resource reloads or shader failures need the overlay fallback. */
+    public static boolean isHandlingFlash() {
+        try {
+            var shader = VeilRenderSystem.renderer().getShaderManager().getShader(SHADER);
+            return shader != null
+                    && shader.isValid()
+                    && VeilRenderSystem.renderer().getPostProcessingManager().isActive(PIPELINE);
+        } catch (RuntimeException | LinkageError exception) {
+            return false;
         }
+    }
+
+    public static void onFlash(BombFlashClient.Flash flash) {
         if (WarnauticsClientConfig.bombLights()) {
             if (LIGHTS.size() >= MAX_LIGHTS) {
                 var weakest = LIGHTS.stream()
@@ -86,7 +94,6 @@ public final class VeilBombFx {
         }
         boolean wanted = mc.level != null
                 && mc.player != null
-                && !FlashRenderMode.sodiumExtrasLoaded()
                 && WarnauticsClientConfig.stableLightingBuffers()
                 && (WarnauticsClientConfig.bombLights() || WarnauticsClientConfig.missileLights());
         if (wanted == buffersReserved) {
@@ -105,7 +112,6 @@ public final class VeilBombFx {
         boolean enabled = mc.level != null
                 && mc.player != null
                 && WarnauticsClientConfig.screenEffects()
-                && !FlashRenderMode.sodiumExtrasLoaded()
                 && (FlashExposure.visible()
                         || BombFlashClient.flashes().stream().anyMatch(f -> f.fade(0) > .001));
         var post = VeilRenderSystem.renderer().getPostProcessingManager();

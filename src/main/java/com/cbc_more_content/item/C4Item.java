@@ -1,8 +1,6 @@
 package com.cbc_more_content.item;
 
 import com.cbc_more_content.munitions.C4Projectile;
-import java.util.List;
-import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.stats.Stats;
@@ -11,7 +9,6 @@ import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 
 /** Throwable breaching charge. Sticks where it lands; the settings key sets its fuse. */
@@ -48,11 +45,5 @@ public class C4Item extends Item {
             stack.shrink(1);
         }
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
-    }
-
-    @Override
-    public void appendHoverText(
-            ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.translatable("tooltip.cbc_more_content.c4"));
     }
 }

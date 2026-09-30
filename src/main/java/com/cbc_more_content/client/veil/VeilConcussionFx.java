@@ -2,7 +2,6 @@ package com.cbc_more_content.client.veil;
 
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.client.ConcussionClient;
-import com.cbc_more_content.client.FlashRenderMode;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.post.PostProcessingManager;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
@@ -36,14 +35,24 @@ public final class VeilConcussionFx {
 
     /** True once the pass is running, so the fallback overlay can stand down. */
     public static boolean isHandlingConcussion() {
-        return active;
+        if (!active) {
+            return false;
+        }
+        try {
+            ShaderProgram shader =
+                    VeilRenderSystem.renderer().getShaderManager().getShader(SHADER);
+            return shader != null
+                    && shader.isValid()
+                    && VeilRenderSystem.renderer().getPostProcessingManager().isActive(PIPELINE);
+        } catch (RuntimeException | LinkageError exception) {
+            return false;
+        }
     }
 
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
-        boolean wanted = !FlashRenderMode.sodiumExtrasLoaded()
-                && com.cbc_more_content.config.WarnauticsClientConfig.screenEffects()
+        boolean wanted = com.cbc_more_content.config.WarnauticsClientConfig.screenEffects()
                 && mc.level != null
                 && mc.player != null
                 && mc.player.isAlive()

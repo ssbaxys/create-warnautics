@@ -60,7 +60,6 @@ public class CruiseMissileProjectile extends Entity {
     private static final double TERMINAL_RANGE = 32.0D;
     private static final double TERMINAL_TURN_RATE = 0.2D;
     private static final double FUSE_RANGE = 2.4D;
-    private static final double TERMINAL_BOOST = 1.45D;
     private static final double JINK_DOT = 0.55D;
     private static final float JINK_CHANCE = 0.4f;
     private static final int SHAKEN_TICKS = 26;
@@ -70,12 +69,12 @@ public class CruiseMissileProjectile extends Entity {
     private static final float ENTITY_POWER = BombSize.MOAB.entityBlastPower * 0.85f;
 
     private int fuel = FUEL_TICKS;
+    private double fuelFraction;
+    private int poweredTicks;
+    private MissileFlightProfile flightProfile = MissileFlightProfile.DIRECT;
     private boolean detonated;
     private boolean waterEntered;
-    private double closestApproach = Double.MAX_VALUE;
-    private boolean closing;
-
-    private double lastRange = Double.MAX_VALUE;
+    private boolean trackingHull;
     private int shaken;
 
     @Nullable
@@ -109,6 +108,14 @@ public class CruiseMissileProjectile extends Entity {
 
     public void setGuidance(Guidance guidance, @Nullable BlockPos target, int lockedSubLevel) {
         this.targeting.setGuidance(guidance, target, lockedSubLevel);
+    }
+
+    public void setFlightProfile(MissileFlightProfile profile) {
+        this.flightProfile = profile;
+    }
+
+    public MissileFlightProfile flightProfile() {
+        return this.flightProfile;
     }
 
     public boolean isEjecting() {
@@ -175,8 +182,17 @@ public class CruiseMissileProjectile extends Entity {
                             0.55f);
         }
 
+        Vec3 aim = this.aimPoint();
         if (this.fuel > 0 && !this.waterEntered) {
-            this.fuel--;
+            this.poweredTicks++;
+            double range =
+                    aim == null ? Double.POSITIVE_INFINITY : this.position().distanceTo(aim);
+            double plannedSpeed = this.flightProfile.speed(
+                    this.poweredTicks, range, this.getUUID().getLeastSignificantBits());
+            this.fuelFraction += this.flightProfile.fuelPerTick(plannedSpeed);
+            int spent = (int) this.fuelFraction;
+            this.fuelFraction -= spent;
+            this.fuel = Math.max(0, this.fuel - spent);
             if (this.fuel == 0) {
                 this.entityData.set(POWERED, false);
                 this.level()
@@ -192,7 +208,6 @@ public class CruiseMissileProjectile extends Entity {
             }
         }
 
-        Vec3 aim = this.aimPoint();
         this.watchForJink(aim);
 
         Vec3 motion = this.getDeltaMovement();
@@ -200,6 +215,9 @@ public class CruiseMissileProjectile extends Entity {
             motion = this.steer(motion.subtract(this.carrierVelocity).normalize(), aim)
                     .scale(this.speedFor(aim))
                     .add(this.carrierVelocity);
+            // Keep the ship's momentum through rack separation, then let the motor take
+            // over. A permanent carrier offset distorted every selected speed profile.
+            this.carrierVelocity = this.carrierVelocity.scale(0.92D);
             if (this.tickCount % 4 == 0) {
                 this.level()
                         .playSound(
@@ -225,7 +243,7 @@ public class CruiseMissileProjectile extends Entity {
 
         this.setPos(to);
         this.faceMotion(motion);
-        this.fuseOnTarget(aim);
+        this.fuseOnTarget(from, aim);
     }
 
     private void coastOutOfRack() {
@@ -257,17 +275,13 @@ public class CruiseMissileProjectile extends Entity {
     }
 
     private double speedFor(@Nullable Vec3 aim) {
-        if (aim == null) {
-            return CRUISE_SPEED;
-        }
-        return this.position().distanceToSqr(aim) <= TERMINAL_RANGE * TERMINAL_RANGE
-                ? CRUISE_SPEED * TERMINAL_BOOST
-                : CRUISE_SPEED;
+        double range = aim == null ? Double.POSITIVE_INFINITY : this.position().distanceTo(aim);
+        return this.flightProfile.speed(this.poweredTicks, range, this.getUUID().getLeastSignificantBits());
     }
 
     private void watchForJink(@Nullable Vec3 aim) {
-        if (this.shaken > 0 && --this.shaken == 0) {
-            this.resetApproach();
+        if (this.shaken > 0) {
+            --this.shaken;
         }
         if (aim == null) {
             this.lastAim = null;
@@ -284,17 +298,10 @@ public class CruiseMissileProjectile extends Entity {
                     && this.position().distanceToSqr(aim) <= TERMINAL_RANGE * TERMINAL_RANGE
                     && this.random.nextFloat() < JINK_CHANCE) {
                 this.shaken = SHAKEN_TICKS;
-                this.resetApproach();
             }
             this.lastAimDrift = drift;
         }
         this.lastAim = aim;
-    }
-
-    private void resetApproach() {
-        this.closestApproach = Double.MAX_VALUE;
-        this.lastRange = Double.MAX_VALUE;
-        this.closing = false;
     }
 
     private Vec3 steer(Vec3 heading, @Nullable Vec3 aim) {
@@ -306,38 +313,35 @@ public class CruiseMissileProjectile extends Entity {
         if (distance < 1.0E-4D) {
             return heading;
         }
-        Vec3 wanted = toTarget.scale(1.0D / distance);
+        Vec3 shaped = this.flightProfile.shapedAim(
+                this.position(), aim, this.poweredTicks, this.getUUID().getLeastSignificantBits());
+        Vec3 wanted = shaped.subtract(this.position()).normalize();
         if (distance > TERMINAL_RANGE) {
             return turnToward(heading, this.avoid(heading, wanted), TURN_RATE);
         }
         return turnToward(heading, wanted, this.shaken > 0 ? TURN_RATE : TERMINAL_TURN_RATE);
     }
 
-    private void fuseOnTarget(@Nullable Vec3 aim) {
-        if (this.detonated || aim == null || this.tickCount <= ARMING_TICKS) {
+    private void fuseOnTarget(Vec3 from, @Nullable Vec3 aim) {
+        // A locked physical hull uses the swept collision fuse. Its bounding-box
+        // centre is a guidance point, not a reason to explode in empty air outside a small craft.
+        if (this.detonated || aim == null || this.tickCount <= ARMING_TICKS || this.trackingHull || this.shaken > 0) {
             return;
         }
-        double distance = this.position().distanceTo(aim);
-        if (distance > TERMINAL_RANGE) {
-            this.resetApproach();
-            return;
+        // Coordinates and radar points still have a proximity fuse. Test the whole
+        // travelled segment so a fast missile cannot step over it or fuse on a wide miss.
+        Vec3 span = this.position().subtract(from);
+        double lengthSqr = span.lengthSqr();
+        double part = lengthSqr < 1.0E-8D ? 0 : Mth.clamp(aim.subtract(from).dot(span) / lengthSqr, 0, 1);
+        Vec3 nearest = from.add(span.scale(part));
+        if (nearest.distanceToSqr(aim) <= FUSE_RANGE * FUSE_RANGE) {
+            this.detonate(nearest);
         }
-        if (distance < this.lastRange - 0.01D) {
-            this.closing = true;
-        }
-        this.lastRange = distance;
-        if (this.shaken > 0) {
-            return;
-        }
-        if (distance <= FUSE_RANGE || (this.closing && distance > this.closestApproach + 0.05D)) {
-            this.detonate(this.position());
-            return;
-        }
-        this.closestApproach = Math.min(this.closestApproach, distance);
     }
 
     @Nullable
     private Vec3 aimPoint() {
+        this.trackingHull = false;
         if (this.targeting.guidance() == Guidance.INTERCEPT) {
             return this.radarAim();
         }
@@ -347,6 +351,7 @@ public class CruiseMissileProjectile extends Entity {
                 && this.level() instanceof ServerLevel server) {
             Vec3 tracked = SableDropCompat.subLevelCentre(server, this.targeting.lockedSubLevel());
             if (tracked != null) {
+                this.trackingHull = true;
                 return tracked;
             }
         }
@@ -523,6 +528,13 @@ public class CruiseMissileProjectile extends Entity {
     }
 
     @Override
+    public boolean shouldRenderAtSqrDistance(double distanceSqr) {
+        // Server tracking reaches 32 chunks. Vanilla's size-based renderer cutoff was
+        // much shorter, making the airframe disappear while its chunks were still in view.
+        return distanceSqr < 512.0D * 512.0D;
+    }
+
+    @Override
     public void lerpTo(double x, double y, double z, float yaw, float pitch, int steps) {
         this.setPos(x, y, z);
         this.setRot(yaw, pitch);
@@ -536,6 +548,9 @@ public class CruiseMissileProjectile extends Entity {
     @Override
     protected void readAdditionalSaveData(CompoundTag tag) {
         this.fuel = tag.getInt("Fuel");
+        this.fuelFraction = tag.getDouble("FuelFraction");
+        this.poweredTicks = tag.getInt("PoweredTicks");
+        this.flightProfile = MissileFlightProfile.byId(tag.getInt("FlightProfile"));
         this.entityData.set(POWERED, tag.getBoolean("Powered"));
         this.waterEntered = tag.getBoolean("WaterEntered");
         this.ejecting = Math.clamp(tag.getInt("Ejecting"), 0, EJECT_TICKS);
@@ -548,6 +563,9 @@ public class CruiseMissileProjectile extends Entity {
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {
         tag.putInt("Fuel", this.fuel);
+        tag.putDouble("FuelFraction", this.fuelFraction);
+        tag.putInt("PoweredTicks", this.poweredTicks);
+        tag.putInt("FlightProfile", this.flightProfile.id());
         tag.putBoolean("Powered", this.isPowered());
         tag.putBoolean("WaterEntered", this.waterEntered);
         tag.putInt("Ejecting", this.ejecting);

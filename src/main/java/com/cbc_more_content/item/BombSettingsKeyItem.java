@@ -94,8 +94,10 @@ public class BombSettingsKeyItem extends Item {
             if (level.isClientSide) {
                 BlockPos current = null;
                 int mode = 0;
+                int flightProfile = 0;
                 if (level.getBlockEntity(body) instanceof CruiseMissileBlockEntity guidance) {
                     current = guidance.target();
+                    flightProfile = guidance.flightProfile().id();
                     // Reopening the screen has to show what the missile is actually set
                     // to; starting from scratch every time threw away the mode as soon as
                     // anyone glanced at the settings.
@@ -105,7 +107,7 @@ public class BombSettingsKeyItem extends Item {
                         default -> 0;
                     };
                 }
-                openMissileScreen(body, current, mode);
+                openMissileScreen(body, current, mode, flightProfile);
             }
             return InteractionResult.sidedSuccess(level.isClientSide);
         }
@@ -199,14 +201,15 @@ public class BombSettingsKeyItem extends Item {
                 cassette);
     }
 
-    private static void openMissileScreen(BlockPos pos, BlockPos current, int mode) {
+    private static void openMissileScreen(BlockPos pos, BlockPos current, int mode, int flightProfile) {
         ReflectiveDispatcher.invoke(
                 "com.cbc_more_content.client.gui.MissileTargetClient",
                 "open",
-                new Class<?>[] {BlockPos.class, BlockPos.class, int.class},
+                new Class<?>[] {BlockPos.class, BlockPos.class, int.class, int.class},
                 pos,
                 current,
-                mode);
+                mode,
+                flightProfile);
     }
 
     private static void openSirenScreen(BlockPos pos) {
@@ -226,11 +229,6 @@ public class BombSettingsKeyItem extends Item {
     @Override
     public void appendHoverText(
             ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
-        tooltip.add(Component.translatable("tooltip.cbc_more_content.settings_key"));
-        if (com.cbc_more_content.compat.RadarCompat.loaded()) {
-            tooltip.add(Component.translatable("tooltip.cbc_more_content.settings_key.radar")
-                    .withStyle(ChatFormatting.DARK_GRAY));
-        }
         if (bindingSet(stack) != null) {
             tooltip.add(Component.translatable("message.cbc_more_content.key.bind_mode")
                     .withStyle(ChatFormatting.AQUA));

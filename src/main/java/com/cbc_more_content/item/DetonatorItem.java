@@ -339,21 +339,14 @@ public class DetonatorItem extends Item {
     public void appendHoverText(
             ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         List<BlockPos> ring = boundCharges(stack);
-        if (ring.isEmpty()) {
-            tooltip.add(
-                    Component.translatable("tooltip.cbc_more_content.detonator").withStyle(ChatFormatting.GRAY));
-        } else {
+        if (!ring.isEmpty()) {
             tooltip.add(Component.translatable("tooltip.cbc_more_content.detonator.bound", ring.size(), MAX_CHARGES)
                     .withStyle(ChatFormatting.GRAY));
             for (BlockPos charge : ring) {
                 tooltip.add(Component.literal(" %d, %d, %d".formatted(charge.getX(), charge.getY(), charge.getZ()))
                         .withStyle(ChatFormatting.DARK_GRAY));
             }
-            tooltip.add(Component.translatable("tooltip.cbc_more_content.detonator.unpair")
-                    .withStyle(ChatFormatting.DARK_GRAY));
         }
-        tooltip.add(Component.translatable("tooltip.cbc_more_content.detonator.range", (int) RANGE)
-                .withStyle(ChatFormatting.DARK_GRAY));
         if (boundVest(stack) != null) {
             tooltip.add(Component.translatable("tooltip.cbc_more_content.detonator.vest")
                     .withStyle(ChatFormatting.GREEN));

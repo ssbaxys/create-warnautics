@@ -2,6 +2,7 @@ package com.cbc_more_content.block;
 
 import com.cbc_more_content.block.CruiseMissileBlockEntity.Guidance;
 import com.cbc_more_content.compat.SableDropCompat;
+import com.cbc_more_content.munitions.MissileFlightProfile;
 import com.cbc_more_content.registry.ModBlockEntities;
 import com.cbc_more_content.registry.ModEntityTypes;
 import com.cbc_more_content.registry.ModSounds;
@@ -319,11 +320,13 @@ public class CruiseMissileBlock extends BaseEntityBlock implements ChainExplosiv
         BlockPos aim = null;
         int lock = -1;
         BlockPos radar = null;
+        MissileFlightProfile flightProfile = MissileFlightProfile.DIRECT;
         if (level.getBlockEntity(body) instanceof CruiseMissileBlockEntity guidance) {
             mode = guidance.guidance();
             aim = guidance.target();
             lock = guidance.lockedSubLevel();
             radar = guidance.controller();
+            flightProfile = guidance.flightProfile();
         }
 
         // Remove the airframe before spawning, so the missile cannot collide with the
@@ -338,6 +341,7 @@ public class CruiseMissileBlock extends BaseEntityBlock implements ChainExplosiv
         }
 
         missile.setGuidance(mode, aim, lock);
+        missile.setFlightProfile(flightProfile);
         missile.setController(radar);
         missile.setPos(frame.pos());
         if (nose == Direction.UP) {

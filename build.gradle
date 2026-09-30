@@ -252,6 +252,10 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
             if (!result.exists() || !result.getText('UTF-8').startsWith('PASS')) {
                 throw new GradleException("Missile flight check failed: ${result}")
             }
+            def settings = new File(missileFlightDirectory, 'missile-settings-check.txt')
+            if (!settings.exists() || !settings.getText('UTF-8').startsWith('PASS')) {
+                throw new GradleException("Missile settings check failed: ${settings}")
+            }
         }
     }
     def blastFxDirectory = file("build/blast-fx-check/${System.currentTimeMillis()}")
@@ -278,6 +282,10 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
                 if (!flight.exists() || !flight.getText('UTF-8').startsWith('PASS')) {
                     throw new GradleException("Chained flight check failed: ${flight}")
                 }
+                def settings = new File(blastFxDirectory, 'missile-settings-check.txt')
+                if (!settings.exists() || !settings.getText('UTF-8').startsWith('PASS')) {
+                    throw new GradleException("Chained missile settings check failed: ${settings}")
+                }
             }
         }
     }
@@ -285,6 +293,14 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
         gameTestRuntimeOnly('maven.modrinth:create-aeronautics:1.3.2+mc1.21.1') { transitive = false }
         if (providers.gradleProperty('fxSodiumJar').isPresent()) {
             gameTestRuntimeOnly(files(providers.gradleProperty('fxSodiumJar').get()))
+        }
+        if (providers.gradleProperty('fxSodiumCoreJar').isPresent()) {
+            gameTestRuntimeOnly(files(providers.gradleProperty('fxSodiumCoreJar').get()))
+        }
+        if (providers.gradleProperty('fxSodiumDepsDir').isPresent()) {
+            gameTestRuntimeOnly(fileTree(providers.gradleProperty('fxSodiumDepsDir').get()) {
+                include 'fabric-*.jar'
+            })
         }
     }
     def ponderCheckDirectory = file("build/ponder-check/${System.currentTimeMillis()}")

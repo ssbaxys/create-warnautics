@@ -32,13 +32,14 @@ import org.lwjgl.opengl.GL30;
 @EventBusSubscriber(modid = CBCMoreContent.MOD_ID, value = Dist.CLIENT)
 public final class MissileExhaustLights {
     public static final double NOZZLE_OFFSET = 1.51;
-    private static final double PARTICLE_RANGE = 240;
+    private static final double MAX_EFFECT_RANGE = 512;
     private static final int MAX_DETAILED_MISSILES = 24;
     private static final Map<Integer, Trail> TRAILS = new HashMap<>();
     private static ClientLevel previousLevel;
     private static final boolean VEIL = ModList.get().isLoaded("veil");
     private static float terrainFogStart = Float.MAX_VALUE;
     private static float terrainFogEnd = Float.MAX_VALUE;
+    private static float pixelsAtOneBlock = 500;
 
     private MissileExhaustLights() {}
 
@@ -59,6 +60,8 @@ public final class MissileExhaustLights {
             com.cbc_more_content.client.veil.VeilMissileFx.tick();
         }
         var camera = mc.gameRenderer.getMainCamera().getPosition();
+        double effectRange =
+                Math.min(MAX_EFFECT_RANGE, mc.options.renderDistance().get() * 16.0 + 16.0);
         // Follow the entities the server actually tracks. An extra sphere around the player
         // used to turn off a still-burning motor halfway through a vertical launch.
         var missiles = new ArrayList<CruiseMissileProjectile>();
@@ -93,11 +96,13 @@ public final class MissileExhaustLights {
             }
             double distance = nozzle.distanceTo(camera);
             var setting = mc.options.particles().get();
-            int stride = setting == ParticleStatus.MINIMAL ? 2 : 1;
+            double pixels = pixelsAtOneBlock / Math.max(1, distance);
+            int stride = setting == ParticleStatus.MINIMAL ? 3 : pixels < 3 ? 3 : pixels < 8 ? 2 : 1;
+            boolean detailedVolume = volume && pixels >= 2.5 && distance < effectRange;
             if (!wet
                     && budget > 0
                     && count <= MAX_DETAILED_MISSILES
-                    && distance <= PARTICLE_RANGE
+                    && distance <= effectRange
                     && missile.tickCount % stride == 0) {
                 if (missile.isEjecting()) {
                     emit(
@@ -110,7 +115,7 @@ public final class MissileExhaustLights {
                 } else if (powered || trail.cooldown > 0) {
                     // A sampled segment closes the gaps at 28 blocks/sec. Never bridge a teleport.
                     Vec3 previous = nozzle.distanceToSqr(trail.emittedNozzle) > 144 ? nozzle : trail.emittedNozzle;
-                    double spacing = setting == ParticleStatus.MINIMAL ? 1.25 : distance > 120 ? .95 : .55;
+                    double spacing = setting == ParticleStatus.MINIMAL ? 1.4 : pixels < 4 ? 1.3 : .55;
                     int samples =
                             Math.min(budget, Math.clamp((int) Math.ceil(nozzle.distanceTo(previous) / spacing), 1, 8));
                     Vec3 back = heading(missile, 1).scale(-1);
@@ -123,7 +128,7 @@ public final class MissileExhaustLights {
                                 at.add(back.scale(powered ? 3.3 : .2)),
                                 back.scale(.075),
                                 .065);
-                        if (powered && !volume) {
+                        if (powered && !detailedVolume) {
                             emit(mc.level, ModParticles.MISSILE_EXHAUST.get(), at, back.scale(.18), .06);
                         }
                     }
@@ -165,19 +170,22 @@ public final class MissileExhaustLights {
             // Clouds, weather and post-processing can replace these globals later in the frame.
             terrainFogStart = RenderSystem.getShaderFogStart();
             terrainFogEnd = RenderSystem.getShaderFogEnd();
+            pixelsAtOneBlock = Math.abs(event.getProjectionMatrix().m11())
+                    * Minecraft.getInstance().getMainRenderTarget().height
+                    * .5f;
             return;
         }
-        // Fabulous resolves its translucent particle target before this stage. Add emissive light
-        // to the resolved scene, with the opaque world depth still present.
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_LEVEL) {
+        // Clouds are drawn immediately after particles. Drawing the plume later puts it
+        // over their composited colour even when the missile is physically behind them.
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
             return;
         }
         var mc = Minecraft.getInstance();
         if (mc.level == null || mc.level != previousLevel || TRAILS.isEmpty()) {
             return;
         }
-        // Veil can leave its light/particle framebuffer bound after composing the world.
-        // MAIN_TARGET is a no-op RenderType state: explicitly draw into the resolved scene.
+        // Fabulous can leave the particle target bound here. Use the main scene depth;
+        // its later cloud pass can then compose in front of a more distant plume.
         int drawFramebuffer = GL30.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING);
         int readFramebuffer = GL30.glGetInteger(GL30.GL_READ_FRAMEBUFFER_BINDING);
         mc.getMainRenderTarget().bindWrite(false);
@@ -193,6 +201,7 @@ public final class MissileExhaustLights {
         var mc = Minecraft.getInstance();
         float partial = event.getPartialTick().getGameTimeDeltaPartialTick(false);
         var camera = event.getCamera().getPosition();
+        int detailed = 0;
         for (var trail : TRAILS.values()) {
             var missile = trail.missile;
             if (missile.isRemoved() || !missile.isPowered() || missile.isEjecting()) {
@@ -208,13 +217,21 @@ public final class MissileExhaustLights {
             }
             float age = missile.tickCount + partial - trail.ignitionTick;
             float strength = Mth.clamp(age / 3f, 0, 1) * (1 + .22f * (float) Math.exp(-age * .16));
-            if (WarnauticsClientConfig.missileLights() && distance <= PARTICLE_RANGE) {
+            if (WarnauticsClientConfig.missileLights() && distance <= 64) {
                 com.cbc_more_content.client.veil.VeilMissileFx.follow(
                         missile, nozzle, strength * (.94f + .06f * Mth.sin((missile.tickCount + partial) * 2.1f)));
             }
+            float pixels = pixelsAtOneBlock / (float) Math.max(1, distance);
+            // Keep a tiny, low-sample incandescent core visible beyond the point
+            // where detached smoke particles and the full volume stop paying off.
             if (!WarnauticsClientConfig.missilePlume()) {
                 continue;
             }
+            // Screen size selects cost rather than hiding a still tracked source.
+            // Beyond the detail budget, other missiles retain the cheap core.
+            int samples = mc.options.particles().get() == ParticleStatus.MINIMAL || detailed++ >= MAX_DETAILED_MISSILES
+                    ? 8
+                    : pixels < 2.5f ? 8 : pixels > 18 ? 36 : pixels > 7 ? 24 : 12;
             Vec3 relative = nozzle.subtract(camera);
             var matrix = new Matrix4f(event.getModelViewMatrix())
                     .translate((float) relative.x, (float) relative.y, (float) relative.z)
@@ -225,7 +242,7 @@ public final class MissileExhaustLights {
                     event.getProjectionMatrix(),
                     (missile.tickCount + partial) / 20f + (missile.getId() % 97) * .37f,
                     strength,
-                    distance < 6 || distance > 64 || mc.options.particles().get() != ParticleStatus.ALL,
+                    samples,
                     terrainFogStart,
                     terrainFogEnd);
         }

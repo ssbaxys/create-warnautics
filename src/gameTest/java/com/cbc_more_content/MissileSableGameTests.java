@@ -6,6 +6,7 @@ import com.cbc_more_content.compat.MissileDesignatorTargeting;
 import com.cbc_more_content.compat.SableDropCompat;
 import com.cbc_more_content.item.TargetDesignatorItem;
 import com.cbc_more_content.munitions.CruiseMissileProjectile;
+import com.cbc_more_content.munitions.MissileFlightProfile;
 import com.cbc_more_content.registry.ModBlocks;
 import com.cbc_more_content.registry.ModEntityTypes;
 import com.cbc_more_content.registry.ModItems;
@@ -87,6 +88,7 @@ public class MissileSableGameTests {
             var state = level.getBlockState(local);
             var old = (CruiseMissileBlockEntity) level.getBlockEntity(local);
             old.setTarget(at.east(100));
+            old.setFlightProfile(MissileFlightProfile.EVASIVE);
             var frame = SableDropCompat.resolveLaunch(level, local.getCenter(), Vec3.ZERO, new Vec3(0, 1, 0));
             helper.assertTrue(
                     Math.abs(frame.orientation().x) > .1 && frame.vel().x > .1, "Fixture is rotated and moving");
@@ -109,6 +111,9 @@ public class MissileSableGameTests {
             CompoundTag saved = new CompoundTag();
             missile.saveWithoutId(saved);
             helper.assertTrue(saved.getInt("TargetX") == at.getX() + 100, "Guidance survives block removal");
+            helper.assertTrue(
+                    missile.flightProfile() == MissileFlightProfile.EVASIVE,
+                    "Selected trajectory survives launch from the moving Sable hull");
             helper.assertFalse(old.isLiveAirframe(), "Original block entity cannot render a phantom after launch");
             for (var p : List.of(local, local.above(), local.below())) {
                 helper.assertFalse(
@@ -126,11 +131,12 @@ public class MissileSableGameTests {
         var hot = ModEntityTypes.CRUISE_MISSILE.get().create(level);
         hot.setPos(at);
         hot.launch(new Vec3(1, 0, 0), new Vec3(0, 0, .4));
-        var initial = hot.getDeltaMovement();
         hot.tick();
         helper.assertTrue(
-                hot.position().distanceToSqr(at.add(initial)) < 1e-8,
-                "First powered tick retains inherited sideways motion");
+                Math.abs(hot.getZ() - at.z - .4) < 1e-8, "First powered tick retains inherited sideways motion");
+        helper.assertTrue(
+                hot.getX() > at.x + .9 && hot.getX() < at.x + 1.4,
+                "Motor now spools up instead of starting at full cruise speed");
         hot.discard();
         var cold = ModEntityTypes.CRUISE_MISSILE.get().create(level);
         cold.setPos(at);
@@ -280,7 +286,7 @@ public class MissileSableGameTests {
         return assemble(level, at, cells);
     }
 
-    @GameTest(template = "empty", batch = "missile_sable_redstone", timeoutTicks = 100)
+    @GameTest(template = "empty", batch = "missile_sable_redstone", timeoutTicks = 180)
     public static void poweringAnySegmentOnSublevelLaunchesOneMissile(GameTestHelper helper) {
         var level = helper.getLevel();
         var ships = new ArrayList<ServerSubLevel>();
@@ -302,6 +308,13 @@ public class MissileSableGameTests {
             level.setBlock(signal, Blocks.STONE.defaultBlockState(), FLAGS);
             cells.add(signal);
             ships.add(assemble(level, at, cells));
+        }
+        // Assembly can finish before the ticketed parent chunks become entity-ticking
+        // on a busy test server. Load each transformed launch chunk explicitly first.
+        for (var ship : ships) {
+            var world = BlockPos.containing(ship.logicalPose()
+                    .transformPosition(ship.getPlot().getCenterBlock().getCenter()));
+            level.getChunkAt(world);
         }
         var centers = new ArrayList<Vec3>();
         helper.startSequence()

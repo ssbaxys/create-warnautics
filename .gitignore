@@ -48,5 +48,8 @@ tmp/
 # tex/ additionally holds a vendored copy of the Create Big Cannons tree, which
 # is someone else's code under its own licence.
 tex/
+тек/
 tools/
 .freebuff/project-id
+hs_err_pid*.log
+replay_pid*.log

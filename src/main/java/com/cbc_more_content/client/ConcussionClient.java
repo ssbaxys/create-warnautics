@@ -21,12 +21,12 @@ import net.neoforged.neoforge.client.event.ScreenEvent;
 @EventBusSubscriber(modid = CBCMoreContent.MOD_ID, value = Dist.CLIENT)
 public final class ConcussionClient {
     /**
-     * The hard white-out runs on its own fixed clock — 2.3 seconds at full strength —
-     * rather than as a share of the total. The haze then decays across the whole
+     * The white shock is brief so it does not cover the actual explosion fireball.
+     * Defocus and ringing then decay across the whole
      * duration, which the server sizes to the length of the ringing sound, so vision
      * is back to normal just as the audio finishes.
      */
-    private static final int FLASH_TICKS = 46;
+    private static final int FLASH_TICKS = 10;
     /**
      * Ceiling on the running effect, matched to the length of bomb_concussion.ogg.
      * Without it a long bombing run would push recovery out indefinitely.
@@ -231,7 +231,7 @@ public final class ConcussionClient {
         if (f <= 0.002f) {
             return;
         }
-        int a = (int) (Mth.clamp(f, 0.0f, 1.0f) * 235.0f);
+        int a = (int) (Mth.clamp(f, 0.0f, 1.0f) * 155.0f);
         graphics.fill(0, 0, w, h, (a << 24) | 0xFFFFFF);
     }
 

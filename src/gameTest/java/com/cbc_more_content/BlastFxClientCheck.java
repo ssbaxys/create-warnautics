@@ -2,11 +2,14 @@ package com.cbc_more_content;
 
 import com.cbc_more_content.bomb.BombSize;
 import com.cbc_more_content.client.BombFlashClient;
+import com.cbc_more_content.client.ConcussionClient;
 import com.cbc_more_content.client.FlashExposure;
 import com.cbc_more_content.client.veil.VeilBombFx;
+import com.cbc_more_content.client.veil.VeilConcussionFx;
 import com.cbc_more_content.effects.BlastDebris;
 import com.cbc_more_content.entity.BlastDebrisEntity;
 import com.cbc_more_content.network.BombFlashPayload;
+import com.cbc_more_content.network.ConcussionPayload;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import foundry.veil.forge.event.ForgeVeilPostProcessingEvent;
@@ -64,6 +67,7 @@ public final class BlastFxClientCheck {
                 try {
                     Class.forName("net.caffeinemc.mods.sodium.client.SodiumClientMod");
                     check(net.neoforged.fml.ModList.get().isLoaded("sodium"), "Actual Sodium renderer loaded");
+                    check(net.neoforged.fml.ModList.get().isLoaded("sodium_extra"), "Exact Sodium Extra add-on loaded");
                 } catch (ClassNotFoundException e) {
                     FAILURES.add("Sodium bootstrap present without its nested renderer");
                     finish();
@@ -188,6 +192,12 @@ public final class BlastFxClientCheck {
         }
         if (age == 145) {
             mc.getSingleplayerServer().execute(() -> burstTicks = 12);
+        }
+        if (age == 175) {
+            ConcussionClient.handle(new ConcussionPayload(1.0f, 0.0f, 80));
+        }
+        if (age == 185) {
+            check(VeilConcussionFx.isHandlingConcussion(), "Concussion Veil pipeline active");
         }
         int seen = 0;
         for (var entity : mc.level.entitiesForRendering()) {
@@ -349,7 +359,7 @@ public final class BlastFxClientCheck {
                 || event.getStage() != RenderLevelStageEvent.Stage.AFTER_LEVEL) {
             return;
         }
-        if (age != 32 && age != 70 && age != 96 && age != 136 && age != 175 && age != 210) {
+        if (age != 32 && age != 70 && age != 96 && age != 136 && age != 175 && age != 185 && age != 210) {
             return;
         }
         try (var pixels = capture()) {

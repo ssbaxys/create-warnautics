@@ -180,12 +180,9 @@ public class TripwireCoilItem extends Item {
     public void appendHoverText(
             ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         BlockPos pending = pendingPost(stack);
-        tooltip.add(Component.translatable(
-                        pending == null
-                                ? "tooltip.cbc_more_content.tripwire_coil"
-                                : "tooltip.cbc_more_content.tripwire_coil.pending")
-                .withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("tooltip.cbc_more_content.tripwire_coil.span", TripwireEntity.MAX_SPAN)
-                .withStyle(ChatFormatting.DARK_GRAY));
+        if (pending != null) {
+            tooltip.add(Component.translatable("tooltip.cbc_more_content.tripwire_coil.pending")
+                    .withStyle(ChatFormatting.GRAY));
+        }
     }
 }
