@@ -27,9 +27,10 @@ public final class WarnauticsConfig {
 
         builder.comment("Create Warnautics — detonation behaviour").push("detonation");
         FRIENDLY_CHAIN_DETONATION = builder.comment(
-                        "Allow Warnautics blasts to ignite other airborne Warnautics bombs.",
+                        "Allow close, exposed Warnautics blasts to damage armed airborne fuzes.",
+                        "Peripheral pressure deflects munitions instead of igniting them.",
                         "Explosive blocks destroyed by a blast always chain-detonate, regardless of this setting.")
-                .define("friendlyChainDetonation", false);
+                .define("friendlyChainDetonation", true);
         EXTERNAL_CHAIN_DETONATION = builder.comment(
                         "Allow external damage to ignite airborne bombs, and fire/lava/projectile",
                         "hits to cook off placed bombs. Explosive blocks destroyed by any blast",

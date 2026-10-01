@@ -24,6 +24,7 @@ public class Aim9BlockEntity extends BlockEntity {
     private boolean enabled;
     private boolean interceptCruise = true;
     private int range = 120;
+    private long lastScan = Long.MIN_VALUE;
 
     public Aim9BlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.AIM9.get(), pos, state);
@@ -50,6 +51,7 @@ public class Aim9BlockEntity extends BlockEntity {
     }
 
     public void configure(boolean enabled, boolean interceptCruise, int range) {
+        this.lastScan = Long.MIN_VALUE;
         this.enabled = enabled;
         this.interceptCruise = interceptCruise;
         this.range = Math.clamp(range, MIN_RANGE, MAX_RANGE);
@@ -64,10 +66,12 @@ public class Aim9BlockEntity extends BlockEntity {
                 || !be.enabled
                 || !be.interceptCruise
                 || !be.isLiveAirframe()
+                || be.lastScan == level.getGameTime()
                 || Math.floorMod(level.getGameTime() + pos.asLong(), 10) != 0
                 || state.getValue(Aim9Block.WATERLOGGED)) {
             return;
         }
+        be.lastScan = level.getGameTime();
         var frame = SableDropCompat.resolveLaunch(server, pos.getCenter(), Vec3.ZERO, new Vec3(0, 1, 0));
         Vec3 origin = frame.pos();
         var claimed = new HashSet<java.util.UUID>();

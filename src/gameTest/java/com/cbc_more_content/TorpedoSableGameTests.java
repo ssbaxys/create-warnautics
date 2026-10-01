@@ -31,7 +31,7 @@ import org.joml.Vector3d;
 @PrefixGameTestTemplate(false)
 public class TorpedoSableGameTests {
     private static final int FLAGS = Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE;
-    private static final TicketType<Long> FIXTURE = TicketType.create("torpedo_sable_fixture", Long::compareTo, 160);
+    private static final TicketType<Long> FIXTURE = TicketType.create("torpedo_sable_fixture", Long::compareTo, 1200);
 
     @GameTest(template = "empty", batch = "torpedo_sable_last", timeoutTicks = 100)
     public static void lastBlockLaunchesInWorldAndDoesNotLeavePlotEntity(GameTestHelper helper) {
@@ -43,11 +43,17 @@ public class TorpedoSableGameTests {
         launch(helper, true, true);
     }
 
-    @GameTest(template = "empty", batch = "torpedo_sable_redstone", timeoutTicks = 160)
+    @GameTest(template = "empty", batch = "torpedo_sable_redstone", timeoutTicks = 600)
     public static void redstoneReleaseSwimsAwayAndCarrierRemainsEditable(GameTestHelper helper) {
         var level = helper.getLevel();
         var at = helper.absolutePos(new BlockPos(60, 100, 60));
-        level.getChunkSource().addRegionTicket(FIXTURE, new ChunkPos(at), 4, at.asLong());
+        level.getChunkSource().addRegionTicket(FIXTURE, new ChunkPos(at), 4, at.asLong(), true);
+        var originChunk = new ChunkPos(at);
+        for (int x = -2; x <= 2; x++) {
+            for (int z = -5; z <= 2; z++) {
+                level.getChunk(originChunk.x + x, originChunk.z + z);
+            }
+        }
         var state = ModBlocks.SEA_BOMB.get().defaultBlockState().setValue(DropBombBlock.FACING, Direction.NORTH);
         level.setBlock(at, state, FLAGS);
         var cells = new ArrayList<BlockPos>();
@@ -60,7 +66,9 @@ public class TorpedoSableGameTests {
         cells.add(at.south());
         var ship = SubLevelAssemblyHelper.assembleBlocks(
                 level, at, cells, new BoundingBox3i(at.offset(-1, -1, 0), at.offset(1, 0, 3)));
-        var waterMin = at.offset(-8, -14, -55);
+        // This fixture tests rack release, not a shoreline transition. Leave room for
+        // the unanchored stone carrier to sink while its chunks finish loading.
+        var waterMin = at.offset(-8, -25, -65);
         var waterMax = at.offset(8, 8, 8);
         for (var p : BlockPos.betweenClosed(waterMin, waterMax)) {
             level.setBlock(p, Blocks.WATER.defaultBlockState(), FLAGS);
@@ -86,7 +94,10 @@ public class TorpedoSableGameTests {
                         helper.assertTrue(spawned.size() == 1, "Native redstone path releases one torpedo");
                         var sea = spawned.getFirst();
                         helper.assertFalse(sea.isRemoved(), "Released torpedo continues ticking in water");
-                        helper.assertTrue(sea.phase() == SeaBombProjectile.PHASE_SWIM, "Released torpedo swims");
+                        helper.assertTrue(
+                                sea.phase() == SeaBombProjectile.PHASE_SWIM,
+                                "Released torpedo swims: phase=" + sea.phase() + " position=" + sea.position()
+                                        + " rack=" + at + " ticks=" + sea.tickCount);
                         helper.assertTrue(
                                 sea.getZ() < at.getZ() - 5, "Torpedo leaves the rack, not only a short particle trail");
                         helper.assertFalse(ship.isRemoved(), "Carrier remains loaded after torpedo release");

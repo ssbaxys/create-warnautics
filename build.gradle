@@ -279,6 +279,7 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
         gameDirectory = blastFxDirectory
         systemProperty 'warnautics.blastFxCheck', 'true'
         systemProperty 'warnautics.expectSodium', providers.gradleProperty('fxSodiumJar').isPresent().toString()
+        systemProperty 'warnautics.blastFxIncludeVolume', providers.gradleProperty('blastFxIncludeVolume').isPresent().toString()
         systemProperty 'warnautics.blastFxIncludeFlight', providers.gradleProperty('blastFxIncludeFlight').isPresent().toString()
         systemProperty 'warnautics.blastFxFabulous', providers.gradleProperty('blastFxFabulous').isPresent().toString()
         jvmArguments.addAll '-Xmx3G', '-XX:ActiveProcessorCount=4'
@@ -289,6 +290,12 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
             def result = new File(blastFxDirectory, 'blast-fx-check.txt')
             if (!result.exists() || !result.getText('UTF-8').startsWith('PASS')) {
                 throw new GradleException("Blast FX client check failed: ${result}")
+            }
+            if (providers.gradleProperty('blastFxIncludeVolume').isPresent()) {
+                def volume = new File(blastFxDirectory, 'blast-volume-check.txt')
+                if (!volume.exists() || !volume.getText('UTF-8').startsWith('PASS')) {
+                    throw new GradleException("Blast volume check failed: ${volume}")
+                }
             }
             if (providers.gradleProperty('blastFxIncludeFlight').isPresent()) {
                 def flight = new File(blastFxDirectory, 'missile-flight-check.txt')

@@ -31,22 +31,23 @@ public enum MissileFlightProfile {
     }
 
     public double speed(int poweredTicks, double range, long seed) {
-        double spool = Mth.clamp(poweredTicks / 36.0, 0, 1);
+        double spool = Mth.clamp(poweredTicks / 38.0, 0, 1);
+        spool = spool * spool * (3 - 2 * spool);
         double terminal = Mth.clamp((48 - range) / 48, 0, 1);
         return switch (this) {
-            case DIRECT -> (0.95 + 0.45 * spool) * (1 + 0.25 * terminal);
-            case ARC -> (0.85 + 0.48 * spool) * (1 + 0.35 * terminal);
+            case DIRECT -> (1.15 + 3.05 * spool) * (1 + .07 * terminal);
+            case ARC -> (1.05 + 2.85 * spool) * (1 + .10 * terminal);
             case EVASIVE -> {
-                double phase = (seed & 0xFF) * 0.024;
-                double pulse = Math.sin(poweredTicks * 0.115 + phase) * 0.22
-                        + Math.sin(poweredTicks * 0.041 + phase * 1.7) * 0.14;
-                yield Mth.clamp(1.1 + 0.45 * spool + pulse + 0.32 * terminal, 0.85, 2.1);
+                double phase = (seed & 0xFF) * .024;
+                double pulse =
+                        Math.sin(poweredTicks * .115 + phase) * .34 + Math.sin(poweredTicks * .041 + phase * 1.7) * .20;
+                yield Mth.clamp(1.15 + 3.0 * spool + pulse * spool + .18 * terminal, 1.0, 4.7);
             }
         };
     }
 
     public double fuelPerTick(double speed) {
-        return this.fuelPerTick + Math.max(0, speed - 1.4) * 0.18;
+        return this.fuelPerTick + Math.max(0, speed - 4.0) * .18;
     }
 
     public Vec3 shapedAim(Vec3 position, Vec3 target, int poweredTicks, long seed) {

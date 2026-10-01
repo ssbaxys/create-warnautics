@@ -54,10 +54,10 @@ public class CruiseMissileProjectile extends Entity {
     public static final double EJECT_SPEED = 0.62D;
     private static final double EJECT_GRAVITY = 0.03D;
 
-    private static final double TURN_RATE = 0.055D;
-    private static final double LOOKAHEAD = 17.0D;
-    private static final double TERMINAL_RANGE = 32.0D;
-    private static final double TERMINAL_TURN_RATE = 0.2D;
+    private static final double TURN_RATE = 0.11D;
+    private static final double LOOKAHEAD = 36.0D;
+    private static final double TERMINAL_RANGE = 44.0D;
+    private static final double TERMINAL_TURN_RATE = 0.30D;
     private static final double FUSE_RANGE = 2.4D;
     private static final double JINK_DOT = 0.55D;
     private static final float JINK_CHANCE = 0.4f;
@@ -84,6 +84,7 @@ public class CruiseMissileProjectile extends Entity {
 
     private int ejecting;
     private Vec3 carrierVelocity = Vec3.ZERO;
+    private Vec3 blastDrift = Vec3.ZERO;
 
     @Nullable
     private java.util.UUID salvoId;
@@ -232,7 +233,7 @@ public class CruiseMissileProjectile extends Entity {
 
         this.watchForJink(aim);
 
-        Vec3 motion = this.getDeltaMovement();
+        Vec3 motion = this.getDeltaMovement().subtract(this.blastDrift);
         if (this.isPowered() && !this.waterEntered) {
             motion = this.steer(motion.subtract(this.carrierVelocity).normalize(), aim)
                     .scale(this.speedFor(aim))
@@ -255,6 +256,8 @@ public class CruiseMissileProjectile extends Entity {
         } else {
             motion = motion.scale(DRAG).subtract(0.0D, GRAVITY, 0.0D);
         }
+        motion = motion.add(this.blastDrift);
+        this.blastDrift = this.blastDrift.scale(.82);
         this.setDeltaMovement(motion);
 
         Vec3 from = this.position();
@@ -429,12 +432,27 @@ public class CruiseMissileProjectile extends Entity {
             Vec3 tracked = SableDropCompat.subLevelCentre(server, this.targeting.lockedSubLevel());
             if (tracked != null) {
                 this.trackingHull = true;
-                return tracked;
+                return this.dispersedAim(tracked, .6);
             }
         }
         return this.targeting.target() == null || this.targeting.guidance() == Guidance.NONE
                 ? null
-                : Vec3.atCenterOf(this.targeting.target());
+                : this.dispersedAim(Vec3.atCenterOf(this.targeting.target()), 1.8);
+    }
+
+    private Vec3 dispersedAim(Vec3 target, double radius) {
+        long seed = this.getUUID().getLeastSignificantBits();
+        double angle = ((seed >>> 16) & 0xFFFF) / 65536.0 * Math.PI * 2;
+        double distance = radius * Math.sqrt((seed & 0xFFFF) / 65536.0);
+        return target.add(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
+    }
+
+    /** The motor recovers over several ticks instead of erasing a pressure impulse immediately. */
+    public void applyBlastImpulse(Vec3 impulse) {
+        this.blastDrift = this.blastDrift.add(impulse);
+        this.setDeltaMovement(this.getDeltaMovement().add(impulse));
+        this.hasImpulse = true;
+        this.hurtMarked = true;
     }
 
     @Nullable
@@ -596,6 +614,9 @@ public class CruiseMissileProjectile extends Entity {
         if (amount <= 0 || this.detonated || this.isInvulnerableTo(source)) {
             return false;
         }
+        if (source.is(net.minecraft.tags.DamageTypeTags.IS_EXPLOSION) && amount < 28) {
+            return false;
+        }
         if (!this.level().isClientSide && !this.detonated) {
             this.detonate(this.position());
         }
@@ -637,6 +658,8 @@ public class CruiseMissileProjectile extends Entity {
         this.entityData.set(EJECTING, this.ejecting > 0);
         this.carrierVelocity =
                 new Vec3(tag.getDouble("CarrierX"), tag.getDouble("CarrierY"), tag.getDouble("CarrierZ"));
+        this.blastDrift =
+                new Vec3(tag.getDouble("BlastDriftX"), tag.getDouble("BlastDriftY"), tag.getDouble("BlastDriftZ"));
         this.targeting.readFrom(tag);
         this.salvoId = tag.hasUUID("Salvo") ? tag.getUUID("Salvo") : null;
         this.salvoIndex = Math.clamp(tag.getInt("SalvoIndex"), 0, 15);
@@ -656,6 +679,9 @@ public class CruiseMissileProjectile extends Entity {
         tag.putDouble("CarrierX", this.carrierVelocity.x);
         tag.putDouble("CarrierY", this.carrierVelocity.y);
         tag.putDouble("CarrierZ", this.carrierVelocity.z);
+        tag.putDouble("BlastDriftX", this.blastDrift.x);
+        tag.putDouble("BlastDriftY", this.blastDrift.y);
+        tag.putDouble("BlastDriftZ", this.blastDrift.z);
         this.targeting.writeTo(tag);
         if (this.salvoId != null) {
             tag.putUUID("Salvo", this.salvoId);

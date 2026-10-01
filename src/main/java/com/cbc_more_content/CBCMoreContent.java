@@ -53,6 +53,11 @@ public class CBCMoreContent {
     private void commonSetup(FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
             ModEntityTypes.registerMunitionHandlers();
+            com.cbc_more_content.compat.AirframeMovement.register();
+            if (ModList.get().isLoaded("simulated")) {
+                ReflectiveDispatcher.invoke(
+                        "com.cbc_more_content.compat.simulated.AirframeAssembly", "register", new Class<?>[0]);
+            }
             // Pay the class-loading cost here rather than inside the first detonation.
             Warmup.common();
         });

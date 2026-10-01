@@ -100,6 +100,17 @@ public class C4Projectile extends ThrowableItemProjectile {
         return ModItems.C4.get();
     }
 
+    public boolean isArmed() {
+        return this.armed;
+    }
+
+    public void sympatheticDetonate() {
+        if (this.isAlive() && this.level() instanceof ServerLevel level) {
+            C4BlockEntity.explode(level, this.position());
+            this.discard();
+        }
+    }
+
     @Override
     public void tick() {
         super.tick();

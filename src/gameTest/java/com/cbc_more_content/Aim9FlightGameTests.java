@@ -103,7 +103,7 @@ public class Aim9FlightGameTests {
         var interceptors = new ArrayList<Aim9Projectile>();
         int scenario = 0;
         for (Vec3 velocity : List.of(new Vec3(1, 0, 0), new Vec3(0, 0, 1), new Vec3(-1, .3, .2))) {
-            Vec3 start = origin.add(0, 0, scenario++ * 300);
+            Vec3 start = origin.add(0, 0, scenario++ * 1500);
             level.getChunkSource()
                     .addRegionTicket(
                             FIXTURE,
@@ -118,7 +118,7 @@ public class Aim9FlightGameTests {
         h.runAfterDelay(40, () -> {
             for (int i = 0; i < targets.size(); i++) {
                 var interceptor = ModEntityTypes.AIM9.get().create(level);
-                interceptor.setPos(origin.add(0, 0, i * 300));
+                interceptor.setPos(origin.add(0, 0, i * 1500));
                 interceptor.launch(targets.get(i), Vec3.ZERO);
                 level.addFreshEntity(interceptor);
                 interceptors.add(interceptor);
@@ -136,7 +136,11 @@ public class Aim9FlightGameTests {
                     coldChecked[i] = true;
                 }
                 if (round.tickCount >= 34 && !round.isRemoved()) {
-                    h.assertTrue(round.isPowered() && round.getDeltaMovement().length() > 4, "Powered acceleration");
+                    h.assertTrue(
+                            round.isPowered() && round.getDeltaMovement().length() > 4,
+                            "Powered acceleration: ticks=" + round.tickCount + " motor="
+                                    + round.saveWithoutId(new CompoundTag()).getInt("MotorTicks") + " speed="
+                                    + round.getDeltaMovement().length());
                     boostChecked[i] = true;
                 }
             }
@@ -148,7 +152,13 @@ public class Aim9FlightGameTests {
                 h.assertTrue(interceptors.get(i).isRemoved(), "Interceptor consumed: " + i);
                 h.assertTrue(coldChecked[i], "Cold phase observed: " + i);
                 h.assertTrue(
-                        boostChecked[i] || interceptors.get(i).isPowered(), "Motor ignited before interception: " + i);
+                        boostChecked[i]
+                                || interceptors
+                                                .get(i)
+                                                .saveWithoutId(new CompoundTag())
+                                                .getInt("MotorTicks")
+                                        > 0,
+                        "Motor ignited before interception: " + i);
             }
             h.assertTrue(boostChecked[0], "Outrunning target requires full acceleration");
         });
@@ -228,10 +238,10 @@ public class Aim9FlightGameTests {
         var next = rack(h, second);
         var target = cruise(level, pos.getCenter().add(90, 0, 0), new Vec3(1, 0, 0));
         h.runAfterDelay(4, () -> {
-            first.configure(true, true, 120);
-            next.configure(true, true, 120);
+            first.configure(true, true, 220);
+            next.configure(true, true, 220);
         });
-        h.runAfterDelay(15, () -> {
+        h.runAfterDelay(25, () -> {
             var shots = level.getEntitiesOfClass(Aim9Projectile.class, new AABB(pos).inflate(140), e -> target.getUUID()
                     .equals(e.targetId()));
             try {

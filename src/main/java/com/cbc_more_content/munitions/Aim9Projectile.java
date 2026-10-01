@@ -41,6 +41,7 @@ public class Aim9Projectile extends Entity {
     private int motorTicks;
     private int lostTicks;
     private Vec3 carrierVelocity = Vec3.ZERO;
+    private Vec3 blastDrift = Vec3.ZERO;
 
     @Nullable
     private ChunkPos ticketChunk;
@@ -93,7 +94,7 @@ public class Aim9Projectile extends Entity {
         }
         server.getChunkSource().addRegionTicket(TICKET, chunk, TICKET_DISTANCE, getUUID());
         Entity target = targetId == null ? null : server.getEntity(targetId);
-        Vec3 motion = getDeltaMovement();
+        Vec3 motion = getDeltaMovement().subtract(blastDrift);
         if (ejectTicks > 0) {
             ejectTicks--;
             motion = motion.subtract(0, .022, 0);
@@ -145,6 +146,8 @@ public class Aim9Projectile extends Entity {
                         1.4f);
             }
         }
+        motion = motion.add(blastDrift);
+        blastDrift = blastDrift.scale(.82);
         setDeltaMovement(motion);
         Vec3 from = position(), to = from.add(motion);
         var block = server.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
@@ -207,7 +210,7 @@ public class Aim9Projectile extends Entity {
         entityData.set(POWERED, false);
         if (burst) {
             if (target != null && target.isAlive()) {
-                target.hurt(server.damageSources().explosion(this, this), 12);
+                target.hurt(server.damageSources().explosion(this, this), 40);
             }
             // Fragmentation burst in the air; not a second MOAB-sized terrain warhead.
             server.explode(this, at.x, at.y, at.z, 2, Level.ExplosionInteraction.NONE);
@@ -229,9 +232,19 @@ public class Aim9Projectile extends Entity {
         setXRot((float) -Math.toDegrees(Math.asin(Mth.clamp(dir.y, -1, 1))));
     }
 
+    public void applyBlastImpulse(Vec3 impulse) {
+        blastDrift = blastDrift.add(impulse);
+        setDeltaMovement(getDeltaMovement().add(impulse));
+        hasImpulse = true;
+        hurtMarked = true;
+    }
+
     @Override
     public boolean hurt(DamageSource source, float amount) {
         if (amount <= 0 || finished || isInvulnerableTo(source)) {
+            return false;
+        }
+        if (source.is(net.minecraft.tags.DamageTypeTags.IS_EXPLOSION) && amount < 22) {
             return false;
         }
         if (!level().isClientSide) {
@@ -283,6 +296,7 @@ public class Aim9Projectile extends Entity {
         motorTicks = Mth.clamp(tag.getInt("MotorTicks"), 0, MOTOR_TICKS + 1);
         lostTicks = tag.getInt("LostTicks");
         carrierVelocity = new Vec3(tag.getDouble("CarrierX"), tag.getDouble("CarrierY"), tag.getDouble("CarrierZ"));
+        blastDrift = new Vec3(tag.getDouble("BlastDriftX"), tag.getDouble("BlastDriftY"), tag.getDouble("BlastDriftZ"));
         entityData.set(POWERED, ejectTicks == 0 && motorTicks <= MOTOR_TICKS);
     }
 
@@ -297,5 +311,8 @@ public class Aim9Projectile extends Entity {
         tag.putDouble("CarrierX", carrierVelocity.x);
         tag.putDouble("CarrierY", carrierVelocity.y);
         tag.putDouble("CarrierZ", carrierVelocity.z);
+        tag.putDouble("BlastDriftX", blastDrift.x);
+        tag.putDouble("BlastDriftY", blastDrift.y);
+        tag.putDouble("BlastDriftZ", blastDrift.z);
     }
 }

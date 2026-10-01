@@ -2,18 +2,19 @@
 
 ## 1.1
 
+Small and medium bombs have their animated Create Big Cannons smoke back, together with the softer smoke body. C4 and the vest produce a wider ground-level bloom; the sea mine leaves a denser cloud and a water burst. Busy chain reactions retain both smoke layers for each charge, with bounded particle counts instead of miniature clouds. Blast damage has not changed.
+
+AIM-9 searches and intercepts from moving Sable ships again. Gluing any one cell of an AIM-9, MOAB or cruise missile to the hull now collects the entire three-cell airframe, whether assembly starts from the hull or the weapon.
+
+A blast near flying munitions applies pressure rather than instantly igniting every round in its radius. Missiles recover their course over several ticks; strong close pressure can set off an exposed armed charge after a short delay, while cover attenuates the impulse. Placed explosives keep their existing chain-reaction rules.
+
+Cruise missiles accelerate smoothly and turn more readily, but remain slower than AIM-9. All three flight plans add a small variation around the selected impact point. The variation is tighter against small physical targets so it does not undermine direct hits.
+
 AIM-9 is now a working interceptor. The settings key opens its own panel with an enable switch, a cruise-missile filter and a 40–220 block range slider. It clears the rack on a smooth upward ejection, then lights its motor with a pop and accelerates into a lead pursuit. Launchers keep a round back when another interceptor already owns the contact. Moving Sable racks preserve the launch frame, and flight chunks are prepared ahead of the interceptor.
-
-
 
 Grouped cruise missiles take separate approach lanes and avoid nearby rounds. Missile collisions now use the slender moving airframes instead of overlapping tracking boxes, so flying beside another missile no longer counts as hitting it. Old chunk tickets are released as the flight moves on.
 
-
-
 Small, medium and large bomb flashes have twice the previous radius. Small and medium charges leave larger overlapping soft smoke billows. Smoke delivery follows rendered chunks rather than the sound radius, and chain reactions retain a cloud for each charge while reducing small details under heavy load. Separate charges keep separate flash origins; only nearly coincident explosions merge.
-
-
-
 
 Small flying targets exposed a problem with the cruise missile's fuze: it could go off before touching the hull, or simply because it had started flying away after a miss. A missile locked onto a physical ship now waits for contact. Coordinate and radar targets keep a proximity fuze, but it checks the actual flight segment and only fires close to the target. Warhead power is unchanged.
 
