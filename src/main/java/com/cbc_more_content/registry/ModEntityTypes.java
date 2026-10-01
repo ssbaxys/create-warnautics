@@ -63,6 +63,16 @@ public final class ModEntityTypes {
                     .updateInterval(1)
                     .build("c4"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<com.cbc_more_content.munitions.Aim9Projectile>> AIM9 =
+            ENTITY_TYPES.register("aim9", () -> EntityType.Builder.<com.cbc_more_content.munitions.Aim9Projectile>of(
+                            com.cbc_more_content.munitions.Aim9Projectile::new, MobCategory.MISC)
+                    .sized(.24f, .24f)
+                    .fireImmune()
+                    .clientTrackingRange(32)
+                    .updateInterval(1)
+                    .setShouldReceiveVelocityUpdates(true)
+                    .build("aim9"));
+
     /** Strung between two posts and then left alone, so it is tracked far and rarely updated. */
     public static final DeferredHolder<EntityType<?>, EntityType<TripwireEntity>> TRIPWIRE = ENTITY_TYPES.register(
             "tripwire", () -> EntityType.Builder.<TripwireEntity>of(TripwireEntity::new, MobCategory.MISC)

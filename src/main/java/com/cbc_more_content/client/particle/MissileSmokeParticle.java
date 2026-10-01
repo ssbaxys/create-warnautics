@@ -36,21 +36,37 @@ public final class MissileSmokeParticle extends TextureSheetParticle {
     private final float shade;
     private final float size;
     private final boolean softVolume;
+    private final float bulk;
 
     private MissileSmokeParticle(
             ClientLevel level, double x, double y, double z, double vx, double vy, double vz, SpriteSet sprites) {
+        this(level, x, y, z, vx, vy, vz, sprites, 1, false);
+    }
+
+    private MissileSmokeParticle(
+            ClientLevel level,
+            double x,
+            double y,
+            double z,
+            double vx,
+            double vy,
+            double vz,
+            SpriteSet sprites,
+            float bulk,
+            boolean blast) {
         super(level, x, y, z);
+        this.bulk = bulk;
         xd = vx;
         yd = vy;
         zd = vz;
         friction = .97f;
         gravity = -.006f;
         hasPhysics = false;
-        lifetime = 64 + random.nextInt(24);
-        size = .62f + random.nextFloat() * .20f;
+        lifetime = (blast ? 100 : 64) + random.nextInt(24);
+        size = (.62f + random.nextFloat() * .20f) * bulk;
         quadSize = size;
         spin = (random.nextFloat() - .5f) * .016f;
-        shade = .70f + random.nextFloat() * .13f;
+        shade = (blast ? .30f : .70f) + random.nextFloat() * .13f;
         setColor(shade, shade * .98f, shade * .94f);
         setAlpha(.14f);
         pickSprite(sprites);
@@ -64,7 +80,7 @@ public final class MissileSmokeParticle extends TextureSheetParticle {
         roll += spin;
         super.tick();
         float t = age / (float) lifetime;
-        quadSize = size + 2.6f * (1 - (float) Math.exp(-t * 1.8));
+        quadSize = size + 2.6f * bulk * (1 - (float) Math.exp(-t * 1.8));
         float fade = Mth.clamp((t - .18f) / .82f, 0, 1);
         float tail = 1 - fade * fade * (3 - 2 * fade);
         setAlpha((.3f + .7f * Math.min(1, age / 4f)) * tail * .46f);
@@ -100,6 +116,22 @@ public final class MissileSmokeParticle extends TextureSheetParticle {
     @Override
     protected float getV1() {
         return softVolume ? 1 : super.getV1();
+    }
+
+    public record BlastProvider(SpriteSet sprites)
+            implements ParticleProvider<com.cbc_more_content.effects.BlastSmokeData> {
+        @Override
+        public Particle createParticle(
+                com.cbc_more_content.effects.BlastSmokeData data,
+                ClientLevel level,
+                double x,
+                double y,
+                double z,
+                double vx,
+                double vy,
+                double vz) {
+            return new MissileSmokeParticle(level, x, y, z, vx, vy, vz, sprites, data.scale(), true);
+        }
     }
 
     public record Provider(SpriteSet sprites) implements ParticleProvider<SimpleParticleType> {

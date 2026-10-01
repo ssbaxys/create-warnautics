@@ -52,6 +52,21 @@ public final class VeilMissilePlume extends RenderType {
             int samples,
             float fogStart,
             float fogEnd) {
+        render(nozzleView, projection, time, strength, samples, fogStart, fogEnd, 0);
+    }
+
+    public static void render(
+            Matrix4f nozzleView,
+            Matrix4f projection,
+            float time,
+            float strength,
+            int samples,
+            float fogStart,
+            float fogEnd,
+            float interceptor) {
+        // The interceptor's narrower high-pressure jet shares the same bounded render pass.
+        nozzleView = new Matrix4f(nozzleView)
+                .scale(interceptor > 0 ? .72f : 1, interceptor > 0 ? .58f : 1, interceptor > 0 ? .58f : 1);
         var shader = VeilRenderSystem.renderer().getShaderManager().getShader(SHADER);
         if (shader == null || !shader.isValid() || strength <= 0) {
             return;
@@ -61,6 +76,7 @@ public final class VeilMissilePlume extends RenderType {
         shader.getUniformSafe("PlumeProjection").setMatrix(projection);
         shader.getUniformSafe("CameraLocal").setVector(camera);
         shader.getUniformSafe("Time").setFloat(time);
+        shader.getUniformSafe("Interceptor").setFloat(interceptor);
         shader.getUniformSafe("Strength").setFloat(strength);
         shader.getUniformSafe("Samples").setInt(Math.clamp(samples, 8, 36));
         shader.getUniformSafe("FogRange").setVector(fogStart, fogEnd);

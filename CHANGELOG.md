@@ -2,6 +2,19 @@
 
 ## 1.1
 
+AIM-9 is now a working interceptor. The settings key opens its own panel with an enable switch, a cruise-missile filter and a 40–220 block range slider. It clears the rack on a smooth upward ejection, then lights its motor with a pop and accelerates into a lead pursuit. Launchers keep a round back when another interceptor already owns the contact. Moving Sable racks preserve the launch frame, and flight chunks are prepared ahead of the interceptor.
+
+
+
+Grouped cruise missiles take separate approach lanes and avoid nearby rounds. Missile collisions now use the slender moving airframes instead of overlapping tracking boxes, so flying beside another missile no longer counts as hitting it. Old chunk tickets are released as the flight moves on.
+
+
+
+Small, medium and large bomb flashes have twice the previous radius. Small and medium charges leave larger overlapping soft smoke billows. Smoke delivery follows rendered chunks rather than the sound radius, and chain reactions retain a cloud for each charge while reducing small details under heavy load. Separate charges keep separate flash origins; only nearly coincident explosions merge.
+
+
+
+
 Small flying targets exposed a problem with the cruise missile's fuze: it could go off before touching the hull, or simply because it had started flying away after a miss. A missile locked onto a physical ship now waits for contact. Coordinate and radar targets keep a proximity fuze, but it checks the actual flight segment and only fires close to the target. Warhead power is unchanged.
 
 The settings key now offers three flight plans, with animated drawings: direct, lofted and evasive. They have different throttle behaviour and fuel costs. The evasive plan weaves during the approach and straightens for the final attack. Right-clicking a missile with the designator enables remote guidance immediately; one designator can hold a group of up to eight missiles, including after their racks are assembled into a Sable ship.
@@ -16,7 +29,7 @@ This update is largely about making a battle behave the same way on a moving shi
 
 The sea mine is back. It floats as a physical body, damages ships on contact, and rusts through four states (0–3) while wet. Rust makes a contact misfire more likely; the dull knock means this impact failed, not that the mine is harmless. A separate chain coil and chain connector can be used with Simulated connections and winches, without replacing its ordinary rope.
 
-Bomb racks are easier to work with now. Small-bomb bundles of two, three and four release their charges separately, and an explosion destroying a stored bundle can set off the individual bombs in sequence. The settings key gives the whole connected rack an adjustable release interval. The MOAB and the new AIM-9 airframe both fit into three-block spaces more reliably. AIM-9 is a placeable model for now; it does **not** have flight or a live warhead yet.
+Bomb racks are easier to work with now. Small-bomb bundles of two, three and four release their charges separately, and an explosion destroying a stored bundle can set off the individual bombs in sequence. The settings key gives the whole connected rack an adjustable release interval. The MOAB and the new AIM-9 airframe both fit into three-block spaces more reliably. AIM-9 now supports automatic interception through its own settings panel.
 
 The sea torpedo keeps moving when it leaves water: it follows a falling arc, and resumes its run if it lands back in water. The cruise missile can launch from a physical ship, its blast has the character of a smaller MOAB, and the target designator now acquires moving ships from at least 50 blocks away. It ignores your own hull while aiming, but other obstacles still matter.
 

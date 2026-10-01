@@ -19,6 +19,74 @@ import org.lwjgl.opengl.GL11;
 
 /** Real Veil compiler + GPU: all view angles, animation, depth occlusion and motor cutoff. */
 final class MissilePlumePixelCheck {
+    static void runAim9() throws Exception {
+        var mc = Minecraft.getInstance();
+        var projection = new Matrix4f(RenderSystem.getProjectionMatrix());
+        var sorting = RenderSystem.getVertexSorting();
+        var view = RenderSystem.getModelViewStack();
+        view.pushMatrix();
+        view.identity();
+        RenderSystem.applyModelViewMatrix();
+        var target = new TextureTarget(512, 512, true, Minecraft.ON_OSX);
+        long baseline = 0, first = 0;
+        try {
+            var perspective = new Matrix4f().perspective((float) Math.toRadians(50), 1, .05f, 500);
+            RenderSystem.setProjectionMatrix(perspective, VertexSorting.DISTANCE_TO_ORIGIN);
+            var matrix = new Matrix4f().lookAt(new Vector3f(2, 1.4f, 9), new Vector3f(2, 0, 0), new Vector3f(0, 1, 0));
+            for (int i = 0; i < 4; i++) {
+                target.setClearColor(0, 0, 0, 0);
+                target.clear(Minecraft.ON_OSX);
+                target.bindWrite(true);
+                RenderSystem.enableDepthTest();
+                RenderSystem.depthMask(true);
+                if (i == 3) {
+                    GL11.glClearDepth(0);
+                    GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT);
+                    GL11.glClearDepth(1);
+                }
+                VeilMissilePlume.render(matrix, perspective, i == 2 ? 2.4f : 1.3f, 1, 24, 140, 160, i == 0 ? 0 : 1);
+                target.bindRead();
+                try (NativeImage image = new NativeImage(512, 512, false)) {
+                    image.downloadTexture(0, false);
+                    image.flipY();
+                    image.writeToFile(Path.of("aim9-plume-" + i + ".png"));
+                    long hash = 1;
+                    int lit = 0;
+                    for (int y = 0; y < 512; y++) {
+                        for (int x = 0; x < 512; x++) {
+                            int rgb = image.getPixelRGBA(x, y) & 0xFFFFFF;
+                            hash = hash * 31 + rgb;
+                            if (rgb != 0) {
+                                lit++;
+                            }
+                        }
+                    }
+                    if (i == 0) {
+                        baseline = hash;
+                    } else if (i == 1) {
+                        first = hash;
+                        if (hash == baseline || lit < 50) {
+                            throw new AssertionError("AIM-9 needs a distinct visible plume");
+                        }
+                    } else if (i == 2 && hash == first) {
+                        throw new AssertionError("AIM-9 plume animation is frozen");
+                    } else if (i == 3 && lit != 0) {
+                        throw new AssertionError("AIM-9 plume shines through terrain depth");
+                    }
+                }
+                if (GL11.glGetError() != GL11.GL_NO_ERROR) {
+                    throw new AssertionError("AIM-9 plume GL error");
+                }
+            }
+        } finally {
+            target.destroyBuffers();
+            RenderSystem.setProjectionMatrix(projection, sorting);
+            view.popMatrix();
+            RenderSystem.applyModelViewMatrix();
+            mc.getMainRenderTarget().bindWrite(true);
+        }
+    }
+
     static void run() throws Exception {
         checkNozzlesAndLights();
         if (!VeilMissilePlume.available()) {

@@ -19,10 +19,19 @@ import org.joml.Vector4f;
 /** Shared camera exposure for Veil and fallback. No visibility ray is cast from a render callback. */
 @EventBusSubscriber(modid = CBCMoreContent.MOD_ID, value = Dist.CLIENT)
 public final class FlashExposure {
-    public static final int MAX_SOURCES = 4;
-    public static final int RAYS_PER_TICK = 8;
+    public static final int MAX_SOURCES = 8;
+    public static final int RAYS_PER_TICK = 16;
     private static final Map<BombFlashClient.Flash, Visibility> VISIBILITY = new IdentityHashMap<>();
-    private static final Vector4f[] SOURCES = {new Vector4f(), new Vector4f(), new Vector4f(), new Vector4f()};
+    private static final Vector4f[] SOURCES = {
+        new Vector4f(),
+        new Vector4f(),
+        new Vector4f(),
+        new Vector4f(),
+        new Vector4f(),
+        new Vector4f(),
+        new Vector4f(),
+        new Vector4f()
+    };
     private static ClientLevel level;
     private static int cursor;
     private static double previousTime = Double.NaN;
@@ -53,7 +62,7 @@ public final class FlashExposure {
         for (int i = 0; i < visits; i++) {
             var flash = flashes.get(Math.floorMod(cursor++, flashes.size()));
             var visibility = VISIBILITY.computeIfAbsent(flash, ignored -> new Visibility());
-            if (eye.distanceToSqr(flash.pos) > reach(flash.size) * reach(flash.size)) {
+            if (eye.distanceToSqr(flash.pos) > 512 * 512) {
                 visibility.direct = visibility.sky = 0;
                 continue;
             }
@@ -113,6 +122,9 @@ public final class FlashExposure {
             float visibility = skyOnly ? visible.smoothSky * .25f : visible.smoothDirect;
             float falloff = Mth.clamp(1 - (float) distance / reach(flash.size), 0, 1);
             float energy = flash.intensity * flash.fade(partial) * visibility * falloff * falloff;
+            // A distant visible fireball keeps a small world hotspot, without extending retinal glare.
+            float hotspot =
+                    flash.intensity * flash.fade(partial) * visibility / (1 + (float) (distance * distance) / 3600);
             float close = Mth.clamp(1 - (float) distance / 16, 0, 1);
             var view = event.getModelViewMatrix()
                     .transform(new Vector4f((float) delta.x, (float) delta.y, (float) delta.z, 1));
@@ -140,7 +152,7 @@ public final class FlashExposure {
                             * .5f,
                     .016f,
                     .6f);
-            offer(u, v, energy * front * inFrame, skyOnly ? radius * 1.6f : radius);
+            offer(u, v, Math.max(energy, hotspot) * front * inFrame, skyOnly ? radius * 1.6f : radius);
         }
         // A short retinal response persists when turning away; the world hotspot itself never trails the camera.
         exposure = approach(exposure, targetExposure, dt, .018f, .22f);
@@ -215,10 +227,10 @@ public final class FlashExposure {
 
     private static float fireballRadius(BombSize size) {
         return switch (size) {
-            case SMALL -> 2;
+            case SMALL -> 4;
             case SEA -> 2.5f;
-            case MEDIUM -> 3.5f;
-            case LARGE -> 5;
+            case MEDIUM -> 7;
+            case LARGE -> 10;
             case MOAB -> 9;
         };
     }

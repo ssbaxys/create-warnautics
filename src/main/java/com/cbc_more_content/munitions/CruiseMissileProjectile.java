@@ -30,7 +30,6 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.ModList;
@@ -43,7 +42,7 @@ public class CruiseMissileProjectile extends Entity {
     private static final double DRAG = 0.95D;
     private static final int ARMING_TICKS = 4;
 
-    private static final TicketType<Long> MISSILE_TICKET = TicketType.create("cruise_missile", Long::compareTo);
+    private static final TicketType<Long> MISSILE_TICKET = TicketType.create("cruise_missile", Long::compareTo, 20);
     private static final int CHUNK_TICKET_RADIUS = 2;
 
     private static final EntityDataAccessor<Boolean> POWERED =
@@ -85,6 +84,18 @@ public class CruiseMissileProjectile extends Entity {
 
     private int ejecting;
     private Vec3 carrierVelocity = Vec3.ZERO;
+
+    @Nullable
+    private java.util.UUID salvoId;
+
+    private int salvoIndex;
+    private int salvoCount = 1;
+    private Vec3 salvoOrigin = Vec3.ZERO;
+    private final java.util.Set<ChunkPos> ticketChunks = new java.util.HashSet<>();
+
+    @Nullable
+    private ChunkPos ticketCenter;
+
     private final MissileTargetingState targeting = new MissileTargetingState();
 
     public CruiseMissileProjectile(EntityType<? extends CruiseMissileProjectile> type, Level level) {
@@ -116,6 +127,17 @@ public class CruiseMissileProjectile extends Entity {
 
     public MissileFlightProfile flightProfile() {
         return this.flightProfile;
+    }
+
+    public void setSalvo(java.util.UUID id, int index, int count) {
+        this.setSalvo(id, index, count, this.position());
+    }
+
+    public void setSalvo(java.util.UUID id, int index, int count, Vec3 origin) {
+        this.salvoId = id;
+        this.salvoIndex = Math.clamp(index, 0, 15);
+        this.salvoCount = Math.clamp(count, 1, 16);
+        this.salvoOrigin = origin;
     }
 
     public boolean isEjecting() {
@@ -306,7 +328,7 @@ public class CruiseMissileProjectile extends Entity {
 
     private Vec3 steer(Vec3 heading, @Nullable Vec3 aim) {
         if (aim == null) {
-            return heading;
+            return turnToward(heading, this.separate(heading), .12);
         }
         Vec3 toTarget = aim.subtract(this.position());
         double distance = toTarget.length();
@@ -315,11 +337,66 @@ public class CruiseMissileProjectile extends Entity {
         }
         Vec3 shaped = this.flightProfile.shapedAim(
                 this.position(), aim, this.poweredTicks, this.getUUID().getLeastSignificantBits());
+        if (this.salvoId != null && this.salvoCount > 1) {
+            Vec3 forward = aim.subtract(this.salvoOrigin).normalize();
+            Vec3 side = forward.cross(new Vec3(0, 1, 0));
+            if (side.lengthSqr() < .01) {
+                side = new Vec3(1, 0, 0);
+            }
+            side = side.normalize();
+            Vec3 up = side.cross(forward).normalize();
+            double angle = this.salvoIndex * (Math.PI * 2 / this.salvoCount);
+            double radius = Math.max(3.5, this.salvoCount * .8) * Mth.clamp((distance - 5) / 24, 0, 1);
+            if (this.flightProfile != MissileFlightProfile.EVASIVE && distance > TERMINAL_RANGE) {
+                // Hold a corridor beside the shared route, instead of a distant offset endpoint.
+                double along = Mth.clamp(
+                        this.position().subtract(this.salvoOrigin).dot(forward) + 30,
+                        0,
+                        aim.distanceTo(this.salvoOrigin));
+                Vec3 profileOffset = shaped.subtract(aim).scale(Math.min(1, 30 / distance));
+                shaped = this.salvoOrigin.add(forward.scale(along)).add(profileOffset);
+            }
+            shaped = shaped.add(side.scale(Math.cos(angle) * radius)).add(up.scale(Math.sin(angle) * radius));
+        }
         Vec3 wanted = shaped.subtract(this.position()).normalize();
         if (distance > TERMINAL_RANGE) {
-            return turnToward(heading, this.avoid(heading, wanted), TURN_RATE);
+            Vec3 separated = this.separate(this.avoid(heading, wanted));
+            return turnToward(heading, separated, separated.dot(wanted) < .995 ? .12 : TURN_RATE);
         }
-        return turnToward(heading, wanted, this.shaken > 0 ? TURN_RATE : TERMINAL_TURN_RATE);
+        return turnToward(
+                heading,
+                distance > 5 ? this.separate(wanted) : wanted,
+                this.shaken > 0 ? TURN_RATE : TERMINAL_TURN_RATE);
+    }
+
+    private Vec3 separate(Vec3 wanted) {
+        Vec3 force = Vec3.ZERO;
+        int count = 0;
+        for (var other : this.level()
+                .getEntitiesOfClass(
+                        CruiseMissileProjectile.class,
+                        this.getBoundingBox().inflate(8),
+                        e -> e != this && e.isAlive())) {
+            // Predict closest approach, rather than swerving only after contact is inevitable.
+            Vec3 offset = this.position().subtract(other.position());
+            Vec3 relative = this.getDeltaMovement().subtract(other.getDeltaMovement());
+            double time =
+                    relative.lengthSqr() < .001 ? 0 : Mth.clamp(-offset.dot(relative) / relative.lengthSqr(), 0, 4);
+            Vec3 future = offset.add(relative.scale(time));
+            double distance = Math.min(offset.length(), future.length());
+            if (distance >= 6.5) {
+                continue;
+            }
+            Vec3 away = future.lengthSqr() > .04 ? future : offset;
+            if (away.lengthSqr() < .001) {
+                away = new Vec3(this.getUUID().compareTo(other.getUUID()) < 0 ? 1 : -1, 0, 0);
+            }
+            force = force.add(away.normalize().scale((6.5 - distance) / 6.5));
+            if (++count == 16) {
+                break;
+            }
+        }
+        return wanted.add(force.scale(1.5)).normalize();
     }
 
     private void fuseOnTarget(Vec3 from, @Nullable Vec3 aim) {
@@ -405,15 +482,7 @@ public class CruiseMissileProjectile extends Entity {
     }
 
     private static Vec3 turnToward(Vec3 from, Vec3 to, double maxRadians) {
-        double angle = Math.acos(Mth.clamp(from.dot(to), -1.0D, 1.0D));
-        if (angle <= maxRadians || angle < 1.0E-4D) {
-            return to;
-        }
-        double t = maxRadians / angle;
-        double sin = Math.sin(angle);
-        return from.scale(Math.sin((1.0D - t) * angle) / sin)
-                .add(to.scale(Math.sin(t * angle) / sin))
-                .normalize();
+        return MissileCollision.turn(from, to, maxRadians);
     }
 
     private boolean checkImpact(Vec3 from, Vec3 to) {
@@ -428,11 +497,10 @@ public class CruiseMissileProjectile extends Entity {
             }
         }
 
-        AABB sweep = this.getBoundingBox().expandTowards(to.subtract(from)).inflate(0.5D);
+        AABB sweep = new AABB(from, to).inflate(3);
         for (Entity entity : this.level().getEntities(this, sweep, this::canHit)) {
-            EntityHitResult hit = new EntityHitResult(entity);
-            Vec3 at = hit.getLocation();
-            if (stop == null || from.distanceToSqr(at) < from.distanceToSqr(stop)) {
+            Vec3 at = MissileCollision.contact(this, entity, from, to);
+            if (at != null && (stop == null || from.distanceToSqr(at) < from.distanceToSqr(stop))) {
                 stop = at;
             }
         }
@@ -453,14 +521,27 @@ public class CruiseMissileProjectile extends Entity {
             return;
         }
         ChunkPos center = new ChunkPos(this.blockPosition());
+        if (center.equals(this.ticketCenter) && this.tickCount % 10 != 0) {
+            return;
+        }
+        var previous = this.ticketChunks.iterator();
+        while (previous.hasNext()) {
+            ChunkPos old = previous.next();
+            if (Math.abs(old.x - center.x) > CHUNK_TICKET_RADIUS || Math.abs(old.z - center.z) > CHUNK_TICKET_RADIUS) {
+                server.getChunkSource()
+                        .removeRegionTicket(
+                                MISSILE_TICKET, old, 2, this.getUUID().getLeastSignificantBits());
+                previous.remove();
+            }
+        }
+        this.ticketCenter = center;
         for (int x = -CHUNK_TICKET_RADIUS; x <= CHUNK_TICKET_RADIUS; x++) {
             for (int z = -CHUNK_TICKET_RADIUS; z <= CHUNK_TICKET_RADIUS; z++) {
+                ChunkPos active = new ChunkPos(center.x + x, center.z + z);
+                this.ticketChunks.add(active);
                 server.getChunkSource()
                         .addRegionTicket(
-                                MISSILE_TICKET,
-                                new ChunkPos(center.x + x, center.z + z),
-                                2,
-                                this.getUUID().getLeastSignificantBits());
+                                MISSILE_TICKET, active, 2, this.getUUID().getLeastSignificantBits());
             }
         }
     }
@@ -468,17 +549,13 @@ public class CruiseMissileProjectile extends Entity {
     @Override
     public void remove(RemovalReason reason) {
         if (this.level() instanceof ServerLevel server) {
-            ChunkPos center = new ChunkPos(this.blockPosition());
-            for (int x = -CHUNK_TICKET_RADIUS; x <= CHUNK_TICKET_RADIUS; x++) {
-                for (int z = -CHUNK_TICKET_RADIUS; z <= CHUNK_TICKET_RADIUS; z++) {
-                    server.getChunkSource()
-                            .removeRegionTicket(
-                                    MISSILE_TICKET,
-                                    new ChunkPos(center.x + x, center.z + z),
-                                    2,
-                                    this.getUUID().getLeastSignificantBits());
-                }
+            for (ChunkPos chunk : this.ticketChunks) {
+                server.getChunkSource()
+                        .removeRegionTicket(
+                                MISSILE_TICKET, chunk, 2, this.getUUID().getLeastSignificantBits());
             }
+            this.ticketChunks.clear();
+            this.ticketCenter = null;
         }
         super.remove(reason);
     }
@@ -516,6 +593,9 @@ public class CruiseMissileProjectile extends Entity {
 
     @Override
     public boolean hurt(DamageSource source, float amount) {
+        if (amount <= 0 || this.detonated || this.isInvulnerableTo(source)) {
+            return false;
+        }
         if (!this.level().isClientSide && !this.detonated) {
             this.detonate(this.position());
         }
@@ -558,6 +638,10 @@ public class CruiseMissileProjectile extends Entity {
         this.carrierVelocity =
                 new Vec3(tag.getDouble("CarrierX"), tag.getDouble("CarrierY"), tag.getDouble("CarrierZ"));
         this.targeting.readFrom(tag);
+        this.salvoId = tag.hasUUID("Salvo") ? tag.getUUID("Salvo") : null;
+        this.salvoIndex = Math.clamp(tag.getInt("SalvoIndex"), 0, 15);
+        this.salvoCount = Math.clamp(tag.getInt("SalvoCount"), 1, 16);
+        this.salvoOrigin = new Vec3(tag.getDouble("SalvoX"), tag.getDouble("SalvoY"), tag.getDouble("SalvoZ"));
     }
 
     @Override
@@ -573,5 +657,13 @@ public class CruiseMissileProjectile extends Entity {
         tag.putDouble("CarrierY", this.carrierVelocity.y);
         tag.putDouble("CarrierZ", this.carrierVelocity.z);
         this.targeting.writeTo(tag);
+        if (this.salvoId != null) {
+            tag.putUUID("Salvo", this.salvoId);
+        }
+        tag.putInt("SalvoIndex", this.salvoIndex);
+        tag.putInt("SalvoCount", this.salvoCount);
+        tag.putDouble("SalvoX", this.salvoOrigin.x);
+        tag.putDouble("SalvoY", this.salvoOrigin.y);
+        tag.putDouble("SalvoZ", this.salvoOrigin.z);
     }
 }

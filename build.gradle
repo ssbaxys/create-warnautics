@@ -218,6 +218,15 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
         systemProperty 'neoforge.gameTestServer', 'true'
         programArguments.addAll '--mixin', 'cbc_more_content.gametest.mixins.json'
     }
+    neoForge.runs.register('aim9Test') {
+        type = 'gameTestServer'
+        logLevel = org.slf4j.event.Level.INFO
+        sourceSet = sourceSets.gameTest
+        gameDirectory = file("build/aim9-tests/${System.currentTimeMillis()}")
+        systemProperty 'neoforge.enabledGameTestNamespaces', 'warnautics_aim9'
+        systemProperty 'neoforge.gameTestServer', 'true'
+        programArguments.addAll '--mixin', 'cbc_more_content.gametest.mixins.json'
+    }
     def chainClientDirectory = file("build/chain-client-check/${System.currentTimeMillis()}")
     neoForge.runs.register('chainClientCheck') {
         type = 'client'
@@ -256,6 +265,10 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
             if (!settings.exists() || !settings.getText('UTF-8').startsWith('PASS')) {
                 throw new GradleException("Missile settings check failed: ${settings}")
             }
+            def aim9 = new File(missileFlightDirectory, 'aim9-client-check.txt')
+            if (!aim9.exists() || !aim9.getText('UTF-8').startsWith('PASS')) {
+                throw new GradleException("AIM-9 client check failed: ${aim9}")
+            }
         }
     }
     def blastFxDirectory = file("build/blast-fx-check/${System.currentTimeMillis()}")
@@ -285,6 +298,14 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
                 def settings = new File(blastFxDirectory, 'missile-settings-check.txt')
                 if (!settings.exists() || !settings.getText('UTF-8').startsWith('PASS')) {
                     throw new GradleException("Chained missile settings check failed: ${settings}")
+                }
+                def volume = new File(blastFxDirectory, 'blast-volume-check.txt')
+                if (!volume.exists() || !volume.getText('UTF-8').startsWith('PASS')) {
+                    throw new GradleException("Chained blast volume check failed: ${volume}")
+                }
+                def aim9 = new File(blastFxDirectory, 'aim9-client-check.txt')
+                if (!aim9.exists() || !aim9.getText('UTF-8').startsWith('PASS')) {
+                    throw new GradleException("Chained AIM-9 check failed: ${aim9}")
                 }
             }
         }

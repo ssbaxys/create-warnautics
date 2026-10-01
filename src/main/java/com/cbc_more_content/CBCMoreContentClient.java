@@ -48,6 +48,9 @@ public class CBCMoreContentClient {
 
     private void registerParticles(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(
+                ModParticles.BLAST_SMOKE.get(),
+                com.cbc_more_content.client.particle.MissileSmokeParticle.BlastProvider::new);
+        event.registerSpriteSet(
                 ModParticles.MISSILE_SMOKE.get(),
                 com.cbc_more_content.client.particle.MissileSmokeParticle.Provider::new);
         event.registerSpriteSet(ModParticles.MINE_FRAGMENT.get(), MineFragmentParticle.Provider::new);
@@ -127,6 +130,7 @@ public class CBCMoreContentClient {
                 ModEntityTypes.BLAST_DEBRIS.get(), com.cbc_more_content.client.BlastDebrisRenderer::new);
         event.registerEntityRenderer(
                 ModEntityTypes.CRUISE_MISSILE.get(), com.cbc_more_content.client.CruiseMissileRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.AIM9.get(), com.cbc_more_content.client.Aim9Renderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.C4.get(), C4Renderer::new);
         // The turning stub of shaft in the socket under a post.
         event.registerBlockEntityRenderer(ModBlockEntities.SIREN.get(), com.cbc_more_content.client.SirenRenderer::new);

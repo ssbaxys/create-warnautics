@@ -52,7 +52,7 @@ public final class BombBlastFx {
         // Reliable boom — do not depend on CBC blast-wave particle reaching the client.
         level.playSound(null, pos.x, pos.y, pos.z, profile.sound, SoundSource.BLOCKS, profile.volume, profile.pitch);
 
-        if (size == BombSize.LARGE && lod != BombBurstBudget.Lod.ESSENTIAL) {
+        if (size == BombSize.LARGE) {
             level.playSound(
                     null,
                     pos.x,
@@ -112,9 +112,8 @@ public final class BombBlastFx {
 
         // Smoke after the flash peak so clouds don't cover the fireball. Under a
         // detonation burst only a bounded number of delayed tasks are necessary.
-        if (allowDelayedSmoke(budget)) {
-            schedule(level, 5, () -> spawnDelayedSmoke(level, pos, size, profile, lod, torpedo));
-        }
+
+        schedule(level, 5, () -> spawnDelayedSmoke(level, pos, size, profile, lod, torpedo));
     }
 
     /**
@@ -163,22 +162,20 @@ public final class BombBlastFx {
             }
         }
 
-        if (allowDelayedSmoke(budget)) {
-            schedule(
-                    level,
-                    4,
-                    () -> emitFar(
-                            level,
-                            new ShellExplosionCloudParticleData(1.45f, false),
-                            pos.x,
-                            pos.y + 0.4D,
-                            pos.z,
-                            1,
-                            0.0D,
-                            0.0D,
-                            0.0D,
-                            0.0D));
-        }
+        schedule(
+                level,
+                4,
+                () -> emitFar(
+                        level,
+                        new ShellExplosionCloudParticleData(1.45f, false),
+                        pos.x,
+                        pos.y + 0.4D,
+                        pos.z,
+                        1,
+                        0.0D,
+                        0.0D,
+                        0.0D,
+                        0.0D));
     }
 
     /** Water reacts only where water exists, including a nearby shore; hulls and roofs stop the spray. */
@@ -282,7 +279,7 @@ public final class BombBlastFx {
         BombFlashPayload payload = new BombFlashPayload(pos.x, pos.y, pos.z, 1.35f, (byte) BombSize.MEDIUM.ordinal());
         double reachSqr = 200.0D * 200.0D;
         for (ServerPlayer player : level.players()) {
-            if (player.distanceToSqr(pos) <= reachSqr) {
+            if (withinRenderedChunks(level, player, pos)) {
                 PacketDistributor.sendToPlayer(player, payload);
             }
         }
@@ -338,20 +335,19 @@ public final class BombBlastFx {
             double dy,
             double dz,
             double speed) {
-        double reach = viewDistanceBlocks(level);
-        double reachSqr = reach * reach;
+
         for (ServerPlayer player : level.players()) {
-            if (player.distanceToSqr(x, y, z) <= reachSqr) {
+            if (withinRenderedChunks(level, player, new Vec3(x, y, z))) {
                 level.sendParticles(player, type, true, x, y, z, count, dx, dy, dz, speed);
             }
         }
     }
 
-    /** How far the server is willing to draw at all, in blocks. */
-    private static double viewDistanceBlocks(ServerLevel level) {
-        var server = level.getServer();
-        int chunks = server == null ? 12 : server.getPlayerList().getViewDistance();
-        return Math.max(64, chunks * 16);
+    private static boolean withinRenderedChunks(ServerLevel level, ServerPlayer player, Vec3 position) {
+        int chunks = Math.min(level.getServer().getPlayerList().getViewDistance(), player.requestedViewDistance());
+        var source = new net.minecraft.world.level.ChunkPos(net.minecraft.core.BlockPos.containing(position));
+        var camera = player.chunkPosition();
+        return Math.abs(source.x - camera.x) <= chunks + 1 && Math.abs(source.z - camera.z) <= chunks + 1;
     }
 
     private static void schedule(ServerLevel level, int delayTicks, Runnable task) {
@@ -367,20 +363,34 @@ public final class BombBlastFx {
             ServerLevel level, Vec3 pos, BombSize size, FxProfile profile, BombBurstBudget.Lod lod, boolean torpedo) {
         for (ServerPlayer player : level.players()) {
             double distSqr = player.distanceToSqr(pos);
-            if (distSqr > profile.farSyncDistSqr) {
+            if (!withinRenderedChunks(level, player, pos)) {
                 continue;
             }
             double dist = Math.sqrt(distSqr);
-            if (dist > profile.nearSoundDist) {
-                continue;
-            }
             // For close players, spawn smoke slightly above ground so it renders surrounding the player without
             // clipping.
             double smokeY = dist < 2.5D ? pos.y + 0.8D : pos.y;
             ShellExplosionCloudParticleData cloud =
                     new ShellExplosionCloudParticleData(profile.smokeScale * 0.85f, profile.plume);
-            if (dist >= 1.2D) {
+            if (dist >= 1.2D
+                    && size != BombSize.SMALL
+                    && size != BombSize.MEDIUM
+                    && lod != BombBurstBudget.Lod.ESSENTIAL) {
                 level.sendParticles(player, cloud, true, pos.x, smokeY, pos.z, 1, 0.0D, 0.0D, 0.0D, 0.0D);
+            }
+            if (lod == BombBurstBudget.Lod.ESSENTIAL && (size == BombSize.LARGE || size == BombSize.MOAB)) {
+                level.sendParticles(
+                        player,
+                        new BlastSmokeData(profile.smokeScale * .55f),
+                        true,
+                        pos.x,
+                        smokeY + 1,
+                        pos.z,
+                        3,
+                        profile.smokeScale * .25,
+                        1,
+                        profile.smokeScale * .25,
+                        .08);
             }
             if (size == BombSize.LARGE && lod.allowMushroomRing()) {
                 spawnMushroomForPlayer(level, player, pos, profile, lod);
@@ -398,41 +408,35 @@ public final class BombBlastFx {
                         0.0D,
                         0.0D);
             } else if (size == BombSize.MEDIUM || size == BombSize.SMALL || size == BombSize.SEA) {
-                int basePuffs =
-                        scaleFx(size, size == BombSize.SMALL ? 6 : (size == BombSize.MEDIUM ? 20 : (torpedo ? 18 : 5)));
-                int puffs = lod.puffCount(basePuffs);
+                int basePuffs = size == BombSize.SMALL ? 10 : (size == BombSize.MEDIUM ? 18 : (torpedo ? 18 : 5));
+                int puffs = Math.max(3, lod.puffCount(basePuffs));
                 float puffScale = size == BombSize.SMALL
-                        ? profile.smokeScale * 0.32f
+                        ? profile.smokeScale * 0.85f
                         : (size == BombSize.MEDIUM || torpedo
-                                ? profile.smokeScale * 0.48f
+                                ? profile.smokeScale * 0.75f
                                 : profile.smokeScale * 0.38f);
                 for (int i = 0; i < puffs; i++) {
-                    double ox = (level.random.nextDouble() - 0.5D) * profile.smokeScale;
-                    double oy = level.random.nextDouble() * profile.smokeScale * 0.45D;
-                    double oz = (level.random.nextDouble() - 0.5D) * profile.smokeScale;
+                    // Overlapping root, rising stem and wider cap preserve a volume even at the lowest LOD.
+                    double height = (double) i / Math.max(1, puffs - 1);
+                    double width = profile.smokeScale * (.55 + .65 * height);
+                    double ox = (level.random.nextDouble() - .5) * width;
+                    double oy = profile.smokeScale * (.12 + 2.1 * height) + level.random.nextDouble() * .3;
+                    double oz = (level.random.nextDouble() - .5) * width;
                     level.sendParticles(
                             player,
-                            new ShellExplosionSmokeParticleData(70 + level.random.nextInt(30), puffScale),
+                            new BlastSmokeData(puffScale),
                             true,
                             pos.x + ox,
                             smokeY + 0.25D + oy,
                             pos.z + oz,
                             0,
-                            ox * 0.04D,
-                            0.06D + level.random.nextDouble() * 0.04D,
-                            oz * 0.04D,
+                            ox * 0.025D,
+                            0.12D + height * .08 + level.random.nextDouble() * 0.04D,
+                            oz * 0.025D,
                             1.0D);
                 }
             }
         }
-    }
-
-    private static boolean allowDelayedSmoke(BombBurstBudget.Snapshot budget) {
-        return switch (budget.lod()) {
-            case FULL, REDUCED -> true;
-            case MINIMAL -> (budget.index() & 1) == 1;
-            case ESSENTIAL -> budget.index() % 8 == 1;
-        };
     }
 
     private static void dispatchLookFlash(ServerLevel level, Vec3 pos, BombSize size, BombBurstBudget.Snapshot budget) {
@@ -445,18 +449,9 @@ public final class BombBlastFx {
                 })
                 * budget.lod().flashScale();
 
-        double reach =
-                switch (size) {
-                    case SMALL -> 140.0D;
-                    case SEA -> 160.0D;
-                    case MEDIUM -> 240.0D;
-                    case LARGE -> 280.0D;
-                    case MOAB -> 420.0D;
-                };
-        double reachSqr = reach * reach;
         BombFlashPayload payload = new BombFlashPayload(pos.x, pos.y, pos.z, intensity, (byte) size.ordinal());
         for (ServerPlayer player : level.players()) {
-            if (player.distanceToSqr(pos) <= reachSqr) {
+            if (withinRenderedChunks(level, player, pos)) {
                 PacketDistributor.sendToPlayer(player, payload);
             }
         }
@@ -715,7 +710,7 @@ public final class BombBlastFx {
             return switch (size) {
                 case SMALL -> new FxProfile(
                         ModSounds.BOMB_EXPLOSION_SMALL.get(),
-                        Math.max(1.55f, blockPower * 0.28f),
+                        Math.max(3.1f, blockPower * 0.56f),
                         true,
                         Math.max(16.0D, blockPower * 5.5D),
                         Math.max(13.0f, blockPower * 2.0f),
@@ -753,7 +748,7 @@ public final class BombBlastFx {
                         38.0D);
                 case MEDIUM -> new FxProfile(
                         ModSounds.BOMB_EXPLOSION_MEDIUM.get(),
-                        Math.max(2.8f, blockPower * 0.35f),
+                        Math.max(5.0f, blockPower * 0.48f),
                         true,
                         Math.max(22.0D, blockPower * 7.0D),
                         Math.max(14.0f, blockPower * 1.8f),

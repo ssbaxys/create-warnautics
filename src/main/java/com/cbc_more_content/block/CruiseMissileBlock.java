@@ -295,14 +295,16 @@ public class CruiseMissileBlock extends BaseEntityBlock implements ChainExplosiv
     }
 
     /** Clears all three cells and puts a missile entity in their place. */
-    public static void launch(ServerLevel level, BlockPos pos, BlockState state) {
+    @Nullable
+    public static com.cbc_more_content.munitions.CruiseMissileProjectile launch(
+            ServerLevel level, BlockPos pos, BlockState state) {
         BlockPos body = bodyPos(pos, state);
         if (level.getFluidState(body).is(FluidTags.WATER)) {
-            return;
+            return null;
         }
         BlockState bodyState = level.getBlockState(body);
         if (!bodyState.is(state.getBlock())) {
-            return;
+            return null;
         }
         Direction nose = bodyState.getValue(FACING);
         Vec3 localHeading = new Vec3(nose.getStepX(), nose.getStepY(), nose.getStepZ());
@@ -310,7 +312,7 @@ public class CruiseMissileBlock extends BaseEntityBlock implements ChainExplosiv
         var frame = SableDropCompat.resolveLaunch(level, body.getCenter(), Vec3.ZERO, localHeading);
         var missile = ModEntityTypes.CRUISE_MISSILE.get().create(frame.level());
         if (missile == null) {
-            return;
+            return null;
         }
 
         // Read the flight plan first. Clearing the cells destroys the block entity that
@@ -366,6 +368,7 @@ public class CruiseMissileBlock extends BaseEntityBlock implements ChainExplosiv
             level.getBlockState(cell).updateNeighbourShapes(level, cell, Block.UPDATE_ALL);
             level.updateNeighborsAt(cell, state.getBlock());
         }
+        return missile;
     }
 
     @Nullable

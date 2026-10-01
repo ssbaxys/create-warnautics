@@ -29,7 +29,9 @@ public final class ModNetworking {
     private ModNetworking() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        event.registrar("3")
+        event.registrar("4")
+                .playToServer(
+                        Aim9SettingsPayload.TYPE, Aim9SettingsPayload.STREAM_CODEC, ModNetworking::handleAim9Settings)
                 .playToClient(BombFlashPayload.TYPE, BombFlashPayload.STREAM_CODEC, ModNetworking::handleClient)
                 .playToClient(ConcussionPayload.TYPE, ConcussionPayload.STREAM_CODEC, ModNetworking::handleConcussion)
                 .playToClient(
@@ -405,6 +407,8 @@ public final class ModNetworking {
                 return;
             }
             var fired = new java.util.ArrayList<BlockPos>();
+            var salvo = java.util.UUID.randomUUID();
+            var airborne = new java.util.ArrayList<com.cbc_more_content.munitions.CruiseMissileProjectile>();
             for (BlockPos missile : missiles) {
                 if (!com.cbc_more_content.compat.MissileDesignatorTargeting.canControl(player, missile)
                         || !com.cbc_more_content.compat.MissileDesignatorTargeting.canTarget(
@@ -419,8 +423,19 @@ public final class ModNetworking {
                     continue;
                 }
                 guidance.lockOnto(runtimeId, centre);
-                com.cbc_more_content.block.CruiseMissileBlock.launch(level, missile, state);
-                fired.add(missile);
+                var launched = com.cbc_more_content.block.CruiseMissileBlock.launch(level, missile, state);
+                if (launched != null) {
+                    airborne.add(launched);
+                    fired.add(missile);
+                }
+            }
+            var salvoOrigin = net.minecraft.world.phys.Vec3.ZERO;
+            for (var missile : airborne) {
+                salvoOrigin = salvoOrigin.add(missile.position());
+            }
+            salvoOrigin = salvoOrigin.scale(1.0 / Math.max(1, airborne.size()));
+            for (int index = 0; index < airborne.size(); index++) {
+                airborne.get(index).setSalvo(salvo, index, airborne.size(), salvoOrigin);
             }
             com.cbc_more_content.item.TargetDesignatorItem.removeLaunched(designator, fired);
             if (!fired.isEmpty()) {
@@ -429,6 +444,22 @@ public final class ModNetworking {
                                 .withStyle(net.minecraft.ChatFormatting.GREEN),
                         true);
             }
+        });
+    }
+
+    private static void handleAim9Settings(Aim9SettingsPayload packet, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)
+                    || !holdsSettingsKey(player)
+                    || !canAccess(player, packet.pos())
+                    || !(player.level().getBlockEntity(packet.pos())
+                            instanceof com.cbc_more_content.block.Aim9BlockEntity be)
+                    || !be.isLiveAirframe()) {
+                return;
+            }
+            be.configure(packet.enabled(), packet.interceptCruise(), packet.range());
+            player.level()
+                    .playSound(null, packet.pos(), SoundEvents.ITEM_FRAME_ROTATE_ITEM, SoundSource.BLOCKS, .5f, 1.25f);
         });
     }
 

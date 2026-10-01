@@ -111,6 +111,16 @@ public class BombSettingsKeyItem extends Item {
             }
             return InteractionResult.sidedSuccess(level.isClientSide);
         }
+        if (state.getBlock() instanceof com.cbc_more_content.block.Aim9Block) {
+            if (level.isClientSide) {
+                ReflectiveDispatcher.invoke(
+                        "com.cbc_more_content.client.gui.Aim9SettingsClient",
+                        "open",
+                        new Class<?>[] {BlockPos.class},
+                        com.cbc_more_content.block.Aim9Block.bodyOf(state, pos));
+            }
+            return InteractionResult.sidedSuccess(level.isClientSide);
+        }
         if (state.getBlock() instanceof com.cbc_more_content.block.SirenBlock) {
             if (level.isClientSide) {
                 openSirenScreen(pos);
