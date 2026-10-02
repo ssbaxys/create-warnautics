@@ -59,7 +59,7 @@ public class MissileFlightProfileGameTests {
                     }
                     helper.assertTrue(impact[0] != null, "Flight reaches its target: " + profile);
                     helper.assertTrue(
-                            impact[0].distanceTo(target.getCenter()) < 4.4,
+                            impact[0].distanceTo(target.getCenter()) < 12.4,
                             "Dispersion stays near the selected target: " + profile + " " + impact[0]);
                     impacts.add(BlockPos.containing(impact[0]));
                 } finally {

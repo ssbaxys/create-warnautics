@@ -423,7 +423,8 @@ public class CruiseMissileProjectile extends Entity {
     private Vec3 aimPoint() {
         this.trackingHull = false;
         if (this.targeting.guidance() == Guidance.INTERCEPT) {
-            return this.radarAim();
+            Vec3 tracked = this.radarAim();
+            return tracked == null ? null : this.dispersedAim(tracked, 1.8);
         }
         if (this.targeting.guidance() == Guidance.LOCK
                 && this.targeting.lockedSubLevel() >= 0
@@ -441,10 +442,7 @@ public class CruiseMissileProjectile extends Entity {
     }
 
     private Vec3 dispersedAim(Vec3 target, double radius) {
-        long seed = this.getUUID().getLeastSignificantBits();
-        double angle = ((seed >>> 16) & 0xFFFF) / 65536.0 * Math.PI * 2;
-        double distance = radius * Math.sqrt((seed & 0xFFFF) / 65536.0);
-        return target.add(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
+        return target.add(MissileGuidanceError.cruiseOffset(this.getUUID(), radius));
     }
 
     /** The motor recovers over several ticks instead of erasing a pressure impulse immediately. */

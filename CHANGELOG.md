@@ -2,6 +2,10 @@
 
 ## 1.1
 
+Cruise missiles now occasionally aim wide: roughly twelve percent of launches have a larger, bounded error, while ordinary shots retain their small dispersion. The error stays with the projectile across all three flight plans and save/reload; the selected target itself is not changed.
+
+AIM-9 can miss an approach, especially against a crossing or sharply manoeuvring target. It flies past, makes a wider return arc and tries the same contact again with its remaining fuel. Actual contact still detonates the interceptor even on an inaccurate approach. Reloading preserves its current pass and fuel budget.
+
 Marine blasts have procedural Veil waves, foam, falling spray and underwater bubble fronts. The effect checks the surrounding water and the route to its surface: dry ground produces no spray, and a solid roof keeps the surface burst out. Multiple water blasts share a bounded render budget and fade away normally.
 
 Placing an airframe across water and air no longer copies the first cell's water state into every segment. Each part keeps only the source water already at its own position; flowing water does not become a bucketable source. AIM-9 also checks the target's line of sight and its initial rising path before leaving the rack, including on rotated Sable ships. A blocked interceptor waits for clearance.

@@ -73,6 +73,8 @@ public class SmallHullMissileGameTests {
             var local = ship.getPlot().getCenterBlock();
             var center = ship.logicalPose().transformPosition(local.getCenter());
             var missile = ModEntityTypes.CRUISE_MISSILE.get().create(level);
+            // This fixture verifies damage on a successful direct hit, not the separate miss lottery.
+            missile.setUUID(new java.util.UUID(0, 1));
             missile.setPos(center.add(-12, 0, 0));
             missile.launch(new Vec3(1, 0, 0));
             missile.setGuidance(Guidance.LOCK, null, ship.getRuntimeId());

@@ -28,6 +28,8 @@ import net.minecraft.world.phys.Vec3;
 public class Aim9Projectile extends Entity {
     public static final int EJECT_TICKS = 14;
     private static final int MOTOR_TICKS = 240;
+    private static final double APPROACH_RANGE = 36;
+    private static final double RECOVERY_TURN_RATE = .14;
     // Keep adjacent flight chunks entity-ticking before crossing their boundary.
     private static final int TICKET_DISTANCE = 4;
     private static final EntityDataAccessor<Boolean> POWERED =
@@ -42,6 +44,14 @@ public class Aim9Projectile extends Entity {
     private int lostTicks;
     private Vec3 carrierVelocity = Vec3.ZERO;
     private Vec3 blastDrift = Vec3.ZERO;
+    private Vec3 lastTargetVelocity = Vec3.ZERO;
+    private Vec3 approachOffset = Vec3.ZERO;
+    private double closestApproach = Double.MAX_VALUE;
+    private int approachNumber;
+    private int recoveryTicks;
+    private boolean approachChecked;
+    private boolean recovering;
+    private boolean recoveryTurning;
 
     @Nullable
     private ChunkPos ticketChunk;
@@ -73,6 +83,7 @@ public class Aim9Projectile extends Entity {
 
     public void launch(CruiseMissileProjectile target, Vec3 inheritedVelocity) {
         targetId = target.getUUID();
+        lastTargetVelocity = target.getDeltaMovement();
         carrierVelocity = inheritedVelocity;
         // Ejection follows world gravity, including when the rack is on a banked carrier.
         setDeltaMovement(inheritedVelocity.add(0, .95, 0));
@@ -129,8 +140,19 @@ public class Aim9Projectile extends Entity {
             double speed = .65 + 4.85 * progress * progress * (3 - 2 * progress);
             Vec3 heading = motion.subtract(carrierVelocity).normalize();
             if (target != null && target.isAlive()) {
-                Vec3 aim = lead(target.position().subtract(position()), target.getDeltaMovement(), speed);
-                heading = MissileCollision.turn(heading, aim, motorTicks < 10 ? .16 : .30);
+                updateApproach(target, heading, motion, speed);
+                if (recovering && recoveryTurning) {
+                    // A wider, slower turn draws a return arc instead of snapping onto a target behind us.
+                    speed *= .88;
+                }
+                Vec3 aim = recovering && !recoveryTurning
+                        ? heading
+                        : lead(
+                                target.position().subtract(position()).add(approachOffset),
+                                target.getDeltaMovement(),
+                                speed);
+                heading = MissileCollision.turn(
+                        heading, aim, recovering ? RECOVERY_TURN_RATE : motorTicks < 10 ? .16 : .30);
             }
             motion = heading.scale(speed).add(carrierVelocity);
             carrierVelocity = carrierVelocity.scale(.9);
@@ -185,6 +207,50 @@ public class Aim9Projectile extends Entity {
         }
         setPos(to);
         face(motion);
+    }
+
+    private void updateApproach(Entity target, Vec3 heading, Vec3 motion, double speed) {
+        Vec3 offset = target.position().subtract(position());
+        Vec3 velocity = target.getDeltaMovement();
+        Vec3 acceleration = velocity.subtract(lastTargetVelocity);
+        lastTargetVelocity = velocity;
+        double distance = offset.length();
+        boolean closing = offset.dot(motion.subtract(velocity)) > 0;
+        if (recovering) {
+            recoveryTicks++;
+            if (!recoveryTurning) {
+                // Turning immediately after a near miss leaves the target inside the minimum
+                // turning circle. Extend beyond it before starting the return, including a fast tail chase.
+                recoveryTurning = recoveryTicks >= 6 && distance >= 44;
+                return;
+            }
+            if (recoveryTicks < 8 || !closing || distance < 10 || heading.dot(lead(offset, velocity, speed)) < .94) {
+                return;
+            }
+            recovering = false;
+            recoveryTurning = false;
+            approachChecked = false;
+            closestApproach = Double.MAX_VALUE;
+        }
+        if (!approachChecked && closing && distance <= APPROACH_RANGE) {
+            approachChecked = true;
+            closestApproach = distance;
+            double chance = MissileGuidanceError.interceptMissChance(offset, motion, velocity, acceleration);
+            if (MissileGuidanceError.missesIntercept(getUUID(), approachNumber, chance)) {
+                approachOffset =
+                        MissileGuidanceError.interceptOffset(getUUID(), approachNumber, lead(offset, velocity, speed));
+            }
+            approachNumber++;
+        }
+        if (approachChecked) {
+            closestApproach = Math.min(closestApproach, distance);
+            if (!closing && (distance > closestApproach + 2 || heading.dot(offset.normalize()) < -.1)) {
+                recovering = true;
+                recoveryTurning = false;
+                recoveryTicks = 0;
+                approachOffset = Vec3.ZERO;
+            }
+        }
     }
 
     private static Vec3 lead(Vec3 offset, Vec3 velocity, double speed) {
@@ -297,6 +363,17 @@ public class Aim9Projectile extends Entity {
         lostTicks = tag.getInt("LostTicks");
         carrierVelocity = new Vec3(tag.getDouble("CarrierX"), tag.getDouble("CarrierY"), tag.getDouble("CarrierZ"));
         blastDrift = new Vec3(tag.getDouble("BlastDriftX"), tag.getDouble("BlastDriftY"), tag.getDouble("BlastDriftZ"));
+        lastTargetVelocity = new Vec3(
+                tag.getDouble("TargetVelocityX"), tag.getDouble("TargetVelocityY"), tag.getDouble("TargetVelocityZ"));
+        approachOffset = new Vec3(
+                tag.getDouble("ApproachOffsetX"), tag.getDouble("ApproachOffsetY"), tag.getDouble("ApproachOffsetZ"));
+        approachChecked = tag.getBoolean("ApproachChecked");
+        recovering = tag.getBoolean("Recovering");
+        recoveryTurning = tag.getBoolean("RecoveryTurning");
+        approachNumber = Math.max(0, tag.getInt("ApproachNumber"));
+        recoveryTicks = Math.max(0, tag.getInt("RecoveryTicks"));
+        closestApproach =
+                tag.contains("ClosestApproach") ? Math.max(0, tag.getDouble("ClosestApproach")) : Double.MAX_VALUE;
         entityData.set(POWERED, ejectTicks == 0 && motorTicks <= MOTOR_TICKS);
     }
 
@@ -314,5 +391,17 @@ public class Aim9Projectile extends Entity {
         tag.putDouble("BlastDriftX", blastDrift.x);
         tag.putDouble("BlastDriftY", blastDrift.y);
         tag.putDouble("BlastDriftZ", blastDrift.z);
+        tag.putDouble("TargetVelocityX", lastTargetVelocity.x);
+        tag.putDouble("TargetVelocityY", lastTargetVelocity.y);
+        tag.putDouble("TargetVelocityZ", lastTargetVelocity.z);
+        tag.putDouble("ApproachOffsetX", approachOffset.x);
+        tag.putDouble("ApproachOffsetY", approachOffset.y);
+        tag.putDouble("ApproachOffsetZ", approachOffset.z);
+        tag.putBoolean("ApproachChecked", approachChecked);
+        tag.putBoolean("Recovering", recovering);
+        tag.putBoolean("RecoveryTurning", recoveryTurning);
+        tag.putInt("ApproachNumber", approachNumber);
+        tag.putInt("RecoveryTicks", recoveryTicks);
+        tag.putDouble("ClosestApproach", closestApproach);
     }
 }
