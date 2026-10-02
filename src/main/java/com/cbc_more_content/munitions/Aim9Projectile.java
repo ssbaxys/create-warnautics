@@ -179,7 +179,7 @@ public class Aim9Projectile extends Entity {
                 struck = other instanceof CruiseMissileProjectile cruise ? cruise : null;
             }
         }
-        if (tickCount > 3 && stop != null) {
+        if (stop != null) {
             finish(struck, stop, true);
             return;
         }

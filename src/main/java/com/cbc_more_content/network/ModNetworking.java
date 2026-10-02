@@ -33,6 +33,7 @@ public final class ModNetworking {
                 .playToServer(
                         Aim9SettingsPayload.TYPE, Aim9SettingsPayload.STREAM_CODEC, ModNetworking::handleAim9Settings)
                 .playToClient(BombFlashPayload.TYPE, BombFlashPayload.STREAM_CODEC, ModNetworking::handleClient)
+                .playToClient(WaterBlastPayload.TYPE, WaterBlastPayload.STREAM_CODEC, ModNetworking::handleWater)
                 .playToClient(ConcussionPayload.TYPE, ConcussionPayload.STREAM_CODEC, ModNetworking::handleConcussion)
                 .playToClient(
                         C4CodeResultPayload.TYPE, C4CodeResultPayload.STREAM_CODEC, ModNetworking::handleCodeResult)
@@ -91,6 +92,14 @@ public final class ModNetworking {
                     new Class<?>[] {BombFlashPayload.class},
                     payload);
         });
+    }
+
+    private static void handleWater(WaterBlastPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> ReflectiveDispatcher.invoke(
+                "com.cbc_more_content.client.WaterBlastClient",
+                "handle",
+                new Class<?>[] {WaterBlastPayload.class},
+                payload));
     }
 
     /**

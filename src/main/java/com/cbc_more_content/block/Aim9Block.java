@@ -124,7 +124,7 @@ public class Aim9Block extends BaseEntityBlock implements SimpleWaterloggedBlock
                     .setValue(PART, anchor)
                     .setValue(
                             WATERLOGGED,
-                            level.getFluidState(context.getClickedPos()).is(FluidTags.WATER));
+                            com.cbc_more_content.util.WaterPlacement.sourceAt(level, context.getClickedPos()));
             var cells = cells(level, bodyOf(state, context.getClickedPos()), state);
             if (cells.entrySet().stream()
                     .allMatch(e -> !level.isOutsideBuildHeight(e.getKey())
@@ -148,7 +148,7 @@ public class Aim9Block extends BaseEntityBlock implements SimpleWaterloggedBlock
             result.put(
                     pos,
                     state.setValue(PART, part)
-                            .setValue(WATERLOGGED, level.getFluidState(pos).is(FluidTags.WATER)));
+                            .setValue(WATERLOGGED, com.cbc_more_content.util.WaterPlacement.sourceAt(level, pos)));
         }
         return result;
     }
@@ -339,6 +339,9 @@ public class Aim9Block extends BaseEntityBlock implements SimpleWaterloggedBlock
         }
         var frame = com.cbc_more_content.compat.SableDropCompat.resolveLaunch(
                 level, body.getCenter(), Vec3.ZERO, new Vec3(0, 1, 0));
+        if (!canLaunch(level, body, target)) {
+            return null;
+        }
         var missile = com.cbc_more_content.registry.ModEntityTypes.AIM9.get().create(frame.level());
         if (missile == null) {
             return null;
@@ -359,6 +362,32 @@ public class Aim9Block extends BaseEntityBlock implements SimpleWaterloggedBlock
                         1.5f,
                         .65f);
         return missile;
+    }
+
+    public static boolean canLaunch(
+            net.minecraft.server.level.ServerLevel level,
+            BlockPos body,
+            com.cbc_more_content.munitions.CruiseMissileProjectile target) {
+        var frame = com.cbc_more_content.compat.SableDropCompat.resolveLaunch(
+                level, body.getCenter(), Vec3.ZERO, new Vec3(0, 1, 0));
+        var ignored = java.util.Set.copyOf(
+                com.cbc_more_content.compat.AirframeMovement.cells(level, body, level.getBlockState(body)));
+        if (!com.cbc_more_content.compat.SableDropCompat.clearRay(
+                frame.level(), frame.pos(), target.position(), ignored)) {
+            return false;
+        }
+        // Test the cold-launch path with the carrier's inherited motion. The five
+        // rays leave clearance for fins instead of passing only a point through a slit.
+        Vec3 end = frame.pos().add(frame.vel().scale(14)).add(0, 10.99, 0);
+        for (Vec3 offset : new Vec3[] {
+            Vec3.ZERO, new Vec3(.28, 0, 0), new Vec3(-.28, 0, 0), new Vec3(0, 0, .28), new Vec3(0, 0, -.28)
+        }) {
+            if (!com.cbc_more_content.compat.SableDropCompat.clearRay(
+                    frame.level(), frame.pos().add(offset), end.add(offset), ignored)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public enum Part implements StringRepresentable {

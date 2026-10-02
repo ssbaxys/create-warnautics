@@ -10,7 +10,6 @@ import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
@@ -67,7 +66,7 @@ public class SeaMineBlock extends BaseEntityBlock implements SimpleWaterloggedBl
     @Nullable
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        return context.getLevel().getFluidState(context.getClickedPos()).is(FluidTags.WATER)
+        return com.cbc_more_content.util.WaterPlacement.sourceAt(context.getLevel(), context.getClickedPos())
                 ? this.defaultBlockState().setValue(WATERLOGGED, true)
                 : null;
     }

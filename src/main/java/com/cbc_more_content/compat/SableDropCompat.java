@@ -102,6 +102,30 @@ public final class SableDropCompat {
         return hit[0];
     }
 
+    /** Native voxel traversal, with only the departing airframe ignored, never its carrier. */
+    public static boolean clearRay(ServerLevel level, Vec3 from, Vec3 to, java.util.Set<BlockPos> ignoredCells) {
+        java.util.function.Predicate<BlockPos> world = pos -> !ignoredCells.contains(pos)
+                && !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()
+                && level.getBlockState(pos).getCollisionShape(level, pos).clip(from, to, pos) != null;
+        if (!ModList.get().isLoaded("sable")) {
+            var trace = com.simibubi.create.foundation.utility.RaycastHelper.rayTraceUntil(from, to, world);
+            return trace == null || trace.missed();
+        }
+        var trace = SableRaycastHelper.rayCastUntilWithSublevels(level, from, to, world, (sub, pos) -> {
+            if (sub == null || sub.isRemoved() || ignoredCells.contains(pos)) {
+                return false;
+            }
+            var shape = level.getBlockState(pos).getCollisionShape(level, pos);
+            return !shape.isEmpty()
+                    && shape.clip(
+                                    sub.logicalPose().transformPositionInverse(from),
+                                    sub.logicalPose().transformPositionInverse(to),
+                                    pos)
+                            != null;
+        });
+        return trace == null || trace.missed();
+    }
+
     private static final double MAPPING_SLACK = 8.0D;
 
     private static boolean nearSegment(Vec3 point, Vec3 from, Vec3 to) {

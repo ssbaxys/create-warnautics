@@ -118,14 +118,20 @@ public class CruiseMissileBlock extends BaseEntityBlock implements ChainExplosiv
         for (Direction axis : new Direction[] {nose, nose.getOpposite()}) {
             // Straddling the clicked cell, for a click into open space.
             if (canOccupy(level, pos.relative(axis)) && canOccupy(level, pos.relative(axis.getOpposite()))) {
-                return this.defaultBlockState().setValue(FACING, axis).setValue(PART, Part.BODY);
+                return this.defaultBlockState()
+                        .setValue(FACING, axis)
+                        .setValue(PART, Part.BODY)
+                        .setValue(WATERLOGGED, com.cbc_more_content.util.WaterPlacement.sourceAt(level, pos));
             }
             // Standing out of the clicked cell, tail first. Clicking the top of a block
             // puts the cell behind the body inside that block, so an upright missile could
             // never be placed at all — which is why it only ever went up while sneaking,
             // where the airframe was laid flat into open air instead.
             if (canOccupy(level, pos.relative(axis)) && canOccupy(level, pos.relative(axis, 2))) {
-                return this.defaultBlockState().setValue(FACING, axis).setValue(PART, Part.TAIL);
+                return this.defaultBlockState()
+                        .setValue(FACING, axis)
+                        .setValue(PART, Part.TAIL)
+                        .setValue(WATERLOGGED, com.cbc_more_content.util.WaterPlacement.sourceAt(level, pos));
             }
         }
         return null;
@@ -178,14 +184,22 @@ public class CruiseMissileBlock extends BaseEntityBlock implements ChainExplosiv
             Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
         Direction nose = state.getValue(FACING);
         BlockPos body = bodyPos(pos, state);
-        boolean waterlogged = level.getFluidState(body).is(FluidTags.WATER);
         // The middle goes down first. Every other cell deletes itself the moment it finds
         // no body beside it, so writing an end before the middle exists would wipe it out
         // on the very update that placed it.
-        BlockState placed = state.setValue(WATERLOGGED, waterlogged);
-        level.setBlock(body, placed.setValue(PART, Part.BODY), Block.UPDATE_ALL);
-        level.setBlock(body.relative(nose), placed.setValue(PART, Part.NOSE), Block.UPDATE_ALL);
-        level.setBlock(body.relative(nose.getOpposite()), placed.setValue(PART, Part.TAIL), Block.UPDATE_ALL);
+        var cells = new java.util.LinkedHashMap<BlockPos, BlockState>();
+        for (Part part : new Part[] {Part.BODY, Part.NOSE, Part.TAIL}) {
+            var cell = body.relative(nose, part == Part.NOSE ? 1 : part == Part.TAIL ? -1 : 0);
+            cells.put(
+                    cell,
+                    state.setValue(PART, part)
+                            .setValue(WATERLOGGED, com.cbc_more_content.util.WaterPlacement.sourceAt(level, cell)));
+        }
+        cells.forEach((cell, placed) -> level.setBlock(cell, placed, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE));
+        cells.keySet().forEach(cell -> {
+            level.getBlockState(cell).updateNeighbourShapes(level, cell, Block.UPDATE_ALL);
+            level.updateNeighborsAt(cell, state.getBlock());
+        });
     }
 
     /** Position of the middle segment, whichever part was clicked. */

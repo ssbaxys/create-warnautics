@@ -156,7 +156,7 @@ public class DropBombBlock extends Block implements IWrenchable, ChainExplosiveB
                 .setValue(POWERED, alreadyPowered)
                 .setValue(CASSETTE, clampCassette(cassette))
                 .setValue(RELEASE_DELAY, normalizeReleaseDelayTicks(releaseDelay))
-                .setValue(WATERLOGGED, level.getFluidState(pos).is(FluidTags.WATER));
+                .setValue(WATERLOGGED, com.cbc_more_content.util.WaterPlacement.sourceAt(level, pos));
     }
 
     @Override

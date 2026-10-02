@@ -279,6 +279,7 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
         gameDirectory = blastFxDirectory
         systemProperty 'warnautics.blastFxCheck', 'true'
         systemProperty 'warnautics.expectSodium', providers.gradleProperty('fxSodiumJar').isPresent().toString()
+        systemProperty 'warnautics.waterBlastCheck', providers.gradleProperty('waterBlastCheck').isPresent().toString()
         systemProperty 'warnautics.blastFxIncludeVolume', providers.gradleProperty('blastFxIncludeVolume').isPresent().toString()
         systemProperty 'warnautics.blastFxIncludeFlight', providers.gradleProperty('blastFxIncludeFlight').isPresent().toString()
         systemProperty 'warnautics.blastFxFabulous', providers.gradleProperty('blastFxFabulous').isPresent().toString()
@@ -290,6 +291,12 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
             def result = new File(blastFxDirectory, 'blast-fx-check.txt')
             if (!result.exists() || !result.getText('UTF-8').startsWith('PASS')) {
                 throw new GradleException("Blast FX client check failed: ${result}")
+            }
+            if (providers.gradleProperty('waterBlastCheck').isPresent()) {
+                def water = new File(blastFxDirectory, 'water-blast-check.txt')
+                if (!water.exists() || !water.getText('UTF-8').startsWith('PASS')) {
+                    throw new GradleException("Water blast check failed: ${water}")
+                }
             }
             if (providers.gradleProperty('blastFxIncludeVolume').isPresent()) {
                 def volume = new File(blastFxDirectory, 'blast-volume-check.txt')

@@ -416,6 +416,10 @@ public final class BlastFxClientCheck {
             BlastVolumeClientCheck.begin();
             return;
         }
+        if (FAILURES.isEmpty() && Boolean.getBoolean("warnautics.waterBlastCheck")) {
+            WaterBlastClientCheck.begin();
+            return;
+        }
         Minecraft.getInstance().stop();
     }
 }

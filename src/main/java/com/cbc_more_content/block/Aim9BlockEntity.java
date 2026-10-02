@@ -94,7 +94,9 @@ public class Aim9BlockEntity extends BlockEntity {
                                 && !claimed.contains(missile.getUUID())
                                 && missile.position().distanceToSqr(origin) <= be.range * be.range);
         candidates.stream()
-                .min(Comparator.comparingDouble(e -> e.position().distanceToSqr(origin)))
+                .sorted(Comparator.comparingDouble(e -> e.position().distanceToSqr(origin)))
+                .filter(target -> Aim9Block.canLaunch(server, pos, target))
+                .findFirst()
                 .ifPresent(target -> Aim9Block.launch(server, pos, state, target));
     }
 

@@ -197,6 +197,12 @@ public final class BombBlastFx {
             return;
         }
         Vec3 wet = water.water();
+        var payload = new com.cbc_more_content.network.WaterBlastPayload(wet, water.surface(), power);
+        for (ServerPlayer player : level.players()) {
+            if (withinRenderedChunks(level, player, wet)) {
+                PacketDistributor.sendToPlayer(player, payload);
+            }
+        }
         int foam = (int) Math.clamp(power * 3, 8, 32);
         if (BlastWater.contains(level, pos)) {
             level.playSound(
