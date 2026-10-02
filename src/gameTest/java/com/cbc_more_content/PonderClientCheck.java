@@ -34,9 +34,10 @@ import net.neoforged.neoforge.client.event.RenderFrameEvent;
 public final class PonderClientCheck {
     private static final List<String> RESULTS = new ArrayList<>();
     private static boolean creating, ready, finished, reloading;
-    private static int age, guideIndex, step, frames, locale;
+    private static int age, guideIndex, step, frames, locale, reloads;
     private static PonderUI screen;
     private static String capture;
+    private static java.util.concurrent.CompletableFuture<Void> fontLookup;
 
     @SubscribeEvent
     public static void tick(ClientTickEvent.Post event) {
@@ -95,6 +96,7 @@ public final class PonderClientCheck {
         if (capture != null) {
             return;
         }
+        verifyCurrentFont();
         if (screen == null) {
             verifyCatalog();
             screen = PonderUI.of(WarnauticsPonder.location(
@@ -120,17 +122,19 @@ public final class PonderClientCheck {
                     + ": six rendered steps, completion and replay PASS");
             screen = null;
             guideIndex++;
+            if (locale == 0 && guideIndex == 1 && reloads < 5) {
+                guideIndex = 0;
+                reload();
+                return;
+            }
             if (guideIndex == WarnauticsPonder.guides().size()) {
                 if (locale == 0) {
                     locale = 1;
                     guideIndex = 0;
                     mc.options.languageCode = "en_us";
                     mc.getLanguageManager().setSelected("en_us");
-                    // Only translations change here; a full pack reload was exercised
-                    // at the start. Keep the unchanged font assets for the second locale.
-                    mc.setScreen(null);
-                    mc.getLanguageManager().onResourceManagerReload(mc.getResourceManager());
                     PonderIndex.reload();
+                    reload();
                 } else {
                     Files.writeString(Path.of("ponder-check.txt"), "PASS\n" + String.join("\n", RESULTS));
                     finished = true;
@@ -180,16 +184,73 @@ public final class PonderClientCheck {
 
     private static void reload() {
         reloading = true;
+        reloads++;
         var mc = Minecraft.getInstance();
-        // Switching language from its settings screen closes Ponder before reloading.
-        // Keeping the old UI underneath the loading overlay can draw freed font providers.
-        mc.setScreen(null);
+        // Exercise both the language-settings lifecycle and F3+T with a live Ponder UI.
+        if (reloads < 3) {
+            mc.setScreen(null);
+        }
         mc.reloadResourcePacks().whenComplete((result, failure) -> {
             if (failure != null) {
                 fail(failure);
             }
+            CBCMoreContent.LOGGER.info("Ponder check full reload completed for {}", mc.options.languageCode);
+            try {
+                if (fontLookup != null) {
+                    fontLookup.get(2, java.util.concurrent.TimeUnit.SECONDS);
+                }
+                verifyCurrentFont();
+                RESULTS.add("Full reload " + reloads + " " + mc.options.languageCode
+                        + ": concurrent font lookup and UI lifecycle PASS");
+            } catch (Throwable error) {
+                fail(error);
+            }
             reloading = false;
         });
+    }
+
+    private static void verifyCurrentFont() throws Exception {
+        var mc = Minecraft.getInstance();
+        var managerField = Minecraft.class.getDeclaredField("fontManager");
+        managerField.setAccessible(true);
+        var manager = managerField.get(mc);
+        var setsField = manager.getClass().getDeclaredField("fontSets");
+        setsField.setAccessible(true);
+        var sets = (java.util.Map<?, ?>) setsField.get(manager);
+        var used = ((com.simibubi.create.foundation.mixin.accessor.FontAccessor) mc.font)
+                .create$getFonts()
+                .apply(Minecraft.DEFAULT_FONT);
+        require(sets.containsValue(used), "Font lookup must use a current FontSet after reload");
+    }
+
+    public static void raceFontLookup() {
+        var started = new java.util.concurrent.CountDownLatch(1);
+        fontLookup = new java.util.concurrent.CompletableFuture<>();
+        var worker = new Thread(
+                () -> {
+                    started.countDown();
+                    try {
+                        ((com.simibubi.create.foundation.mixin.accessor.FontAccessor) Minecraft.getInstance().font)
+                                .create$getFonts()
+                                .apply(Minecraft.DEFAULT_FONT);
+                        fontLookup.complete(null);
+                    } catch (Throwable error) {
+                        fontLookup.completeExceptionally(error);
+                    }
+                },
+                "Warnautics-font-reload-probe");
+        worker.start();
+        try {
+            require(started.await(1, java.util.concurrent.TimeUnit.SECONDS), "font worker started");
+            long deadline = System.nanoTime() + 200_000_000L;
+            while (!fontLookup.isDone() && worker.getState() != Thread.State.BLOCKED && System.nanoTime() < deadline) {
+                java.util.concurrent.locks.LockSupport.parkNanos(100_000);
+            }
+            CBCMoreContent.LOGGER.info("Ponder background font lookup during reload: {}", worker.getState());
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(error);
+        }
     }
 
     @SubscribeEvent

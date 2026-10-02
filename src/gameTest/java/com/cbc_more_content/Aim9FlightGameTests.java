@@ -232,7 +232,9 @@ public class Aim9FlightGameTests {
     @GameTest(template = "empty", batch = "aim9_claim", timeoutTicks = 100)
     public static void secondRackDoesNotWasteAnotherInterceptorOnAnAssignedTarget(GameTestHelper h) {
         var level = h.getLevel();
-        BlockPos pos = h.absolutePos(new BlockPos(50, 160, 50));
+        // Racks are outside the tiny empty template and survive other batches' teardown.
+        // Keep this target's real flight away from the obstacles those tests deliberately place.
+        BlockPos pos = h.absolutePos(new BlockPos(50, 160, 6500));
         BlockPos second = pos.east(5);
         var first = rack(h, pos);
         var next = rack(h, second);
@@ -245,6 +247,7 @@ public class Aim9FlightGameTests {
             var shots = level.getEntitiesOfClass(Aim9Projectile.class, new AABB(pos).inflate(140), e -> target.getUUID()
                     .equals(e.targetId()));
             try {
+                h.assertTrue(target.isAlive(), "Contact survives in the isolated flight corridor");
                 h.assertTrue(
                         first.isLiveAirframe() != next.isLiveAirframe(),
                         "One rack launches, one retains its round: targets="

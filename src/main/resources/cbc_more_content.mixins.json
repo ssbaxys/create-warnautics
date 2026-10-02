@@ -18,9 +18,11 @@
   ],
   "client": [
     "client.AbstractContainerScreenAccessor",
+    "client.FontReloadMixin",
     "client.CreativeModeInventoryScreenMixin",
     "client.CreativeModeTabMixin",
     "compat.sodium.SodiumShaderLodBiasMixin",
+    "compat.veil.VeilWeatherBufferMixin",
     "compat.simulated.ChainRenderTypeMixin",
     "compat.simulated.ChainConnectorRenderTypeMixin",
     "compat.simulated.ChainPreviewMixin"

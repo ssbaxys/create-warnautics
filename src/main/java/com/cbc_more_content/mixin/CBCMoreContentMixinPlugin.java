@@ -36,6 +36,9 @@ public class CBCMoreContentMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName.contains(".compat.sodium.")) {
             return SODIUM_LOADED;
         }
+        if (mixinClassName.contains(".compat.veil.")) {
+            return VeilDynamicBufferRepair.isNeeded();
+        }
         return true;
     }
 
@@ -51,5 +54,9 @@ public class CBCMoreContentMixinPlugin implements IMixinConfigPlugin {
     public void preApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {}
 
     @Override
-    public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {}
+    public void postApply(String targetClassName, ClassNode targetClass, String mixinClassName, IMixinInfo mixinInfo) {
+        if (mixinClassName.endsWith(".VeilWeatherBufferMixin")) {
+            VeilDynamicBufferRepair.removeMisplacedClear(targetClass);
+        }
+    }
 }

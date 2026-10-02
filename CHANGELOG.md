@@ -2,6 +2,14 @@
 
 ## 1.1
 
+Marine blasts have procedural Veil waves, foam, falling spray and underwater bubble fronts. The effect checks the surrounding water and the route to its surface: dry ground produces no spray, and a solid roof keeps the surface burst out. Multiple water blasts share a bounded render budget and fade away normally.
+
+Placing an airframe across water and air no longer copies the first cell's water state into every segment. Each part keeps only the source water already at its own position; flowing water does not become a bucketable source. AIM-9 also checks the target's line of sight and its initial rising path before leaving the rack, including on rotated Sable ships. A blocked interceptor waits for clearance.
+
+Fixed Veil's Fabulous weather-buffer pairing without replacing the library. Its clear handler was attached to the setup call; Warnautics repairs that specific broken handler and closes the buffer at the end of the pass. The compatibility patch checks the installed handler, so a corrected Veil build is left alone.
+
+Repeated resource reloads and language changes no longer leave Ponder using a retired bitmap font. Font lookup and font replacement now share the same short synchronization boundary, preserving Minecraft's existing font cache. The regression check forces a background lookup during retirement, reloads with the guide both open and closed, and renders all 25 lessons in Russian and English.
+
 Small and medium bombs have their animated Create Big Cannons smoke back, together with the softer smoke body. C4 and the vest produce a wider ground-level bloom; the sea mine leaves a denser cloud and a water burst. Busy chain reactions retain both smoke layers for each charge, with bounded particle counts instead of miniature clouds. Blast damage has not changed.
 
 AIM-9 searches and intercepts from moving Sable ships again. Gluing any one cell of an AIM-9, MOAB or cruise missile to the hull now collects the entire three-cell airframe, whether assembly starts from the hull or the weapon.
