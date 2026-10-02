@@ -207,6 +207,12 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
     configurations.gameTestCompileOnly.extendsFrom(configurations.compileOnly)
     configurations.gameTestImplementation.extendsFrom(configurations.implementation)
     configurations.gameTestRuntimeOnly.extendsFrom(configurations.runtimeOnly)
+    // Exercise the release's baseline-compiled classes with the newer user's runtime libraries.
+    if (providers.gradleProperty('fxModernSable').isPresent()) {
+        configurations.gameTestRuntimeClasspath.resolutionStrategy.force(
+                'dev.ryanhcode.sable:sable-neoforge-1.21.1:2.0.5',
+                'foundry.veil:veil-neoforge-1.21.1:4.3.2')
+    }
     neoForge.addModdingDependenciesTo(sourceSets.gameTest)
     neoForge.mods.named(mod_id) { sourceSet(sourceSets.gameTest) }
     neoForge.runs.register('seaMineTest') {
@@ -215,6 +221,15 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
         sourceSet = sourceSets.gameTest
         gameDirectory = file("build/game-tests/${System.currentTimeMillis()}")
         systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+        systemProperty 'neoforge.gameTestServer', 'true'
+        programArguments.addAll '--mixin', 'cbc_more_content.gametest.mixins.json'
+    }
+    neoForge.runs.register('aim9Test') {
+        type = 'gameTestServer'
+        logLevel = org.slf4j.event.Level.INFO
+        sourceSet = sourceSets.gameTest
+        gameDirectory = file("build/aim9-tests/${System.currentTimeMillis()}")
+        systemProperty 'neoforge.enabledGameTestNamespaces', 'warnautics_aim9'
         systemProperty 'neoforge.gameTestServer', 'true'
         programArguments.addAll '--mixin', 'cbc_more_content.gametest.mixins.json'
     }
@@ -256,6 +271,10 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
             if (!settings.exists() || !settings.getText('UTF-8').startsWith('PASS')) {
                 throw new GradleException("Missile settings check failed: ${settings}")
             }
+            def aim9 = new File(missileFlightDirectory, 'aim9-client-check.txt')
+            if (!aim9.exists() || !aim9.getText('UTF-8').startsWith('PASS')) {
+                throw new GradleException("AIM-9 client check failed: ${aim9}")
+            }
         }
     }
     def blastFxDirectory = file("build/blast-fx-check/${System.currentTimeMillis()}")
@@ -266,6 +285,8 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
         gameDirectory = blastFxDirectory
         systemProperty 'warnautics.blastFxCheck', 'true'
         systemProperty 'warnautics.expectSodium', providers.gradleProperty('fxSodiumJar').isPresent().toString()
+        systemProperty 'warnautics.waterBlastCheck', providers.gradleProperty('waterBlastCheck').isPresent().toString()
+        systemProperty 'warnautics.blastFxIncludeVolume', providers.gradleProperty('blastFxIncludeVolume').isPresent().toString()
         systemProperty 'warnautics.blastFxIncludeFlight', providers.gradleProperty('blastFxIncludeFlight').isPresent().toString()
         systemProperty 'warnautics.blastFxFabulous', providers.gradleProperty('blastFxFabulous').isPresent().toString()
         jvmArguments.addAll '-Xmx3G', '-XX:ActiveProcessorCount=4'
@@ -277,6 +298,22 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
             if (!result.exists() || !result.getText('UTF-8').startsWith('PASS')) {
                 throw new GradleException("Blast FX client check failed: ${result}")
             }
+            def clientLog = new File(blastFxDirectory, 'logs/latest.log')
+            if (clientLog.exists() && clientLog.getText('UTF-8').contains('Popped empty Framebuffer stack')) {
+                throw new GradleException('Veil framebuffer setup/clear regression; see logs/latest.log')
+            }
+            if (providers.gradleProperty('waterBlastCheck').isPresent()) {
+                def water = new File(blastFxDirectory, 'water-blast-check.txt')
+                if (!water.exists() || !water.getText('UTF-8').startsWith('PASS')) {
+                    throw new GradleException("Water blast check failed: ${water}")
+                }
+            }
+            if (providers.gradleProperty('blastFxIncludeVolume').isPresent()) {
+                def volume = new File(blastFxDirectory, 'blast-volume-check.txt')
+                if (!volume.exists() || !volume.getText('UTF-8').startsWith('PASS')) {
+                    throw new GradleException("Blast volume check failed: ${volume}")
+                }
+            }
             if (providers.gradleProperty('blastFxIncludeFlight').isPresent()) {
                 def flight = new File(blastFxDirectory, 'missile-flight-check.txt')
                 if (!flight.exists() || !flight.getText('UTF-8').startsWith('PASS')) {
@@ -285,6 +322,14 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
                 def settings = new File(blastFxDirectory, 'missile-settings-check.txt')
                 if (!settings.exists() || !settings.getText('UTF-8').startsWith('PASS')) {
                     throw new GradleException("Chained missile settings check failed: ${settings}")
+                }
+                def volume = new File(blastFxDirectory, 'blast-volume-check.txt')
+                if (!volume.exists() || !volume.getText('UTF-8').startsWith('PASS')) {
+                    throw new GradleException("Chained blast volume check failed: ${volume}")
+                }
+                def aim9 = new File(blastFxDirectory, 'aim9-client-check.txt')
+                if (!aim9.exists() || !aim9.getText('UTF-8').startsWith('PASS')) {
+                    throw new GradleException("Chained AIM-9 check failed: ${aim9}")
                 }
             }
         }
@@ -310,6 +355,7 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
         sourceSet = sourceSets.gameTest
         gameDirectory = ponderCheckDirectory
         systemProperty 'warnautics.ponderCheck', 'true'
+        programArguments.addAll '--mixin', 'cbc_more_content.gametest.mixins.json'
         jvmArguments.addAll '-Xmx3G', '-XX:ActiveProcessorCount=4'
         programArguments.addAll '--width', '960', '--height', '720'
     }

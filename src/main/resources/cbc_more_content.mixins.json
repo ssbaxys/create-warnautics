@@ -8,6 +8,7 @@
     "ShrapnelBurstMixin",
     "TripwireSignalMixin",
     "compat.sable.DropBombBlockMixin",
+    "compat.sable.Aim9BlockEntityMixin",
     "compat.sable.LandMineBlockMixin",
     "compat.sable.SeaMineBlockMixin",
     "compat.offroad.WheelMountBlockEntityMixin",
@@ -17,9 +18,11 @@
   ],
   "client": [
     "client.AbstractContainerScreenAccessor",
+    "client.FontReloadMixin",
     "client.CreativeModeInventoryScreenMixin",
     "client.CreativeModeTabMixin",
     "compat.sodium.SodiumShaderLodBiasMixin",
+    "compat.veil.VeilWeatherBufferMixin",
     "compat.simulated.ChainRenderTypeMixin",
     "compat.simulated.ChainConnectorRenderTypeMixin",
     "compat.simulated.ChainPreviewMixin"

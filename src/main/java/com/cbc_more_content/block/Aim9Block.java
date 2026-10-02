@@ -31,13 +31,14 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.BlockEvent;
 
-/** Placeable AIM-9 airframe. Flight and fusing are intentionally not connected yet. */
+/** A three-cell interceptor rack, with settings on the body cell only. */
 public class Aim9Block extends BaseEntityBlock implements SimpleWaterloggedBlock, IWrenchable {
     public static final MapCodec<Aim9Block> CODEC = simpleCodec(Aim9Block::new);
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
@@ -123,7 +124,7 @@ public class Aim9Block extends BaseEntityBlock implements SimpleWaterloggedBlock
                     .setValue(PART, anchor)
                     .setValue(
                             WATERLOGGED,
-                            level.getFluidState(context.getClickedPos()).is(FluidTags.WATER));
+                            com.cbc_more_content.util.WaterPlacement.sourceAt(level, context.getClickedPos()));
             var cells = cells(level, bodyOf(state, context.getClickedPos()), state);
             if (cells.entrySet().stream()
                     .allMatch(e -> !level.isOutsideBuildHeight(e.getKey())
@@ -147,7 +148,7 @@ public class Aim9Block extends BaseEntityBlock implements SimpleWaterloggedBlock
             result.put(
                     pos,
                     state.setValue(PART, part)
-                            .setValue(WATERLOGGED, level.getFluidState(pos).is(FluidTags.WATER)));
+                            .setValue(WATERLOGGED, com.cbc_more_content.util.WaterPlacement.sourceAt(level, pos)));
         }
         return result;
     }
@@ -234,8 +235,15 @@ public class Aim9Block extends BaseEntityBlock implements SimpleWaterloggedBlock
             }
         }
         var changes = clearCells(level, body, bodyState);
+        var settings = level.getBlockEntity(body) instanceof Aim9BlockEntity be
+                ? be.saveWithoutMetadata(level.registryAccess())
+                : null;
         changes.putAll(destination);
         write(level, changes);
+        if (settings != null && level.getBlockEntity(body) instanceof Aim9BlockEntity be) {
+            be.loadWithComponents(settings, level.registryAccess());
+            be.configure(be.enabled(), be.interceptCruise(), be.range());
+        }
         IWrenchable.playRotateSound(level, context.getClickedPos());
         return InteractionResult.SUCCESS;
     }
@@ -305,6 +313,81 @@ public class Aim9Block extends BaseEntityBlock implements SimpleWaterloggedBlock
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return state.getValue(PART) == Part.BODY ? new Aim9BlockEntity(pos, state) : null;
+    }
+
+    @Override
+    public <T extends BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<T> getTicker(
+            Level level, BlockState state, net.minecraft.world.level.block.entity.BlockEntityType<T> type) {
+        return level.isClientSide || state.getValue(PART) != Part.BODY
+                ? null
+                : createTickerHelper(
+                        type, com.cbc_more_content.registry.ModBlockEntities.AIM9.get(), Aim9BlockEntity::serverTick);
+    }
+
+    @Nullable
+    public static com.cbc_more_content.munitions.Aim9Projectile launch(
+            net.minecraft.server.level.ServerLevel level,
+            BlockPos pos,
+            BlockState state,
+            com.cbc_more_content.munitions.CruiseMissileProjectile target) {
+        BlockPos body = bodyOf(state, pos);
+        if (!(level.getBlockEntity(body) instanceof Aim9BlockEntity be)
+                || !be.isLiveAirframe()
+                || level.getFluidState(body).is(FluidTags.WATER)
+                || !target.isAlive()) {
+            return null;
+        }
+        var frame = com.cbc_more_content.compat.SableDropCompat.resolveLaunch(
+                level, body.getCenter(), Vec3.ZERO, new Vec3(0, 1, 0));
+        if (!canLaunch(level, body, target)) {
+            return null;
+        }
+        var missile = com.cbc_more_content.registry.ModEntityTypes.AIM9.get().create(frame.level());
+        if (missile == null) {
+            return null;
+        }
+        // Capture the carrier before removing the airframe, which may be the entire assembly.
+        write(level, clearCells(level, body, level.getBlockState(body)));
+        missile.setPos(frame.pos());
+        missile.launch(target, frame.vel());
+        frame.level().addFreshEntity(missile);
+        frame.level()
+                .playSound(
+                        null,
+                        frame.pos().x,
+                        frame.pos().y,
+                        frame.pos().z,
+                        net.minecraft.sounds.SoundEvents.FIREWORK_ROCKET_LAUNCH,
+                        net.minecraft.sounds.SoundSource.HOSTILE,
+                        1.5f,
+                        .65f);
+        return missile;
+    }
+
+    public static boolean canLaunch(
+            net.minecraft.server.level.ServerLevel level,
+            BlockPos body,
+            com.cbc_more_content.munitions.CruiseMissileProjectile target) {
+        var frame = com.cbc_more_content.compat.SableDropCompat.resolveLaunch(
+                level, body.getCenter(), Vec3.ZERO, new Vec3(0, 1, 0));
+        var ignored = java.util.Set.copyOf(
+                com.cbc_more_content.compat.AirframeMovement.cells(level, body, level.getBlockState(body)));
+        if (!com.cbc_more_content.compat.SableDropCompat.clearRay(
+                frame.level(), frame.pos(), target.position(), ignored)) {
+            return false;
+        }
+        // Test the cold-launch path with the carrier's inherited motion. The five
+        // rays leave clearance for fins instead of passing only a point through a slit.
+        Vec3 end = frame.pos().add(frame.vel().scale(14)).add(0, 10.99, 0);
+        for (Vec3 offset : new Vec3[] {
+            Vec3.ZERO, new Vec3(.28, 0, 0), new Vec3(-.28, 0, 0), new Vec3(0, 0, .28), new Vec3(0, 0, -.28)
+        }) {
+            if (!com.cbc_more_content.compat.SableDropCompat.clearRay(
+                    frame.level(), frame.pos().add(offset), end.add(offset), ignored)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public enum Part implements StringRepresentable {

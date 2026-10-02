@@ -220,6 +220,10 @@ public final class WarnauticsScenes {
     }
 
     private void burst(BlockPos pos, int radius) {
+        burst(pos, radius, true);
+    }
+
+    private void burst(BlockPos pos, int radius, boolean ground) {
         scene.addInstruction(ponder -> {
             BlockState material = ponder.getWorld().getBlockState(new BlockPos(pos.getX(), 2, pos.getZ()));
             if (material.isAir() || !material.getFluidState().isEmpty()) {
@@ -245,21 +249,24 @@ public final class WarnauticsScenes {
                         scene.effects().simpleParticleEmitter(ModParticles.MISSILE_SMOKE.get(), new Vec3(0, .06, 0)),
                         .25f,
                         24);
-        for (int x = -radius - 1; x <= radius + 1; x++) {
-            for (int z = -radius - 1; z <= radius + 1; z++) {
-                int distance = x * x + z * z;
-                BlockPos top = new BlockPos(pos.getX() + x, 2, pos.getZ() + z);
-                if (top.getX() < 0 || top.getX() > 8 || top.getZ() < 0 || top.getZ() > 8) {
-                    continue;
-                }
-                if (distance <= radius * radius) {
-                    scene.world().destroyBlock(top);
-                    if (distance <= Math.max(0, (radius - 1) * (radius - 1))) {
-                        scene.world().destroyBlock(top.below());
+        if (ground) {
+            for (int x = -radius - 1; x <= radius + 1; x++) {
+                for (int z = -radius - 1; z <= radius + 1; z++) {
+                    int distance = x * x + z * z;
+                    BlockPos top = new BlockPos(pos.getX() + x, 2, pos.getZ() + z);
+                    if (top.getX() < 0 || top.getX() > 8 || top.getZ() < 0 || top.getZ() > 8) {
+                        continue;
                     }
-                } else if (distance <= (radius + 1) * (radius + 1)) {
-                    Block[] soils = {Blocks.DIRT, Blocks.COARSE_DIRT, Blocks.ROOTED_DIRT, Blocks.PODZOL};
-                    scene.world().setBlock(top, soils[Math.floorMod(x + z, soils.length)].defaultBlockState(), false);
+                    if (distance <= radius * radius) {
+                        scene.world().destroyBlock(top);
+                        if (distance <= Math.max(0, (radius - 1) * (radius - 1))) {
+                            scene.world().destroyBlock(top.below());
+                        }
+                    } else if (distance <= (radius + 1) * (radius + 1)) {
+                        Block[] soils = {Blocks.DIRT, Blocks.COARSE_DIRT, Blocks.ROOTED_DIRT, Blocks.PODZOL};
+                        scene.world()
+                                .setBlock(top, soils[Math.floorMod(x + z, soils.length)].defaultBlockState(), false);
+                    }
                 }
             }
         }
@@ -707,27 +714,53 @@ public final class WarnauticsScenes {
     }
 
     private void aim9() {
-        Selection shape = airframe(ModBlocks.AIM9.get(), CENTRE.above(), Direction.EAST);
+        BlockPos rack = new BlockPos(2, 3, 4);
+        BlockPos target = new BlockPos(7, 6, 4);
+        Selection shape = airframe(ModBlocks.AIM9.get(), rack, Direction.UP);
         scene.world().showSection(shape, Direction.DOWN);
         highlight(shape, PonderPalette.GREEN);
-        text(0, CENTRE.above());
-        sneak(ModItems.AIM9.get(), CENTRE.above());
-        text(1, CENTRE.above());
-        put(new BlockPos(4, 3, 4), Blocks.IRON_BLOCK);
-        text(2, CENTRE);
-        use(AllItems.WRENCH.get(), CENTRE.above());
+        text(0, rack);
+        use(ModItems.SETTINGS_KEY.get(), rack);
+        scene.world()
+                .modifyBlockEntity(
+                        rack, com.cbc_more_content.block.Aim9BlockEntity.class, be -> be.configure(true, true, 120));
+        text(1, rack);
+        for (int i = 0; i < 16; i++) {
+            double a = i * Math.PI * 2 / 16, b = (i + 1) * Math.PI * 2 / 16;
+            scene.overlay()
+                    .showLine(
+                            PonderPalette.BLUE,
+                            Vec3.atCenterOf(rack).add(Math.cos(a) * 3.8, .05, Math.sin(a) * 3.8),
+                            Vec3.atCenterOf(rack).add(Math.cos(b) * 3.8, .05, Math.sin(b) * 3.8),
+                            100);
+        }
+        text(2, rack);
+        var incomingShape = airframe(ModBlocks.CRUISE_MISSILE.get(), target, Direction.WEST);
+        scene.world().showSection(incomingShape, Direction.WEST);
+        var incoming = scene.world().makeSectionIndependent(incomingShape);
+        scene.world().moveSection(incoming, new Vec3(-1, 0, 0), 50);
+        highlight(incomingShape, PonderPalette.RED);
+        text(3, target);
         var frame = scene.world().makeSectionIndependent(shape);
-        scene.world().configureCenterOfRotation(frame, Vec3.atCenterOf(CENTRE.above()));
-        scene.world().rotateSection(frame, 0, 90, 0, 30);
-        text(3, CENTRE.above());
-        sneak(AllItems.WRENCH.get(), CENTRE.above());
+        int launchTime = caption(4, rack);
+        trail(frame, rack, 65, 18);
+        scene.world().moveSection(frame, new Vec3(0, 1.8, 0), 18);
+        scene.idle(18);
+        scene.effects().indicateSuccess(rack.above(2));
+        scene.world().configureCenterOfRotation(frame, Vec3.atCenterOf(rack));
+        scene.world().rotateSection(frame, 0, 0, -65, 18);
+        scene.world().moveSection(frame, new Vec3(.9, 1, 0), 18);
+        scene.idle(18);
+        scene.world().rotateSection(frame, 0, 0, -25, 29);
+        scene.world().moveSection(frame, new Vec3(3.1, .2, 0), 29);
+        scene.world().moveSection(incoming, new Vec3(-1, 0, 0), 29);
+        scene.idle(29);
+        scene.idle(Math.max(0, launchTime - 65) + 12);
+        int impactTime = caption(5, target.west(2));
         scene.world().hideIndependentSection(frame, Direction.UP);
-        var picked = scene.world()
-                .createItemEntity(Vec3.atCenterOf(CENTRE.above()), Vec3.ZERO, new ItemStack(ModItems.AIM9.get()));
-        scene.world().modifyEntity(picked, e -> e.setNoGravity(true));
-        text(4, CENTRE.above());
-        highlight(at(CENTRE), PonderPalette.RED);
-        text(5, CENTRE.above());
+        scene.world().hideIndependentSection(incoming, Direction.UP);
+        burst(target.west(2), 1, false);
+        scene.idle(impactTime + 12);
     }
 
     private void charge(BlockPos pos, boolean remote) {

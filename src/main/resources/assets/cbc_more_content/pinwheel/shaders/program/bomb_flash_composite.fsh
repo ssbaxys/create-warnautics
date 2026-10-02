@@ -6,6 +6,10 @@ uniform vec4 Source0;
 uniform vec4 Source1;
 uniform vec4 Source2;
 uniform vec4 Source3;
+uniform vec4 Source4;
+uniform vec4 Source5;
+uniform vec4 Source6;
+uniform vec4 Source7;
 uniform vec2 OutSize;
 in vec2 texCoord;
 out vec4 fragColor;
@@ -26,7 +30,7 @@ vec3 burst(vec4 source, float aspect) {
 void main() {
     vec4 scene = texture(DiffuseSampler0, texCoord);
     float aspect = OutSize.x / max(OutSize.y,1.0);
-    vec3 light = burst(Source0,aspect) + burst(Source1,aspect) + burst(Source2,aspect) + burst(Source3,aspect);
+    vec3 light = burst(Source0,aspect) + burst(Source1,aspect) + burst(Source2,aspect) + burst(Source3,aspect) + burst(Source4,aspect) + burst(Source5,aspect) + burst(Source6,aspect) + burst(Source7,aspect);
     // Bounded combined energy, not a white sheet from a stack of explosions.
     light = light / (vec3(1) + light*.32);
     float adaptation = clamp(Exposure,0.0,1.0);

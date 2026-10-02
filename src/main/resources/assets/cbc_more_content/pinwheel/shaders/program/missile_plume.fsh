@@ -7,6 +7,7 @@ uniform float Strength;
 uniform int Samples;
 uniform vec2 FogRange;
 uniform float MinimumRadius;
+uniform float Interceptor;
 in vec3 localPosition;
 out vec4 fragColor;
 
@@ -43,7 +44,7 @@ void main() {
         vec3 p = CameraLocal + ray*d;
         float x = p.x;
         // Noise advects away from the nozzle; the pressure cells stay attached to it.
-        vec3 flow = vec3(x*3.4-Time*9.0,p.yz*13.0);
+        vec3 flow = vec3(x*3.4-Time*mix(9.0,16.0,Interceptor),p.yz*13.0);
         float turbulence = noise(flow)*.7 + noise(flow*2.03)*.3;
         float breakup = smoothstep(2.0,5.8,x);
         vec2 bend = vec2(sin(x*3.8-Time*8.0),cos(x*4.3-Time*6.3)) * (.018*x+.14*breakup);
@@ -61,6 +62,8 @@ void main() {
         vec3 color = mix(vec3(1.0,.24,.035),vec3(1.0,.75,.38),smoothstep(.15,.65,heat));
         color = mix(color,vec3(1.0,.97,.82),smoothstep(.65,.95,heat));
         color = mix(color,vec3(.32,.53,1.0),exp(-x*13.0)*.65);
+        // A hot white core and closely spaced orange pressure cells distinguish the AIM-9 motor.
+        color = mix(color, mix(vec3(1.0,.38,.09),vec3(1.0,.98,.92),smoothstep(.45,.9,heat)), Interceptor);
         float opacity = 1.0-exp(-density*stepSize*2.7);
         radiance += transmission*color*opacity*1.6;
         transmission *= 1.0-opacity*.55;

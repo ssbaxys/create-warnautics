@@ -20,7 +20,7 @@ import net.neoforged.fml.ModList;
  */
 @OnlyIn(Dist.CLIENT)
 public final class BombFlashClient {
-    private static final int MAX_ACTIVE_FLASHES = 12;
+    private static final int MAX_ACTIVE_FLASHES = 24;
     private static final int MERGE_WINDOW_TICKS = 4;
     private static final List<Flash> FLASHES = new ArrayList<>();
     private static final List<Flash> READ_ONLY_FLASHES = Collections.unmodifiableList(FLASHES);
@@ -89,14 +89,8 @@ public final class BombFlashClient {
     }
 
     private static Flash findMergeTarget(ClientLevel level, Vec3 pos, BombSize size) {
-        double mergeRadius =
-                switch (size) {
-                    case SMALL -> 5.0D;
-                    case SEA -> 6.0D;
-                    case MEDIUM -> 8.0D;
-                    case LARGE -> 12.0D;
-                    case MOAB -> 20.0D;
-                };
+        // Only co-located rounds share a pulse; separate chain charges retain their own origin.
+        double mergeRadius = 0.75D;
         double mergeRadiusSqr = mergeRadius * mergeRadius;
         Flash best = null;
         double bestDistance = Double.MAX_VALUE;

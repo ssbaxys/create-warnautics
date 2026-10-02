@@ -136,6 +136,10 @@ public final class MissileSettingsClientCheck {
         if (failure != null) {
             CBCMoreContent.LOGGER.error("Missile settings check failed", failure);
         }
-        Minecraft.getInstance().stop();
+        if (failure == null) {
+            Aim9ClientCheck.begin();
+        } else {
+            Minecraft.getInstance().stop();
+        }
     }
 }

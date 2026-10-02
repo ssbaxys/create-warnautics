@@ -2,7 +2,6 @@ package com.cbc_more_content.block;
 
 import com.cbc_more_content.block.C4Block.Fuse;
 import com.cbc_more_content.damage.BombDamageSource;
-import com.cbc_more_content.effects.BombBlastFx;
 import com.cbc_more_content.effects.BombExplosionHandler;
 import com.cbc_more_content.registry.ModBlockEntities;
 import com.cbc_more_content.registry.ModSounds;
@@ -384,7 +383,6 @@ public class C4BlockEntity extends BlockEntity {
     public static void explode(ServerLevel server, Vec3 at) {
         BombExplosionHandler.detonateBreachingCharge(
                 server, BombDamageSource.create(server), at, BLOCK_POWER, ENTITY_POWER);
-        BombBlastFx.playBreachingCharge(server, at, BLOCK_POWER);
     }
 
     @Override

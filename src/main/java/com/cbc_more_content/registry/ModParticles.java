@@ -26,5 +26,21 @@ public final class ModParticles {
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MISSILE_SMOKE =
             PARTICLE_TYPES.register("missile_smoke", () -> new SimpleParticleType(false));
 
+    public static final DeferredHolder<ParticleType<?>, ParticleType<com.cbc_more_content.effects.BlastSmokeData>>
+            BLAST_SMOKE = PARTICLE_TYPES.register("blast_smoke", () -> new ParticleType<>(true) {
+        @Override
+        public com.mojang.serialization.MapCodec<com.cbc_more_content.effects.BlastSmokeData> codec() {
+            return com.cbc_more_content.effects.BlastSmokeData.CODEC;
+        }
+
+        @Override
+        public net.minecraft.network.codec.StreamCodec<
+                        ? super net.minecraft.network.RegistryFriendlyByteBuf,
+                        com.cbc_more_content.effects.BlastSmokeData>
+                streamCodec() {
+            return com.cbc_more_content.effects.BlastSmokeData.STREAM_CODEC;
+        }
+    });
+
     private ModParticles() {}
 }

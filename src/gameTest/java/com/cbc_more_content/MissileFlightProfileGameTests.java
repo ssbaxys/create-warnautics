@@ -4,11 +4,15 @@ import com.cbc_more_content.block.CruiseMissileBlockEntity.Guidance;
 import com.cbc_more_content.munitions.CruiseMissileProjectile;
 import com.cbc_more_content.munitions.MissileFlightProfile;
 import com.cbc_more_content.registry.ModEntityTypes;
+import java.util.HashSet;
+import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.level.ExplosionEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
@@ -16,6 +20,61 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 @GameTestHolder(CBCMoreContent.MOD_ID)
 @PrefixGameTestTemplate(false)
 public class MissileFlightProfileGameTests {
+    @GameTest(template = "empty", batch = "missile_flight_dispersion", timeoutTicks = 100)
+    public static void allProfilesReachTheTargetWithBoundedVaryingImpacts(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var start = helper.absolutePos(new BlockPos(70, 160, 70)).getCenter();
+        var target = BlockPos.containing(start.add(260, 0, 0));
+        for (var profile : MissileFlightProfile.values()) {
+            var impacts = new HashSet<BlockPos>();
+            double topSpeed = 0;
+            for (int shot = 0; shot < 8; shot++) {
+                var missile = new CruiseMissileProjectile(ModEntityTypes.CRUISE_MISSILE.get(), level);
+                missile.setPos(start);
+                missile.setGuidance(Guidance.COORDINATES, target, -1);
+                missile.setFlightProfile(profile);
+                missile.launch(new Vec3(1, 0, 0));
+                Vec3[] impact = {null};
+                Consumer<ExplosionEvent.Start> recorder = event -> {
+                    if (event.getExplosion().getDirectSourceEntity() == missile) {
+                        impact[0] = event.getExplosion().center();
+                        // Exercise the real impact fuse without carving 24 overlapping test craters.
+                        event.setCanceled(true);
+                    }
+                };
+                NeoForge.EVENT_BUS.addListener(recorder);
+                try {
+                    double firstSpeed = 0;
+                    for (int tick = 0; tick < 180 && !missile.isRemoved(); tick++) {
+                        missile.tickCount++;
+                        missile.tick();
+                        double speed = missile.getDeltaMovement().length();
+                        topSpeed = Math.max(topSpeed, speed);
+                        if (tick == 0) {
+                            firstSpeed = speed;
+                        }
+                        if (tick == 38) {
+                            helper.assertTrue(speed > firstSpeed + 2, "Cruise motor accelerates smoothly: " + profile);
+                        }
+                    }
+                    helper.assertTrue(impact[0] != null, "Flight reaches its target: " + profile);
+                    helper.assertTrue(
+                            impact[0].distanceTo(target.getCenter()) < 12.4,
+                            "Dispersion stays near the selected target: " + profile + " " + impact[0]);
+                    impacts.add(BlockPos.containing(impact[0]));
+                } finally {
+                    NeoForge.EVENT_BUS.unregister(recorder);
+                    missile.discard();
+                }
+            }
+            helper.assertTrue(
+                    impacts.size() >= 3, "Repeated launches vary their impact blocks: " + profile + " " + impacts);
+            helper.assertTrue(
+                    topSpeed > 3.8 && topSpeed < 5.0, "Cruise remains slightly slower than AIM-9: " + topSpeed);
+        }
+        helper.succeed();
+    }
+
     @GameTest(template = "empty", batch = "missile_flight_profiles", timeoutTicks = 130)
     public static void profilesChangePathSpeedAndRange(GameTestHelper helper) {
         var level = helper.getLevel();

@@ -1,7 +1,6 @@
 package com.cbc_more_content.item;
 
 import com.cbc_more_content.damage.BombDamageSource;
-import com.cbc_more_content.effects.BombBlastFx;
 import com.cbc_more_content.effects.BombExplosionHandler;
 import com.cbc_more_content.registry.ModSounds;
 import java.util.List;
@@ -136,7 +135,6 @@ public class BombVestItem extends ArmorItem {
         wearer.setItemSlot(EquipmentSlot.CHEST, ItemStack.EMPTY);
         BombExplosionHandler.detonateBreachingCharge(
                 level, BombDamageSource.create(level), at, BLOCK_POWER, ENTITY_POWER);
-        BombBlastFx.playBreachingCharge(level, at, BLOCK_POWER);
     }
 
     @Override

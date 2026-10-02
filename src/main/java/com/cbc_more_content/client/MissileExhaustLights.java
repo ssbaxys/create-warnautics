@@ -2,6 +2,7 @@ package com.cbc_more_content.client;
 
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.config.WarnauticsClientConfig;
+import com.cbc_more_content.munitions.Aim9Projectile;
 import com.cbc_more_content.munitions.CruiseMissileProjectile;
 import com.cbc_more_content.registry.ModParticles;
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -18,6 +19,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -64,10 +66,11 @@ public final class MissileExhaustLights {
                 Math.min(MAX_EFFECT_RANGE, mc.options.renderDistance().get() * 16.0 + 16.0);
         // Follow the entities the server actually tracks. An extra sphere around the player
         // used to turn off a still-burning motor halfway through a vertical launch.
-        var missiles = new ArrayList<CruiseMissileProjectile>();
+        var missiles = new ArrayList<Entity>();
         for (var entity : mc.level.entitiesForRendering()) {
-            if (entity instanceof CruiseMissileProjectile missile && !missile.isRemoved()) {
-                missiles.add(missile);
+            if ((entity instanceof CruiseMissileProjectile || entity instanceof Aim9Projectile)
+                    && !entity.isRemoved()) {
+                missiles.add(entity);
             }
         }
         missiles.sort(Comparator.comparingDouble(e -> e.position().distanceToSqr(camera)));
@@ -87,7 +90,7 @@ public final class MissileExhaustLights {
                 TRAILS.put(missile.getId(), trail);
             }
             boolean wet = wet(missile, nozzle);
-            boolean powered = missile.isPowered() && !missile.isEjecting() && !wet;
+            boolean powered = powered(missile) && !ejecting(missile) && !wet;
             if (powered && !trail.powered) {
                 trail.ignitionTick = missile.tickCount;
             }
@@ -104,7 +107,7 @@ public final class MissileExhaustLights {
                     && count <= MAX_DETAILED_MISSILES
                     && distance <= effectRange
                     && missile.tickCount % stride == 0) {
-                if (missile.isEjecting()) {
+                if (ejecting(missile)) {
                     emit(
                             mc.level,
                             ModParticles.MISSILE_GAS.get(),
@@ -125,7 +128,7 @@ public final class MissileExhaustLights {
                         emit(
                                 mc.level,
                                 ModParticles.MISSILE_SMOKE.get(),
-                                at.add(back.scale(powered ? 3.3 : .2)),
+                                at.add(back.scale(powered ? missile instanceof Aim9Projectile ? 2.5 : 3.3 : .2)),
                                 back.scale(.075),
                                 .065);
                         if (powered && !detailedVolume) {
@@ -204,7 +207,7 @@ public final class MissileExhaustLights {
         int detailed = 0;
         for (var trail : TRAILS.values()) {
             var missile = trail.missile;
-            if (missile.isRemoved() || !missile.isPowered() || missile.isEjecting()) {
+            if (missile.isRemoved() || !powered(missile) || ejecting(missile)) {
                 continue;
             }
             Vec3 nozzle = nozzleOf(missile, partial);
@@ -244,22 +247,35 @@ public final class MissileExhaustLights {
                     strength,
                     samples,
                     terrainFogStart,
-                    terrainFogEnd);
+                    terrainFogEnd,
+                    missile instanceof Aim9Projectile ? 1 : 0);
         }
     }
 
-    private static boolean wet(CruiseMissileProjectile missile, Vec3 nozzle) {
+    private static boolean powered(Entity missile) {
+        return missile instanceof CruiseMissileProjectile cruise
+                ? cruise.isPowered()
+                : ((Aim9Projectile) missile).isPowered();
+    }
+
+    private static boolean ejecting(Entity missile) {
+        return missile instanceof CruiseMissileProjectile cruise
+                ? cruise.isEjecting()
+                : ((Aim9Projectile) missile).isEjecting();
+    }
+
+    private static boolean wet(Entity missile, Vec3 nozzle) {
         return missile.isInWater()
                 || missile.level().getFluidState(BlockPos.containing(nozzle)).is(FluidTags.WATER);
     }
 
-    public static Vec3 heading(CruiseMissileProjectile missile, float partial) {
+    public static Vec3 heading(Entity missile, float partial) {
         float yaw = (Mth.rotLerp(partial, missile.yRotO, missile.getYRot()) + 90) * Mth.DEG_TO_RAD;
         float pitch = -Mth.lerp(partial, missile.xRotO, missile.getXRot()) * Mth.DEG_TO_RAD;
         return new Vec3(Mth.cos(yaw) * Mth.cos(pitch), Mth.sin(pitch), Mth.sin(yaw) * Mth.cos(pitch));
     }
 
-    public static Vec3 nozzleOf(CruiseMissileProjectile missile, float partial) {
+    public static Vec3 nozzleOf(Entity missile, float partial) {
         // Match LevelRenderer.renderEntity, including interpolation altered by ship compatibility.
         var renderedPosition = new Vec3(
                 Mth.lerp(partial, missile.xOld, missile.getX()),
@@ -269,14 +285,14 @@ public final class MissileExhaustLights {
     }
 
     private static final class Trail {
-        final CruiseMissileProjectile missile;
+        final Entity missile;
         Vec3 nozzle;
         Vec3 emittedNozzle;
         boolean powered;
         int cooldown;
         int ignitionTick;
 
-        Trail(CruiseMissileProjectile missile, Vec3 nozzle) {
+        Trail(Entity missile, Vec3 nozzle) {
             this.missile = missile;
             this.nozzle = nozzle;
             this.emittedNozzle = nozzle;

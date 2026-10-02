@@ -412,6 +412,14 @@ public final class BlastFxClientCheck {
                 e.printStackTrace();
             }
         }
+        if (FAILURES.isEmpty() && Boolean.getBoolean("warnautics.blastFxIncludeVolume")) {
+            BlastVolumeClientCheck.begin();
+            return;
+        }
+        if (FAILURES.isEmpty() && Boolean.getBoolean("warnautics.waterBlastCheck")) {
+            WaterBlastClientCheck.begin();
+            return;
+        }
         Minecraft.getInstance().stop();
     }
 }

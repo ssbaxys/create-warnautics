@@ -23,6 +23,12 @@ import rbasamoyai.createbigcannons.munitions.ProjectileDamageHooks;
 public final class BombExplosionHandler {
     private BombExplosionHandler() {}
 
+    private enum FxStyle {
+        NORMAL,
+        COMPACT,
+        BREACHING
+    }
+
     public static void detonate(
             ServerLevel level,
             @Nullable Entity source,
@@ -34,7 +40,7 @@ public final class BombExplosionHandler {
         var target = SableDropCompat.resolveWorldBlastChecked(level, pos);
         level = target.level();
         pos = target.pos();
-        detonateInternal(level, source, damageSource, pos, blockPower, entityPower, size, false);
+        detonateInternal(level, source, damageSource, pos, blockPower, entityPower, size, FxStyle.NORMAL);
     }
 
     /** Breaching charge: same blast everywhere, hull or ground. */
@@ -43,7 +49,7 @@ public final class BombExplosionHandler {
         var target = SableDropCompat.resolveWorldBlastChecked(level, pos);
         level = target.level();
         pos = target.pos();
-        detonateInternal(level, null, damageSource, pos, blockPower, entityPower, BombSize.MEDIUM, false);
+        detonateInternal(level, null, damageSource, pos, blockPower, entityPower, BombSize.MEDIUM, FxStyle.BREACHING);
     }
 
     /** Compact anti-vehicle mine profile: same impulse, far fewer visual emitters. */
@@ -57,7 +63,7 @@ public final class BombExplosionHandler {
         var target = SableDropCompat.resolveWorldBlastChecked(level, pos);
         level = target.level();
         pos = target.pos();
-        detonateInternal(level, source, damageSource, pos, blockPower, entityPower, BombSize.LARGE, true);
+        detonateInternal(level, source, damageSource, pos, blockPower, entityPower, BombSize.LARGE, FxStyle.COMPACT);
     }
 
     /** Underwater charge using the same damage rules for terrain and sub-levels. */
@@ -71,7 +77,7 @@ public final class BombExplosionHandler {
         var target = SableDropCompat.resolveWorldBlastChecked(level, pos);
         level = target.level();
         pos = target.pos();
-        detonateInternal(level, source, damageSource, pos, blockPower, entityPower, BombSize.SEA, false);
+        detonateInternal(level, source, damageSource, pos, blockPower, entityPower, BombSize.SEA, FxStyle.NORMAL);
     }
 
     private static void detonateInternal(
@@ -82,7 +88,7 @@ public final class BombExplosionHandler {
             float blockPower,
             float entityPower,
             BombSize size,
-            boolean compactFx) {
+            FxStyle fxStyle) {
         // Sirens ask this rather than trying to watch for a blast that is already
         // over by the time they next look around. Placed here, after the hull
         // remapping, so a post is told where the blast actually landed.
@@ -101,8 +107,10 @@ public final class BombExplosionHandler {
         // Send sound, hot particles and the screen flash before crater work. Large
         // CBC/Sable block scans can take noticeable time, but feedback must begin on
         // the collision tick rather than after terrain processing has finished.
-        if (compactFx) {
+        if (fxStyle == FxStyle.COMPACT) {
             BombBlastFx.playCompactMine(level, pos, blockPower, budget);
+        } else if (fxStyle == FxStyle.BREACHING) {
+            BombBlastFx.playBreachingCharge(level, pos, blockPower, budget);
         } else {
             BombBlastFx.play(
                     level,
@@ -232,13 +240,12 @@ public final class BombExplosionHandler {
             }
 
             float damage = (float) (cbcBlastDamage(dist, entityPower) * exposure);
-            if (damage > 0.5f) {
-                entity.hurt(damageSource, damage);
-            }
-
             double inv = 1.0D / dist;
             double strength = Math.max(0.0D, falloff * exposure * base);
             if (strength < 0.05D) {
+                if (!AirborneBlastResponse.apply(entity, explosion, falloff * exposure, Vec3.ZERO) && damage > .5f) {
+                    entity.hurt(damageSource, damage);
+                }
                 continue;
             }
 
@@ -247,6 +254,12 @@ public final class BombExplosionHandler {
                     Mth.clamp(dy * inv * strength * 0.55D + strength * 0.45D, 0.25D, strength * 1.1D),
                     dz * inv * strength);
 
+            if (AirborneBlastResponse.apply(entity, explosion, falloff * exposure, knock)) {
+                continue;
+            }
+            if (damage > .5f) {
+                entity.hurt(damageSource, damage);
+            }
             if (entity instanceof ServerPlayer player) {
                 explosion.getHitPlayers().put(player, knock);
                 player.setDeltaMovement(player.getDeltaMovement().add(knock));

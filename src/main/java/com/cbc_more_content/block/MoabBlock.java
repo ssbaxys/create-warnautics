@@ -12,7 +12,6 @@ import javax.annotation.Nullable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.FluidTags;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
@@ -141,7 +140,7 @@ public class MoabBlock extends DropBombBlock {
             cells.put(
                     cell,
                     state.setValue(PART, part)
-                            .setValue(WATERLOGGED, level.getFluidState(cell).is(FluidTags.WATER))
+                            .setValue(WATERLOGGED, com.cbc_more_content.util.WaterPlacement.sourceAt(level, cell))
                             .setValue(POWERED, isReceivingPower(level, cell)));
         }
         return cells;
