@@ -52,6 +52,10 @@ public final class ModBlocks {
     public static final DeferredBlock<LandMineBlock> LARGE_MINE = BLOCKS.register(
             "large_mine", () -> new LandMineBlock(mineProps(MapColor.TERRACOTTA_GRAY, 0.7f), MineType.LARGE));
 
+    /** M18A1: directional, fired on command or by a tripwire tied to it. */
+    public static final DeferredBlock<com.cbc_more_content.block.ClaymoreBlock> CLAYMORE = BLOCKS.register(
+            "claymore", () -> new com.cbc_more_content.block.ClaymoreBlock(mineProps(MapColor.TERRACOTTA_GREEN, 0.5f)));
+
     public static final DeferredBlock<SeaMineBlock> SEA_MINE = BLOCKS.register(
             "sea_mine",
             () -> new SeaMineBlock(BlockBehaviour.Properties.of()

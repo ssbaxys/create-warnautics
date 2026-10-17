@@ -11,6 +11,7 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -33,32 +34,49 @@ public class AirborneBlastGameTests {
     @GameTest(template = "empty", batch = "airborne_weak_pressure", timeoutTicks = 100)
     public static void peripheralBombBlastDeflectsRoundsWithoutIgnitingASalvo(GameTestHelper h) {
         var origin = h.absolutePos(new BlockPos(50, 170, 50)).getCenter();
-        var rounds = new ArrayList<Entity>();
-        rounds.add(cruise(h, origin.add(15, 0, 0)));
-        var bomb = ModEntityTypes.SMALL_BOMB.get().create(h.getLevel());
-        bomb.setPos(origin.add(0, 0, 15));
-        bomb.tickCount = 12;
-        h.getLevel().addFreshEntity(bomb);
-        rounds.add(bomb);
-        var charge = ModEntityTypes.C4.get().create(h.getLevel());
-        charge.setPos(origin.add(-15, 0, 0));
-        h.getLevel().addFreshEntity(charge);
-        rounds.add(charge);
-        BombExplosionHandler.detonate(
-                h.getLevel(), null, BombDamageSource.create(h.getLevel()), origin, 0, 10, BombSize.SMALL);
-        h.assertTrue(rounds.getFirst().getDeltaMovement().x > .08, "Cruise missile receives sideways pressure impulse");
-        h.assertTrue(
-                bomb.getDeltaMovement().z > .08 && charge.getDeltaMovement().x < -.05,
-                "Bomb and thrown charge receive pressure impulse");
-        var missile = (CruiseMissileProjectile) rounds.getFirst();
-        missile.tick();
-        h.assertTrue(missile.getDeltaMovement().x > .06, "Autopilot does not cancel impulse in the next tick");
-        h.runAfterDelay(12, () -> {
-            for (var round : rounds) {
-                h.assertTrue(round.isAlive(), "Peripheral blast must not ignite the whole salvo: " + round.getType());
-                round.discard();
+        // The rounds sit fifteen blocks out, which can be over a chunk line from the plot. A
+        // chunk only lists its entities once it is ticking them, so load them a few ticks ahead.
+        var centre = new net.minecraft.world.level.ChunkPos(BlockPos.containing(origin));
+        for (int x = -1; x <= 1; x++) {
+            for (int z = -1; z <= 1; z++) {
+                h.getLevel().setChunkForced(centre.x + x, centre.z + z, true);
             }
-            h.succeed();
+        }
+        h.runAfterDelay(5, () -> {
+            var rounds = new ArrayList<Entity>();
+            rounds.add(cruise(h, origin.add(15, 0, 0)));
+            var bomb = ModEntityTypes.SMALL_BOMB.get().create(h.getLevel());
+            bomb.setPos(origin.add(0, 0, 15));
+            bomb.tickCount = 12;
+            h.getLevel().addFreshEntity(bomb);
+            rounds.add(bomb);
+            var charge = ModEntityTypes.C4.get().create(h.getLevel());
+            charge.setPos(origin.add(-15, 0, 0));
+            h.getLevel().addFreshEntity(charge);
+            rounds.add(charge);
+            BombExplosionHandler.detonate(
+                    h.getLevel(), null, BombDamageSource.create(h.getLevel()), origin, 0, 10, BombSize.SMALL);
+            h.assertTrue(
+                    rounds.getFirst().getDeltaMovement().x > .08, "Cruise missile receives sideways pressure impulse");
+            h.assertTrue(
+                    bomb.getDeltaMovement().z > .08 && charge.getDeltaMovement().x < -.05,
+                    "Bomb and thrown charge receive pressure impulse");
+            var missile = (CruiseMissileProjectile) rounds.getFirst();
+            missile.tick();
+            h.assertTrue(missile.getDeltaMovement().x > .06, "Autopilot does not cancel impulse in the next tick");
+            h.runAfterDelay(12, () -> {
+                for (var round : rounds) {
+                    h.assertTrue(
+                            round.isAlive(), "Peripheral blast must not ignite the whole salvo: " + round.getType());
+                    round.discard();
+                }
+                for (int x = -1; x <= 1; x++) {
+                    for (int z = -1; z <= 1; z++) {
+                        h.getLevel().setChunkForced(centre.x + x, centre.z + z, false);
+                    }
+                }
+                h.succeed();
+            });
         });
     }
 
@@ -90,14 +108,37 @@ public class AirborneBlastGameTests {
     @GameTest(template = "empty", batch = "airborne_external_blast", timeoutTicks = 100)
     public static void vanillaExplosionAlsoDeflectsWithoutCallingInstantCookoff(GameTestHelper h) {
         var origin = h.absolutePos(new BlockPos(50, 170, 50)).getCenter();
-        var missile = cruise(h, origin.add(12, 0, 0));
-        h.getLevel().explode(null, origin.x, origin.y, origin.z, 8, Level.ExplosionInteraction.NONE);
-        h.assertTrue(missile.getDeltaMovement().x > .05, "External explosion pressure reaches missile");
-        h.runAfterDelay(10, () -> {
-            h.assertTrue(missile.isAlive(), "External peripheral blast cannot ignite missile from generic hurt");
-            missile.discard();
-            h.succeed();
-        });
+        var level = h.getLevel();
+        var at = origin.add(12, 0, 0);
+        // Vanilla only sees entities in entity-ticking chunks; this spot sits past the grid.
+        var chunks = new ArrayList<ChunkPos>();
+        for (var point : new Vec3[] {origin, at}) {
+            var chunk = new ChunkPos(BlockPos.containing(point));
+            if (!chunks.contains(chunk)) {
+                chunks.add(chunk);
+                level.setChunkForced(chunk.x, chunk.z, true);
+            }
+        }
+        Runnable release = () -> chunks.forEach(chunk -> level.setChunkForced(chunk.x, chunk.z, false));
+        var missile = new CruiseMissileProjectile[1];
+        h.startSequence()
+                .thenWaitUntil(() -> h.assertTrue(
+                        level.isPositionEntityTicking(BlockPos.containing(origin))
+                                && level.isPositionEntityTicking(BlockPos.containing(at)),
+                        "Blast chunks load"))
+                .thenExecute(() -> {
+                    missile[0] = cruise(h, at);
+                    level.explode(null, origin.x, origin.y, origin.z, 8, Level.ExplosionInteraction.NONE);
+                    h.assertTrue(missile[0].getDeltaMovement().x > .05, "External explosion pressure reaches missile");
+                })
+                .thenIdle(10)
+                .thenExecute(() -> {
+                    h.assertTrue(
+                            missile[0].isAlive(), "External peripheral blast cannot ignite missile from generic hurt");
+                    missile[0].discard();
+                    release.run();
+                })
+                .thenSucceed();
     }
 
     @GameTest(template = "empty", batch = "airborne_cover", timeoutTicks = 100)

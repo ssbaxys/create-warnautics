@@ -46,6 +46,19 @@ public enum MissileFlightProfile {
         };
     }
 
+    /**
+     * Height kept above the ground or sea during cruise. Direct hugs the terrain like a
+     * land-attack cruise missile, arc cruises higher before its pop-up dive, and weave is a
+     * sea-skimmer that stays a few blocks off the surface.
+     */
+    public double clearance() {
+        return switch (this) {
+            case DIRECT -> 9.0;
+            case ARC -> 22.0;
+            case EVASIVE -> 4.5;
+        };
+    }
+
     public double fuelPerTick(double speed) {
         return this.fuelPerTick + Math.max(0, speed - 4.0) * .18;
     }
@@ -72,6 +85,9 @@ public enum MissileFlightProfile {
             Vec3 side = new Vec3(-flat.z, 0, flat.x).normalize();
             double phase = (seed & 0xFFFF) * 0.0003;
             double envelope = Mth.clamp((range - 28) / 45, 0, 1);
+            // Straight off the rail and through the boost; the weave builds up on the sustainer.
+            double settle = Mth.clamp((poweredTicks - 12) / 30.0, 0, 1);
+            envelope *= settle * settle * (3 - 2 * settle);
             double sway =
                     7.5 * Math.sin(poweredTicks * 0.09 + phase) + 2.5 * Math.sin(poweredTicks * 0.21 + phase * 2.3);
             // Aim at a nearby moving waypoint. Offsetting the distant target by a few

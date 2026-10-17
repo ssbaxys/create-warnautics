@@ -108,7 +108,7 @@ public final class BombExplosionHandler {
         // CBC/Sable block scans can take noticeable time, but feedback must begin on
         // the collision tick rather than after terrain processing has finished.
         if (fxStyle == FxStyle.COMPACT) {
-            BombBlastFx.playCompactMine(level, pos, blockPower, budget);
+            BombBlastFx.playAntiTankMine(level, pos, blockPower, budget);
         } else if (fxStyle == FxStyle.BREACHING) {
             BombBlastFx.playBreachingCharge(level, pos, blockPower, budget);
         } else {

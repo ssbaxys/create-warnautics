@@ -75,6 +75,8 @@ public class LandMineBlock extends Block implements IWrenchable, ChainExplosiveB
     public static final int ARM_DELAY_TICKS = 20;
     /** How often a proximity charge looks around itself. */
     private static final int PROXIMITY_INTERVAL = 2;
+    /** How often an anti-tank charge feels for something heavy on top of it. */
+    private static final int PRESSURE_INTERVAL = 4;
     /**
      * Physics and wheel casts may report the same mine several times per sub-step.
      * Keep at most one server task per mine until that task has run.
@@ -181,7 +183,16 @@ public class LandMineBlock extends Block implements IWrenchable, ChainExplosiveB
             level.playSound(null, pos, SoundEvents.STONE_BUTTON_CLICK_ON, SoundSource.BLOCKS, 0.35f, 0.6f);
             if (this.type.triggerReach > 0.0D) {
                 level.scheduleTick(pos, this, PROXIMITY_INTERVAL);
+            } else if (this.type.vehicleTrigger && this.type != MineType.SEA) {
+                level.scheduleTick(pos, this, PRESSURE_INTERVAL);
             }
+            return;
+        }
+        if (this.type.vehicleTrigger && this.type != MineType.SEA) {
+            if (this.sweepForHeavyLoad(level, pos, state)) {
+                return;
+            }
+            level.scheduleTick(pos, this, PRESSURE_INTERVAL);
             return;
         }
         if (this.type.triggerReach <= 0.0D) {
@@ -215,6 +226,35 @@ public class LandMineBlock extends Block implements IWrenchable, ChainExplosiveB
             return true;
         }
         return false;
+    }
+
+    /**
+     * An anti-tank charge ignores a person's weight but not a vehicle's: a cart, a moving
+     * Create contraption or a heavy animal resting on the plate sets it off. Ships and
+     * Offroad wheels report themselves through their own callbacks.
+     *
+     * @return true once it has gone off, so nothing reschedules against a dead block
+     */
+    private boolean sweepForHeavyLoad(ServerLevel level, BlockPos pos, BlockState state) {
+        AABB plate = new AABB(pos).setMaxY(pos.getY() + 1.2D).inflate(0.05D, 0.0D, 0.05D);
+        for (Entity entity : level.getEntities((Entity) null, plate, LandMineBlock::heavy)) {
+            if (entity.getBoundingBox().intersects(plate)) {
+                detonate(level, pos, state);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean heavy(Entity entity) {
+        if (!entity.isAlive() || entity.isSpectator()) {
+            return false;
+        }
+        return entity instanceof net.minecraft.world.entity.vehicle.AbstractMinecart
+                || entity instanceof com.simibubi.create.content.contraptions.AbstractContraptionEntity
+                || entity instanceof net.minecraft.world.entity.animal.IronGolem
+                || entity instanceof net.minecraft.world.entity.monster.Ravager
+                || entity instanceof net.minecraft.world.entity.monster.warden.Warden;
     }
 
     @Override
@@ -432,6 +472,14 @@ public class LandMineBlock extends Block implements IWrenchable, ChainExplosiveB
     }
 
     private void tryInfantryDetonate(Level level, BlockPos pos, BlockState state, Entity entity) {
+        if (!level.isClientSide
+                && this.type == MineType.LARGE
+                && state.getValue(ARMED)
+                && !level.getBlockTicks().hasScheduledTick(pos, this)) {
+            // A charge armed before the pressure watch existed starts it the first time
+            // anything touches it.
+            level.scheduleTick(pos, this, PRESSURE_INTERVAL);
+        }
         if (level.isClientSide || !this.type.infantryTrigger || !state.getValue(ARMED)) {
             return;
         }

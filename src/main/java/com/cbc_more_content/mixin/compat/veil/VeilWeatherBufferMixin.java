@@ -16,6 +16,13 @@ import org.spongepowered.asm.mixin.injection.At;
 /** Runs after Veil (priority 200); the plugin forwards its misplaced clear wrapper unchanged. */
 @Mixin(value = LevelRenderer.class, priority = 100)
 public abstract class VeilWeatherBufferMixin {
+    /**
+     * Set by the mixin plugin only when it actually moved Veil's weather clear. Without
+     * that repair (Veil's buffers off, e.g. under Iris) every clear stays vanilla's.
+     */
+    @Unique
+    private static final boolean WARNAUTICS_WEATHER_REPAIRED = Boolean.getBoolean("warnautics.veilWeatherRepaired");
+
     @Unique
     private final DynamicBufferShard warnautics$weatherBuffer =
             new DynamicBufferShard("weather", this::getWeatherTarget);
@@ -31,6 +38,10 @@ public abstract class VeilWeatherBufferMixin {
                             target =
                                     "Lnet/minecraft/client/renderer/RenderStateShard$OutputStateShard;clearRenderState()V"))
     private void warnautics$clearWeatherAtEnd(OutputStateShard state, Operation<Void> original) {
+        if (!WARNAUTICS_WEATHER_REPAIRED) {
+            original.call(state);
+            return;
+        }
         String name = VeilRenderType.getName(state);
         if ("weather_target".equals(name)) {
             warnautics$weatherBuffer.clearRenderState();

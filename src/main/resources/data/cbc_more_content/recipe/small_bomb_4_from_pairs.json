@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "cbc_more_content:small_bomb_2"
+    },
+    {
+      "item": "cbc_more_content:small_bomb_2"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "cbc_more_content:small_bomb_4"
+  }
+}

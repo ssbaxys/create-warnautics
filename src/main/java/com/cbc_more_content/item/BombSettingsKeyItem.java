@@ -4,10 +4,11 @@ import com.cbc_more_content.block.C4Block;
 import com.cbc_more_content.block.CruiseMissileBlock;
 import com.cbc_more_content.block.CruiseMissileBlockEntity;
 import com.cbc_more_content.block.DropBombBlock;
+import com.cbc_more_content.ui.Notices;
+import com.cbc_more_content.ui.UiTone;
 import com.cbc_more_content.util.ReflectiveDispatcher;
 import java.util.List;
 import javax.annotation.Nullable;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -62,7 +63,7 @@ public class BombSettingsKeyItem extends Item {
             }
             setBindingSet(key, pos);
             level.playSound(null, pos, SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.BLOCKS, 0.8f, 1.7f);
-            say(context.getPlayer(), "message.cbc_more_content.key.bind_mode", ChatFormatting.AQUA);
+            say(context.getPlayer(), "message.cbc_more_content.key.bind_mode", UiTone.ACCENT);
             return InteractionResult.CONSUME;
         }
 
@@ -76,7 +77,7 @@ public class BombSettingsKeyItem extends Item {
                 return InteractionResult.PASS;
             }
             if (guidance.guidance() != CruiseMissileBlockEntity.Guidance.INTERCEPT) {
-                say(context.getPlayer(), "message.cbc_more_content.key.not_intercept", ChatFormatting.RED);
+                say(context.getPlayer(), "message.cbc_more_content.key.not_intercept", UiTone.DANGER);
                 return InteractionResult.CONSUME;
             }
             boolean rebound = guidance.bindController(bindingSet);
@@ -85,7 +86,7 @@ public class BombSettingsKeyItem extends Item {
             say(
                     context.getPlayer(),
                     rebound ? "message.cbc_more_content.key.rebound" : "message.cbc_more_content.key.bound",
-                    ChatFormatting.GREEN);
+                    UiTone.SUCCESS);
             return InteractionResult.CONSUME;
         }
 
@@ -153,7 +154,7 @@ public class BombSettingsKeyItem extends Item {
         ItemStack key = player.getItemInHand(hand);
         if (!level.isClientSide && player.isShiftKeyDown() && bindingSet(key) != null) {
             key.remove(DataComponents.CUSTOM_DATA);
-            say(player, "message.cbc_more_content.key.bind_cancel", ChatFormatting.GRAY);
+            say(player, "message.cbc_more_content.key.bind_cancel", UiTone.MUTED);
         }
         return InteractionResultHolder.sidedSuccess(key, level.isClientSide());
     }
@@ -191,10 +192,8 @@ public class BombSettingsKeyItem extends Item {
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
     }
 
-    private static void say(@Nullable Player player, String key, ChatFormatting colour) {
-        if (player != null) {
-            player.displayClientMessage(Component.translatable(key).withStyle(colour), true);
-        }
+    private static void say(@Nullable Player player, String key, UiTone tone) {
+        Notices.send(player, tone, key);
     }
 
     /**
@@ -240,8 +239,7 @@ public class BombSettingsKeyItem extends Item {
     public void appendHoverText(
             ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         if (bindingSet(stack) != null) {
-            tooltip.add(Component.translatable("message.cbc_more_content.key.bind_mode")
-                    .withStyle(ChatFormatting.AQUA));
+            tooltip.add(UiTone.ACCENT.text("message.cbc_more_content.key.bind_mode"));
         }
     }
 }

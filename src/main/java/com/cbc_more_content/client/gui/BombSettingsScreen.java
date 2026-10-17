@@ -1,69 +1,63 @@
 package com.cbc_more_content.client.gui;
 
 import com.cbc_more_content.block.DropBombBlock;
+import com.cbc_more_content.client.gui.kit.Ui;
+import com.cbc_more_content.client.gui.kit.UiSounds;
+import com.cbc_more_content.client.gui.kit.WarnauticsScreen;
 import com.cbc_more_content.network.ConfigureBombPayload;
 import java.util.Locale;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
+import org.lwjgl.glfw.GLFW;
 
 /**
  * Release-interval dial for a placed bomb, opened by the settings key.
  * <p>
- * Follows the interaction language Simulated uses for its instrument screens — a
- * recessed well with a physical control you grab and turn, detent clicks fed back
- * through {@code LEVER_CLICK} at a rising pitch, a value that eases toward its target
- * instead of snapping, and settings committed once on close — but drawn from this
- * mod's own atlas and palette.
+ * A recessed well with a brass knob you grab and turn, detents around it, a value that
+ * eases toward its target instead of snapping, and the setting committed once on close.
+ * The readout beside it says the interval in seconds, the unit people think in, with
+ * the game ticks underneath for anyone timing a rack against redstone.
  */
 @OnlyIn(Dist.CLIENT)
-public class BombSettingsScreen extends Screen {
-    private static final int PANEL_W = 176;
-    private static final int PANEL_H = 95;
+public class BombSettingsScreen extends WarnauticsScreen {
+    public static final int PANEL_W = 196;
+    public static final int PANEL_H = 112;
     /** Total sweep of the dial, centred on 12 o'clock. */
     private static final float ARC_DEGREES = 240.0f;
 
     private static final int DIAL_MARKERS = 11;
-    private static final int KNOB_CX = 50;
-    private static final int KNOB_CY = 54;
-    private static final int DETENT_RADIUS = 37;
+    private static final int KNOB_CX = 52;
+    private static final int KNOB_CY = 56;
+    private static final int WELL_RADIUS = 25;
+    private static final int DETENT_RADIUS = 31;
+    private static final int READOUT_X = 100;
+    private static final int READOUT_W = PANEL_W - READOUT_X - Ui.MARGIN;
+    private static final int READOUT_H = 50;
 
     private final BlockPos pos;
     private final int cassette;
 
     private int delayTicks;
     private boolean dragging;
-    private int ticksOpen;
     /** Eased pointer angle, so the dial swings to a new detent rather than jumping. */
     private float previousVisualAngle;
 
     private float visualAngle;
     private float targetAngle;
 
-    private int guiLeft;
-    private int guiTop;
-
     public BombSettingsScreen(BlockPos pos, int storedDelay, int cassette) {
-        super(Component.translatable("gui.cbc_more_content.bomb_settings.title"));
+        super(Component.translatable("gui.cbc_more_content.bomb_settings.title"), PANEL_W, PANEL_H);
         this.pos = pos;
         this.delayTicks = DropBombBlock.releaseDelayTicks(storedDelay);
         this.cassette = cassette;
         this.targetAngle = angleOf(this.delayTicks);
         this.visualAngle = this.targetAngle;
         this.previousVisualAngle = this.targetAngle;
-    }
-
-    @Override
-    protected void init() {
-        this.guiLeft = (this.width - PANEL_W) / 2;
-        this.guiTop = (this.height - PANEL_H) / 2;
     }
 
     private static float angleAtProgress(float progress) {
@@ -81,7 +75,7 @@ public class BombSettingsScreen extends Screen {
 
     @Override
     public void tick() {
-        this.ticksOpen++;
+        super.tick();
         this.previousVisualAngle = this.visualAngle;
         // Exponential chase, the same feel Catnip's LerpedFloat gives Simulated's dials.
         this.visualAngle += (this.targetAngle - this.visualAngle) * 0.32f;
@@ -91,50 +85,35 @@ public class BombSettingsScreen extends Screen {
     }
 
     @Override
-    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        int alpha = ((int) (0x50 * Math.min(1.0f, (this.ticksOpen + partialTick) / 8.0f))) << 24;
-        graphics.fillGradient(0, 0, this.width, this.height, 0x101010 | alpha, 0x101010 | alpha);
-    }
-
-    @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        this.renderBackground(graphics, mouseX, mouseY, partialTick);
-
-        WarnauticsGuiTextures.BOMB_SETTINGS.render(graphics, this.guiLeft, this.guiTop);
-
-        graphics.drawCenteredString(this.font, this.title, this.guiLeft + PANEL_W / 2, this.guiTop + 4, 0xE8E2CF);
-
+    protected void renderContent(GuiGraphics graphics, int mouseX, int mouseY, float partialTick, float now) {
+        Ui.roundWell(graphics, this.x(KNOB_CX), this.y(KNOB_CY), WELL_RADIUS);
         this.renderDetents(graphics);
         this.renderKnob(graphics, mouseX, mouseY, partialTick);
         this.renderReadout(graphics);
-
-        super.render(graphics, mouseX, mouseY, partialTick);
     }
 
     private void renderDetents(GuiGraphics graphics) {
         int selectedMarker = Math.round(progressOf(this.delayTicks) * (DIAL_MARKERS - 1));
         for (int i = 0; i < DIAL_MARKERS; i++) {
             double rad = Math.toRadians(angleAtProgress(i / (float) (DIAL_MARKERS - 1)));
-            WarnauticsGuiTextures sprite =
-                    i == selectedMarker ? WarnauticsGuiTextures.DETENT_LIT : WarnauticsGuiTextures.DETENT;
-            // Centred on the sprite's own size rather than a hardcoded half-width, so the
-            // dots stay on the ring whatever dimensions the authored atlas gives them.
-            int x = this.guiLeft + KNOB_CX + (int) Math.round(Math.sin(rad) * DETENT_RADIUS) - sprite.width / 2;
-            int y = this.guiTop + KNOB_CY - (int) Math.round(Math.cos(rad) * DETENT_RADIUS) - sprite.height / 2;
-            sprite.render(graphics, x, y);
+            int x = this.x(KNOB_CX) + (int) Math.round(Math.sin(rad) * DETENT_RADIUS) - 1;
+            int y = this.y(KNOB_CY) - (int) Math.round(Math.cos(rad) * DETENT_RADIUS) - 1;
+            graphics.fill(x - 1, y - 1, x + 3, y + 3, Ui.OUTLINE);
+            graphics.fill(
+                    x,
+                    y,
+                    x + 2,
+                    y + 2,
+                    i == selectedMarker ? Ui.AMBER : i <= selectedMarker ? Ui.BRASS_SHADE : Ui.CASE_SHADE);
         }
     }
 
     private void renderKnob(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         boolean lit = this.dragging || this.overKnob(mouseX, mouseY);
         WarnauticsGuiTextures sprite = lit ? WarnauticsGuiTextures.KNOB_LIT : WarnauticsGuiTextures.KNOB;
-
-        int cx = this.guiLeft + KNOB_CX;
-        int cy = this.guiTop + KNOB_CY;
-
         var pose = graphics.pose();
         pose.pushPose();
-        pose.translate(cx, cy, 0.0f);
+        pose.translate(this.x(KNOB_CX), this.y(KNOB_CY), 0.0f);
         float renderedAngle = Mth.lerp(partialTick, this.previousVisualAngle, this.visualAngle);
         pose.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(renderedAngle));
         pose.translate(-sprite.width / 2.0f, -sprite.height / 2.0f, 0.0f);
@@ -143,29 +122,61 @@ public class BombSettingsScreen extends Screen {
     }
 
     private void renderReadout(GuiGraphics graphics) {
-        int ticks = this.delayTicks;
-        int x = this.guiLeft + 130;
-        int y = this.guiTop + 30;
-
-        graphics.drawCenteredString(
-                this.font, Component.translatable("gui.cbc_more_content.bomb_settings.interval"), x, y, 0x9AA08C);
-        graphics.drawCenteredString(this.font, Component.literal(ticks + "t"), x, y + 14, 0xFFB036);
-        graphics.drawCenteredString(
-                this.font, Component.literal(String.format(Locale.ROOT, "%.1f s", ticks / 20.0D)), x, y + 24, 0xE8E2CF);
-
+        int x = this.x(READOUT_X);
+        int y = this.y(this.contentTop());
+        Ui.well(graphics, x, y, READOUT_W, READOUT_H);
+        Ui.fitCentered(
+                graphics,
+                this.font,
+                Component.translatable("gui.cbc_more_content.bomb_settings.interval"),
+                x + READOUT_W / 2,
+                y + 5,
+                READOUT_W - 8,
+                Ui.TEXT_MUTED,
+                false);
+        Ui.readout(
+                graphics,
+                this.font,
+                Component.translatable(
+                        "gui.cbc_more_content.unit.seconds",
+                        String.format(Locale.ROOT, "%.1f", this.delayTicks / 20.0D)),
+                x + READOUT_W / 2,
+                y + 25,
+                READOUT_W - 10,
+                Ui.AMBER);
+        Ui.fitCentered(
+                graphics,
+                this.font,
+                Component.translatable("gui.cbc_more_content.unit.ticks", this.delayTicks),
+                x + READOUT_W / 2,
+                y + 38,
+                READOUT_W - 8,
+                Ui.TEXT_DIM,
+                false);
         if (this.cassette > 1) {
-            graphics.drawCenteredString(
+            Ui.caseLabel(
+                    graphics,
                     this.font,
                     Component.translatable("gui.cbc_more_content.bomb_settings.cassette", this.cassette),
-                    this.guiLeft + KNOB_CX,
-                    this.guiTop + PANEL_H - 12,
-                    0x9AA08C);
+                    x,
+                    y + READOUT_H + 6,
+                    READOUT_W);
         }
     }
 
+    @Override
+    protected Component status() {
+        return Component.translatable("gui.cbc_more_content.bomb_settings.status");
+    }
+
+    @Override
+    protected int statusColour() {
+        return Ui.AMBER;
+    }
+
     private boolean overKnob(double mouseX, double mouseY) {
-        double dx = mouseX - (this.guiLeft + KNOB_CX);
-        double dy = mouseY - (this.guiTop + KNOB_CY);
+        double dx = mouseX - this.x(KNOB_CX);
+        double dy = mouseY - this.y(KNOB_CY);
         return dx * dx + dy * dy <= 23 * 23;
     }
 
@@ -197,19 +208,39 @@ public class BombSettingsScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (scrollY != 0.0D) {
-            this.setDelayTicks(this.delayTicks
-                    + (scrollY > 0.0D
-                            ? DropBombBlock.RELEASE_DELAY_STEP_TICKS
-                            : -DropBombBlock.RELEASE_DELAY_STEP_TICKS));
+            this.step(scrollY > 0.0D ? 1 : -1);
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == GLFW.GLFW_KEY_LEFT || keyCode == GLFW.GLFW_KEY_DOWN) {
+            this.step(-1);
+            return true;
+        }
+        if (keyCode == GLFW.GLFW_KEY_RIGHT || keyCode == GLFW.GLFW_KEY_UP) {
+            this.step(1);
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    protected boolean primaryAction() {
+        this.onClose();
+        return true;
+    }
+
+    private void step(int direction) {
+        this.setDelayTicks(this.delayTicks + direction * DropBombBlock.RELEASE_DELAY_STEP_TICKS);
+    }
+
     /** Maps the cursor's bearing onto 0.1-second steps across the full dial. */
     private void turnTo(double mouseX, double mouseY) {
-        double dx = mouseX - (this.guiLeft + KNOB_CX);
-        double dy = mouseY - (this.guiTop + KNOB_CY);
+        double dx = mouseX - this.x(KNOB_CX);
+        double dy = mouseY - this.y(KNOB_CY);
         if (dx * dx + dy * dy < 4.0D) {
             return;
         }
@@ -228,19 +259,7 @@ public class BombSettingsScreen extends Screen {
         }
         this.delayTicks = clamped;
         this.targetAngle = angleOf(clamped);
-        this.playClick(0.6f + progressOf(clamped) * 0.7f);
-    }
-
-    private void playClick(float pitch) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null) {
-            mc.player.playSound(SoundEvents.LEVER_CLICK, 0.25f, pitch);
-        }
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return false;
+        UiSounds.detent(progressOf(clamped));
     }
 
     @Override

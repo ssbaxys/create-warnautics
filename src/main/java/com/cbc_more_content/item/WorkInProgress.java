@@ -1,5 +1,6 @@
 package com.cbc_more_content.item;
 
+import com.cbc_more_content.ui.UiTone;
 import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -13,7 +14,6 @@ public final class WorkInProgress {
     private WorkInProgress() {}
 
     public static void append(List<Component> tooltip) {
-        tooltip.add(Component.translatable("tooltip.cbc_more_content.wip")
-                .withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
+        tooltip.add(UiTone.DANGER.text("tooltip.cbc_more_content.wip").withStyle(ChatFormatting.BOLD));
     }
 }

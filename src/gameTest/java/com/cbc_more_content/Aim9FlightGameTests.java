@@ -335,6 +335,18 @@ public class Aim9FlightGameTests {
     public static void eightRoundSalvoSeparatesWithoutPrematureDetonationForAllProfiles(GameTestHelper h) {
         var level = h.getLevel();
         var at = h.absolutePos(new BlockPos(50, 160, 50)).getCenter();
+        // A salvo leaves a rack that stands in loaded ground. Ticket each launch area first
+        // and fly once those chunks are live, so every round can see its neighbours.
+        for (int scenario = 0; scenario < MissileFlightProfile.values().length; scenario++) {
+            var pos = BlockPos.containing(at.add(0, 0, scenario * 300 + 3.5));
+            level.getChunkSource()
+                    .addRegionTicket(FIXTURE, new net.minecraft.world.level.ChunkPos(pos), 3, pos.asLong(), true);
+            loadFlightChunks(level, pos);
+        }
+        h.runAfterDelay(20, () -> flySalvos(h, level, at));
+    }
+
+    private static void flySalvos(GameTestHelper h, ServerLevel level, Vec3 at) {
         int scenario = 0;
         for (var profile : MissileFlightProfile.values()) {
             Vec3 origin = at.add(0, 0, scenario++ * 300);
@@ -408,6 +420,274 @@ public class Aim9FlightGameTests {
             interceptor.discard();
             target.discard();
             h.succeed();
+        });
+    }
+
+    @GameTest(template = "empty", batch = "aim9_ship_auto", timeoutTicks = 200)
+    public static void rackOnAStationaryShipFiresByItself(GameTestHelper h) {
+        shipRackFires(h, new BlockPos(50, 160, 50), 0);
+    }
+
+    @GameTest(template = "empty", batch = "aim9_ship_auto_moving", timeoutTicks = 200)
+    public static void rackOnAMovingShipFiresByItself(GameTestHelper h) {
+        shipRackFires(h, new BlockPos(50, 160, 650), 1.5);
+    }
+
+    /** Other tests' missiles still in the air would be fair game for a rack set up here. */
+    private static void clearSkies(ServerLevel level, BlockPos around) {
+        var area = new AABB(around).inflate(450);
+        int stray = 0;
+        for (var e : level.getEntitiesOfClass(
+                Entity.class, area, e -> e instanceof CruiseMissileProjectile || e instanceof Aim9Projectile)) {
+            e.discard();
+            stray++;
+        }
+        if (stray > 0) {
+            com.cbc_more_content.CBCMoreContent.LOGGER.info("AIM-9 ship test cleared {} stray missiles", stray);
+        }
+    }
+
+    /** What the climb from a ship rack runs into first, for a failure message. */
+    private static String blocker(ServerLevel level, BlockPos body) {
+        var cells = java.util.Set.copyOf(
+                com.cbc_more_content.compat.AirframeMovement.cells(level, body, level.getBlockState(body)));
+        var frame = com.cbc_more_content.compat.SableDropCompat.resolveLaunch(level, body.getCenter(), Vec3.ZERO, null);
+        StringBuilder out = new StringBuilder("cells=" + cells + " body=" + body + " world=" + frame.pos());
+        for (double t = 0; t <= 11; t += .25) {
+            var p = BlockPos.containing(body.getCenter().add(0, t, 0));
+            if (!cells.contains(p)
+                    && !level.getBlockState(p).getCollisionShape(level, p).isEmpty()) {
+                out.append(" plotHit=").append(p).append(' ').append(level.getBlockState(p));
+                break;
+            }
+        }
+        for (double t = 0; t <= 11; t += .25) {
+            var p = BlockPos.containing(frame.pos().add(0, t, 0));
+            if (!level.getBlockState(p).getCollisionShape(level, p).isEmpty()) {
+                out.append(" worldHit=").append(p).append(' ').append(level.getBlockState(p));
+                break;
+            }
+        }
+        Object carrier = com.cbc_more_content.compat.SableDropCompat.carrierOf(level, body);
+        dev.ryanhcode.sable.neoforge.mixinhelper.compatibility.create.raycasts.SableRaycastHelper
+                .rayCastUntilWithSublevels(level, frame.pos(), frame.pos().add(0, 10.99, 0), p -> false, (sub, p) -> {
+            if (!level.getBlockState(p).getCollisionShape(level, p).isEmpty() && !cells.contains(p)) {
+                out.append(" subHit=")
+                        .append(p)
+                        .append(" same=")
+                        .append(sub == carrier)
+                        .append(' ')
+                        .append(level.getBlockState(p));
+                return true;
+            }
+            return false;
+        });
+        return out.toString();
+    }
+
+    /** Builds a deck, assembles it, and sets a rack on it with the item, as a player would. */
+    private static BlockPos rackPlacedOnShip(GameTestHelper h, BlockPos relative, boolean roofOver) {
+        var level = h.getLevel();
+        var center = h.absolutePos(relative);
+        clearSkies(level, center);
+        level.getChunkSource()
+                .addRegionTicket(FIXTURE, new net.minecraft.world.level.ChunkPos(center), 2, center.asLong(), true);
+        loadFlightChunks(level, center);
+        // Afloat, as a ship is in the game: a basin of water under the deck.
+        for (var p : BlockPos.betweenClosed(center.offset(-8, -5, -8), center.offset(8, -1, 8))) {
+            boolean wall = Math.abs(p.getX() - center.getX()) == 8
+                    || Math.abs(p.getZ() - center.getZ()) == 8
+                    || p.getY() == center.getY() - 5;
+            level.setBlock(
+                    p,
+                    wall ? Blocks.STONE.defaultBlockState() : Blocks.WATER.defaultBlockState(),
+                    Block.UPDATE_CLIENTS);
+        }
+        var cells = new ArrayList<BlockPos>();
+        for (var p : BlockPos.betweenClosed(center.offset(-3, 0, -3), center.offset(3, 0, 3))) {
+            level.setBlock(p, Blocks.OAK_PLANKS.defaultBlockState(), Block.UPDATE_CLIENTS);
+            cells.add(p.immutable());
+        }
+        if (roofOver) {
+            // A bridge wing reaching out over the launcher, six blocks up.
+            for (var p : BlockPos.betweenClosed(center.offset(-1, 1, -3), center.offset(-1, 6, -3))) {
+                level.setBlock(p, Blocks.OAK_PLANKS.defaultBlockState(), Block.UPDATE_CLIENTS);
+                cells.add(p.immutable());
+            }
+            for (var p : BlockPos.betweenClosed(center.offset(-1, 6, -2), center.offset(1, 6, 1))) {
+                level.setBlock(p, Blocks.OAK_PLANKS.defaultBlockState(), Block.UPDATE_CLIENTS);
+                cells.add(p.immutable());
+            }
+        }
+        var ship = SubLevelAssemblyHelper.assembleBlocks(
+                level, center, cells, new BoundingBox3i(center.offset(-3, 0, -3), center.offset(3, 6, 3)));
+        var deck = ship.getPlot().getCenterBlock();
+        var player = new net.neoforged.neoforge.common.util.FakePlayer(
+                level, new com.mojang.authlib.GameProfile(UUID.randomUUID(), "aim9-deck"));
+        player.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
+        player.setItemInHand(
+                net.minecraft.world.InteractionHand.MAIN_HAND,
+                new ItemStack(com.cbc_more_content.registry.ModItems.AIM9.get()));
+        player.getMainHandItem()
+                .useOn(new net.minecraft.world.item.context.UseOnContext(
+                        player,
+                        net.minecraft.world.InteractionHand.MAIN_HAND,
+                        new net.minecraft.world.phys.BlockHitResult(
+                                deck.getCenter().add(0, .5, 0), Direction.UP, deck, false)));
+        for (int up = 1; up <= 3; up++) {
+            if (level.getBlockEntity(deck.above(up)) instanceof Aim9BlockEntity be) {
+                be.configure(true, true, 220);
+                return deck.above(up);
+            }
+        }
+        throw new AssertionError("The AIM-9 item did not place a rack on the ship's deck");
+    }
+
+    @GameTest(template = "empty", batch = "aim9_ship_item_placed", timeoutTicks = 200)
+    public static void rackSetOnAShipDeckByHandFiresByItself(GameTestHelper h) {
+        var level = h.getLevel();
+        var body = rackPlacedOnShip(h, new BlockPos(50, 8, 250), false);
+        CruiseMissileProjectile[] target = {null};
+        h.runAfterDelay(40, () -> {
+            var center = com.cbc_more_content.compat.SableDropCompat.resolveLaunch(
+                            level, body.getCenter(), Vec3.ZERO, null)
+                    .pos();
+            loadFlightChunks(level, BlockPos.containing(center.add(0, 0, 70)));
+            target[0] = cruise(level, center.add(-60, 20, 40), new Vec3(1, 0, 0));
+            FLIGHT_FIXTURES.add(target[0]);
+        });
+        h.succeedWhen(() -> {
+            h.assertTrue(target[0] != null, "Target spawned");
+            var readiness = level.getBlockEntity(body) instanceof Aim9BlockEntity be ? be.readiness() : null;
+            h.assertTrue(
+                    readiness != Aim9Block.Readiness.SHIP_ABOVE && readiness != Aim9Block.Readiness.WORLD_ABOVE,
+                    "Open deck reads as clear, got " + readiness + " " + blocker(level, body));
+            var launched = level.getEntitiesOfClass(
+                    Aim9Projectile.class,
+                    target[0].getBoundingBox().inflate(400),
+                    e -> target[0].getUUID().equals(e.targetId()));
+            if (launched.isEmpty()) {
+                var origin = com.cbc_more_content.compat.SableDropCompat.resolveLaunch(
+                                level, body.getCenter(), Vec3.ZERO, null)
+                        .pos();
+                String why = level.getBlockEntity(body) instanceof Aim9BlockEntity rack
+                        ? rack.readiness() + " check=" + Aim9Block.check(level, body, target[0])
+                        : "no rack " + level.getBlockState(body);
+                h.fail("The hand-placed rack on the ship launched by itself: " + why + " alive="
+                        + target[0].isAlive() + " dist="
+                        + Math.round(target[0].position().distanceTo(origin))
+                        + " " + blocker(level, body));
+            }
+            launched.forEach(Entity::discard);
+            target[0].discard();
+        });
+    }
+
+    @GameTest(template = "empty", batch = "aim9_ship_roofed", timeoutTicks = 100)
+    public static void rackUnderItsOwnSuperstructureSaysSo(GameTestHelper h) {
+        var level = h.getLevel();
+        var body = rackPlacedOnShip(h, new BlockPos(50, 8, 450), true);
+        h.succeedWhen(() -> h.assertTrue(
+                level.getBlockEntity(body) instanceof Aim9BlockEntity be
+                        && be.readiness() == Aim9Block.Readiness.SHIP_ABOVE,
+                "A rack under the bridge wing reports the ship in the way"));
+    }
+
+    /** A rack standing on a ship's deck, switched on, with a cruise missile going past. */
+    private static void shipRackFires(GameTestHelper h, BlockPos relative, double speed) {
+        var level = h.getLevel();
+        var body = h.absolutePos(relative);
+        clearSkies(level, body);
+        rack(h, body).configure(true, true, 220);
+        var cells = new ArrayList<BlockPos>(List.of(body.below(), body, body.above()));
+        var deck = body.below(2);
+        for (var p : BlockPos.betweenClosed(deck.offset(-2, 0, -2), deck.offset(2, 0, 2))) {
+            level.setBlock(p, Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
+            cells.add(p.immutable());
+        }
+        // A deckhouse ahead of the rack, as on a real ship: not over the rack, but in the
+        // way of any check that wrongly sweeps the ship's own motion through it.
+        for (var p : BlockPos.betweenClosed(deck.offset(2, 1, -1), deck.offset(2, 6, 1))) {
+            level.setBlock(p, Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS);
+            cells.add(p.immutable());
+        }
+        var ship = SubLevelAssemblyHelper.assembleBlocks(
+                level, body, cells, new BoundingBox3i(deck.offset(-2, 0, -2), deck.offset(2, 6, 2)));
+        h.runAfterDelay(4, () -> {
+            if (speed > 0) {
+                RigidBodyHandle.of(ship).addLinearAndAngularVelocity(new Vector3d(speed * 20, 0, 0), new Vector3d());
+            }
+        });
+        CruiseMissileProjectile[] target = {null};
+        h.runAfterDelay(10, () -> {
+            var local = ship.getPlot().getCenterBlock();
+            var center = ship.logicalPose().transformPosition(local.getCenter());
+            loadFlightChunks(level, BlockPos.containing(center.add(0, 0, 70)));
+            target[0] = cruise(level, center.add(-60, -30, 40), new Vec3(1, 0, 0));
+            FLIGHT_FIXTURES.add(target[0]);
+        });
+        for (int at = 12; at <= 60; at += 8) {
+            int tick = at;
+            h.runAfterDelay(at, () -> {
+                var plotCenter = ship.getPlot().getCenterBlock();
+                BlockPos plotBody = null;
+                for (var p : BlockPos.betweenClosed(plotCenter.offset(-6, -6, -6), plotCenter.offset(6, 8, 6))) {
+                    if (level.getBlockEntity(p) instanceof Aim9BlockEntity) {
+                        plotBody = p.immutable();
+                        break;
+                    }
+                }
+                var launchedNow = target[0] == null
+                        ? List.<Aim9Projectile>of()
+                        : level.getEntitiesOfClass(
+                                Aim9Projectile.class,
+                                target[0].getBoundingBox().inflate(400),
+                                e -> target[0].getUUID().equals(e.targetId()));
+                com.cbc_more_content.CBCMoreContent.LOGGER.info(
+                        "AIM9 ship diag t={} speed={} shipY={} rack={} {} launched={} target={}",
+                        tick,
+                        speed,
+                        Math.round(ship.logicalPose().transformPosition(plotCenter.getCenter()).y),
+                        plotBody,
+                        plotBody != null && level.getBlockEntity(plotBody) instanceof Aim9BlockEntity be
+                                ? be.readiness() + " enabled=" + be.enabled()
+                                        + (target[0] != null
+                                                ? " check=" + Aim9Block.check(level, plotBody, target[0])
+                                                : "")
+                                        + " " + blocker(level, plotBody)
+                                : "-",
+                        launchedNow.size(),
+                        target[0] == null ? "-" : target[0].position() + " alive=" + target[0].isAlive());
+            });
+        }
+        h.succeedWhen(() -> {
+            h.assertTrue(target[0] != null, "Target spawned");
+            var launched = level.getEntitiesOfClass(
+                    Aim9Projectile.class,
+                    target[0].getBoundingBox().inflate(400),
+                    e -> target[0].getUUID().equals(e.targetId()));
+            if (launched.isEmpty()) {
+                var plotCenter = ship.getPlot().getCenterBlock();
+                BlockPos plotBody = plotCenter;
+                for (var p : BlockPos.betweenClosed(plotCenter.offset(-6, -6, -6), plotCenter.offset(6, 8, 6))) {
+                    if (level.getBlockEntity(p) instanceof Aim9BlockEntity) {
+                        plotBody = p.immutable();
+                        break;
+                    }
+                }
+                String why = level.getBlockEntity(plotBody) instanceof Aim9BlockEntity be
+                        ? be.readiness() + " enabled=" + be.enabled() + " check="
+                                + Aim9Block.check(level, plotBody, target[0])
+                        : "no rack at " + plotBody + " " + level.getBlockState(plotBody);
+                var origin = com.cbc_more_content.compat.SableDropCompat.resolveLaunch(
+                                level, plotBody.getCenter(), Vec3.ZERO, null)
+                        .pos();
+                h.fail("The rack on the ship launched by itself: " + why + " target alive="
+                        + target[0].isAlive() + " eject=" + target[0].isEjecting() + " dist="
+                        + Math.round(target[0].position().distanceTo(origin)) + " " + blocker(level, plotBody));
+            }
+            launched.forEach(Entity::discard);
+            target[0].discard();
         });
     }
 }

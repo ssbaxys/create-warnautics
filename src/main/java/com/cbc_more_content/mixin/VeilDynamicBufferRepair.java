@@ -20,6 +20,9 @@ final class VeilDynamicBufferRepair {
     private static final String OPERATION = "com/llamalad7/mixinextras/injector/wrapoperation/Operation";
     private static final String HANDLER =
             "(Lnet/minecraft/client/renderer/RenderStateShard$OutputStateShard;L" + OPERATION + ";)V";
+    /** Read by the weather mixin, which cannot reach classes in the mixin package. */
+    static final String REPAIRED_PROPERTY = "warnautics.veilWeatherRepaired";
+
     private static Boolean needed;
 
     static boolean isNeeded() {
@@ -86,9 +89,18 @@ final class VeilDynamicBufferRepair {
             method.maxLocals = 3;
             repaired++;
         }
+        if (repaired == 0) {
+            // Veil ships the handler but did not apply it: it turns its dynamic-buffer
+            // mixins off when Iris is installed. Nothing is misplaced, so nothing to repair,
+            // and the weather mixin leaves every clear to vanilla.
+            LogManager.getLogger("Warnautics/VeilCompat")
+                    .info("Veil weather buffer handler not applied (dynamic buffers off); no repair needed");
+            return;
+        }
         if (repaired != 1) {
             throw new IllegalStateException("Expected one misplaced Veil weather clear handler, found " + repaired);
         }
+        System.setProperty(REPAIRED_PROPERTY, "true");
         LogManager.getLogger("Warnautics/VeilCompat").info("Repaired Veil weather buffer setup/clear pairing");
     }
 

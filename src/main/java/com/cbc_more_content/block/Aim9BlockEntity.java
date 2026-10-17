@@ -25,6 +25,7 @@ public class Aim9BlockEntity extends BlockEntity {
     private boolean interceptCruise = true;
     private int range = 120;
     private long lastScan = Long.MIN_VALUE;
+    private Aim9Block.Readiness readiness = Aim9Block.Readiness.READY;
 
     public Aim9BlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.AIM9.get(), pos, state);
@@ -50,6 +51,19 @@ public class Aim9BlockEntity extends BlockEntity {
         return range;
     }
 
+    public Aim9Block.Readiness readiness() {
+        return readiness;
+    }
+
+    private void report(Aim9Block.Readiness now) {
+        if (now != readiness) {
+            readiness = now;
+            if (level != null) {
+                level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+            }
+        }
+    }
+
     public void configure(boolean enabled, boolean interceptCruise, int range) {
         this.lastScan = Long.MIN_VALUE;
         this.enabled = enabled;
@@ -67,11 +81,21 @@ public class Aim9BlockEntity extends BlockEntity {
                 || !be.interceptCruise
                 || !be.isLiveAirframe()
                 || be.lastScan == level.getGameTime()
-                || Math.floorMod(level.getGameTime() + pos.asLong(), 10) != 0
-                || state.getValue(Aim9Block.WATERLOGGED)) {
+                || Math.floorMod(level.getGameTime() + pos.asLong(), 10) != 0) {
+            return;
+        }
+        if (state.getValue(Aim9Block.WATERLOGGED)) {
+            be.report(Aim9Block.Readiness.FLOODED);
             return;
         }
         be.lastScan = level.getGameTime();
+        // Say what is wrong before there is anything to shoot at: a rack under its own
+        // superstructure would otherwise just sit there without a word.
+        var sky = Aim9Block.skyCheck(server, pos);
+        if (sky != Aim9Block.Readiness.READY) {
+            be.report(sky);
+            return;
+        }
         var frame = SableDropCompat.resolveLaunch(server, pos.getCenter(), Vec3.ZERO, new Vec3(0, 1, 0));
         Vec3 origin = frame.pos();
         var claimed = new HashSet<java.util.UUID>();
@@ -93,11 +117,17 @@ public class Aim9BlockEntity extends BlockEntity {
                                 && !missile.isInWater()
                                 && !claimed.contains(missile.getUUID())
                                 && missile.position().distanceToSqr(origin) <= be.range * be.range);
-        candidates.stream()
+        var sorted = candidates.stream()
                 .sorted(Comparator.comparingDouble(e -> e.position().distanceToSqr(origin)))
-                .filter(target -> Aim9Block.canLaunch(server, pos, target))
-                .findFirst()
-                .ifPresent(target -> Aim9Block.launch(server, pos, state, target));
+                .toList();
+        for (var target : sorted) {
+            if (Aim9Block.canLaunch(server, pos, target)) {
+                be.report(Aim9Block.Readiness.READY);
+                Aim9Block.launch(server, pos, state, target);
+                return;
+            }
+        }
+        be.report(sorted.isEmpty() ? Aim9Block.Readiness.READY : Aim9Block.Readiness.NO_SIGHT);
     }
 
     @Override
@@ -118,7 +148,32 @@ public class Aim9BlockEntity extends BlockEntity {
 
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-        return saveWithoutMetadata(registries);
+        CompoundTag tag = saveWithoutMetadata(registries);
+        tag.putString("Readiness", readiness.name());
+        return tag;
+    }
+
+    @Override
+    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider registries) {
+        super.handleUpdateTag(tag, registries);
+        readReadiness(tag);
+    }
+
+    @Override
+    public void onDataPacket(
+            net.minecraft.network.Connection connection,
+            ClientboundBlockEntityDataPacket packet,
+            HolderLookup.Provider registries) {
+        super.onDataPacket(connection, packet, registries);
+        readReadiness(packet.getTag());
+    }
+
+    private void readReadiness(CompoundTag tag) {
+        try {
+            readiness = Aim9Block.Readiness.valueOf(tag.getString("Readiness"));
+        } catch (IllegalArgumentException e) {
+            readiness = Aim9Block.Readiness.READY;
+        }
     }
 
     @Override

@@ -25,8 +25,14 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 public class CruiseWarheadGameTests {
     @GameTest(template = "empty", batch = "cruise_warhead", timeoutTicks = 120)
     public static void actualMissileUsesMoabProfileWithLowerPowerAndDamage(GameTestHelper helper) {
+        missileAgainstMoab(helper);
+    }
+
+    private static void missileAgainstMoab(GameTestHelper helper) {
         var level = helper.getLevel();
-        var top = helper.absolutePos(new BlockPos(100, 80, 100));
+        // Straight over the plot, whose chunks the test keeps loaded, and well above its
+        // barrier walls: out in unloaded ground the blast could not see its own target.
+        var top = helper.absolutePos(new BlockPos(12, 60, 12));
         for (var p : BlockPos.betweenClosed(top.offset(-12, -4, -12), top.offset(12, 0, 12))) {
             level.setBlock(p, Blocks.STONE.defaultBlockState(), Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE);
         }
@@ -52,7 +58,13 @@ public class CruiseWarheadGameTests {
             helper.assertTrue(event.getSize() == BombSize.MOAB, "Missile must use MOAB crater, smoke and wave profile");
             var blast = (WarnauticsExplosion) event.getExplosion();
             helper.assertTrue(
-                    blast.affectedEntities().contains(target), "Test target must be present in the loaded blast scene");
+                    blast.affectedEntities().contains(target),
+                    "Test target must be present in the loaded blast scene: target alive=" + target.isAlive()
+                            + " added=" + target.isAddedToLevel() + " at " + target.position() + " blast "
+                            + blast.center() + " reach " + blast.getEntityRadius() * 2 + " found "
+                            + blast.affectedEntities().stream()
+                                    .map(e -> e.getType().toShortString())
+                                    .toList());
             float moabRadius = BombSize.MOAB.blastVolume().shellPowerForSameVolume(BombSize.MOAB.blockBlastPower);
             helper.assertTrue(
                     Math.abs(blast.radius() / moabRadius - 0.85) < 0.0001, "Block power is 15 percent below MOAB");

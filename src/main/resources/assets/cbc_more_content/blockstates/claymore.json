@@ -1,0 +1,34 @@
+{
+  "variants": {
+    "armed=false,facing=north": {
+      "model": "cbc_more_content:block/claymore"
+    },
+    "armed=true,facing=north": {
+      "model": "cbc_more_content:block/claymore"
+    },
+    "armed=false,facing=east": {
+      "model": "cbc_more_content:block/claymore",
+      "y": 90
+    },
+    "armed=true,facing=east": {
+      "model": "cbc_more_content:block/claymore",
+      "y": 90
+    },
+    "armed=false,facing=south": {
+      "model": "cbc_more_content:block/claymore",
+      "y": 180
+    },
+    "armed=true,facing=south": {
+      "model": "cbc_more_content:block/claymore",
+      "y": 180
+    },
+    "armed=false,facing=west": {
+      "model": "cbc_more_content:block/claymore",
+      "y": 270
+    },
+    "armed=true,facing=west": {
+      "model": "cbc_more_content:block/claymore",
+      "y": 270
+    }
+  }
+}

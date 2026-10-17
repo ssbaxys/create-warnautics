@@ -39,6 +39,7 @@ public class CBCMoreContentClient {
     public CBCMoreContentClient(IEventBus modEventBus) {
         com.cbc_more_content.client.ChainModels.init();
         modEventBus.addListener(this::registerRenderers);
+        modEventBus.addListener(com.cbc_more_content.client.hud.NoticeHud::registerLayer);
         modEventBus.addListener(this::addBombVestLayers);
         modEventBus.addListener(this::registerParticles);
         modEventBus.addListener(this::registerExtraModels);
@@ -54,7 +55,13 @@ public class CBCMoreContentClient {
                 ModParticles.MISSILE_SMOKE.get(),
                 com.cbc_more_content.client.particle.MissileSmokeParticle.Provider::new);
         event.registerSpriteSet(ModParticles.MINE_FRAGMENT.get(), MineFragmentParticle.Provider::new);
+        event.registerSpriteSet(
+                ModParticles.MISSILE_VAPOR.get(),
+                com.cbc_more_content.client.particle.MissileVaporParticle.Provider::new);
         event.registerSpriteSet(ModParticles.MISSILE_EXHAUST.get(), MissileExhaustParticle.Provider::new);
+        event.registerSpriteSet(
+                ModParticles.MISSILE_CONTRAIL.get(),
+                com.cbc_more_content.client.particle.MissileContrailParticle.Provider::new);
         event.registerSpriteSet(
                 ModParticles.MISSILE_GAS.get(), com.cbc_more_content.client.particle.MissileGasParticle.Provider::new);
     }
@@ -68,6 +75,9 @@ public class CBCMoreContentClient {
         event.register(WireCutterRenderer.LEFT);
         event.register(WireCutterRenderer.CENTER);
         event.register(BombVestLayer.LINKED_MODEL);
+        event.register(com.cbc_more_content.client.CruiseMissileRenderer.BODY);
+        event.register(com.cbc_more_content.client.CruiseMissileRenderer.TAIL_FINS);
+        event.register(com.cbc_more_content.client.CruiseMissileRenderer.CANARDS);
     }
 
     private void registerItemExtensions(RegisterClientExtensionsEvent event) {

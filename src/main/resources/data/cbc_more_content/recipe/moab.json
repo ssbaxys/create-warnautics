@@ -1,0 +1,39 @@
+{
+  "type": "create:mechanical_crafting",
+  "accept_mirrored": true,
+  "category": "misc",
+  "key": {
+    "L": {
+      "item": "cbc_more_content:large_bomb"
+    },
+    "X": {
+      "tag": "createbigcannons:high_explosive_materials"
+    },
+    "P": {
+      "item": "create:sturdy_sheet"
+    },
+    "I": {
+      "tag": "c:plates/iron"
+    },
+    "F": {
+      "item": "createbigcannons:impact_fuze"
+    },
+    "G": {
+      "item": "create:precision_mechanism"
+    },
+    "N": {
+      "tag": "c:ingots/cast_iron"
+    }
+  },
+  "pattern": [
+    "  IPPPI  ",
+    " PXXXXXP ",
+    "FGLXXXLNN",
+    " PXXXXXP ",
+    "  IPPPI  "
+  ],
+  "result": {
+    "count": 1,
+    "id": "cbc_more_content:moab"
+  }
+}

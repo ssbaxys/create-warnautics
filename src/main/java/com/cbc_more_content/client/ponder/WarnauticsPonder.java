@@ -29,6 +29,14 @@ public final class WarnauticsPonder implements PonderPlugin {
 
     private static final List<Guide> GUIDES = loadGuides();
 
+    /**
+     * Item descriptions in the kit's colours: bone text with amber for the highlighted
+     * words, so a tooltip reads as part of the same equipment as the screens.
+     */
+    private static final Palette TOOLTIP_PALETTE = new Palette(
+            net.minecraft.network.chat.Style.EMPTY.withColor(0xC9C5B2),
+            net.minecraft.network.chat.Style.EMPTY.withColor(com.cbc_more_content.ui.UiTone.ACCENT.rgb()));
+
     private static List<Guide> loadGuides() {
         try (var reader = new InputStreamReader(
                 Objects.requireNonNull(
@@ -55,7 +63,7 @@ public final class WarnauticsPonder implements PonderPlugin {
             // BlockItem aliases otherwise share the base block's translation key.
             ItemDescription.useKey(
                     item, "item." + CBCMoreContent.MOD_ID + "." + entry.getId().getPath());
-            TooltipModifier.REGISTRY.register(item, new ItemDescription.Modifier(item, Palette.STANDARD_CREATE));
+            TooltipModifier.REGISTRY.register(item, new ItemDescription.Modifier(item, TOOLTIP_PALETTE));
         }
     }
 

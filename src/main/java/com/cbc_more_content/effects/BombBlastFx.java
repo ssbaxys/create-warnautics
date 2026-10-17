@@ -129,65 +129,333 @@ public final class BombBlastFx {
     }
 
     /**
-     * Anti-tank mines need a hard pressure cue, not a bomb-sized mushroom cloud.
-     * This path deliberately uses one shake wave and a tiny bounded smoke charge.
+     * A Claymore going off. Unlike every other charge here the blast has a direction: a
+     * pound and a half of explosive behind a curved plate of steel balls throws almost all
+     * of it forward. What you see is a hard white-orange flash, a jet of grey smoke punched
+     * out along the fan, and clods jumping up from the ground across a sixty degree arc as
+     * the balls arrive (near ground first, then farther out) with the rattle of them
+     * striking whatever is there. Behind it only a short puff of smoke.
      */
-    public static void playCompactMine(ServerLevel level, Vec3 pos, float blockPower, BombBurstBudget.Snapshot budget) {
-        waterBurst(level, pos, blockPower);
-        float pitch = 0.88f + level.random.nextFloat() * 0.08f;
-        float volume = Math.max(9.0f, blockPower * 2.1f);
-        level.playSound(
-                null, pos.x, pos.y, pos.z, ModSounds.BOMB_EXPLOSION_LARGE.get(), SoundSource.BLOCKS, volume, pitch);
-
-        DustParticleOptions hot = new DustParticleOptions(new Vector3f(1.0f, 0.78f, 0.16f), 0.9f);
-        DustParticleOptions white = new DustParticleOptions(new Vector3f(1.0f, 0.96f, 0.82f), 0.7f);
-        int sparks =
+    public static void playClaymore(ServerLevel level, Vec3 pos, Vec3 forward, double halfAngle, double range) {
+        RandomSource random = level.random;
+        Vec3 flatForward = new Vec3(forward.x, 0.0D, forward.z);
+        Vec3 ahead = flatForward.lengthSqr() < 1.0E-6D ? new Vec3(0.0D, 0.0D, 1.0D) : flatForward.normalize();
+        Vec3 side = new Vec3(-ahead.z, 0.0D, ahead.x);
+        BombBurstBudget.Snapshot budget = BombBurstBudget.begin(level);
+        int detail =
                 switch (budget.lod()) {
-                    case FULL -> 6;
-                    case REDUCED -> 4;
+                    case FULL -> 4;
+                    case REDUCED -> 3;
                     case MINIMAL -> 2;
                     case ESSENTIAL -> 1;
                 };
-        emitFar(level, hot, pos.x, pos.y + 0.25D, pos.z, sparks, 0.55D, 0.18D, 0.55D, 0.008D);
-        emitFar(level, white, pos.x, pos.y + 0.32D, pos.z, Math.max(1, sparks / 3), 0.18D, 0.12D, 0.18D, 0.004D);
 
-        float intensity = 0.82f * budget.lod().flashScale();
-        BombFlashPayload payload =
-                new BombFlashPayload(pos.x, pos.y, pos.z, intensity, (byte) BombSize.SMALL.ordinal());
-        double reachSqr = 155.0D * 155.0D;
-        Holder<SoundEvent> boomHolder =
-                BuiltInRegistries.SOUND_EVENT.wrapAsHolder(ModSounds.BOMB_EXPLOSION_LARGE.get());
-        ShellBlastWaveEffectParticleData wave =
-                new ShellBlastWaveEffectParticleData(24.0D, boomHolder, SoundSource.BLOCKS, 0.0f, pitch, 2.0f, 12.0f);
+        // A sharp, high crack rather than the deep roll of a buried charge.
+        level.playSound(
+                null, pos.x, pos.y, pos.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.BLOCKS, 5.0f, 1.25f);
+        level.playSound(
+                null, pos.x, pos.y, pos.z, ModSounds.BOMB_EXPLOSION_LARGE.get(), SoundSource.BLOCKS, 8.0f, 1.35f);
+        level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.CHAIN_BREAK, SoundSource.BLOCKS, 2.4f, 0.8f);
+
+        // The flash: hot, short and thrown forward off the face of the plate.
+        DustParticleOptions hot = new DustParticleOptions(new Vector3f(1.0f, 0.78f, 0.35f), 1.3f);
+        emitFar(level, hot, pos.x, pos.y, pos.z, 4 * detail, 0.25D, 0.2D, 0.25D, 0.0D);
+        for (int i = 0; i < 2 * detail; i++) {
+            Vec3 dir = fan(ahead, side, halfAngle * 0.8D, random);
+            double speed = 0.3D + random.nextDouble() * 0.3D;
+            directed(level, hot, pos.x, pos.y, pos.z, dir.x * speed, dir.y * speed, dir.z * speed);
+        }
+        BombFlashPayload flash = new BombFlashPayload(
+                pos.x + ahead.x, pos.y, pos.z + ahead.z, budget.lod().flashScale() * 0.55f, (byte)
+                        BombSize.SMALL.ordinal());
+
+        // The smoke jet along the fan: fast puffs that slow and spread as they go.
+        for (int i = 0; i < 3 * detail; i++) {
+            Vec3 dir = fan(ahead, side, halfAngle * 0.7D, random);
+            double speed = 0.25D + random.nextDouble() * 0.55D;
+            directed(
+                    level,
+                    new BlastSmokeData(0.9f + random.nextFloat() * 0.8f),
+                    pos.x + dir.x * 0.4D,
+                    pos.y,
+                    pos.z + dir.z * 0.4D,
+                    dir.x * speed,
+                    0.02D + random.nextDouble() * 0.04D,
+                    dir.z * speed);
+        }
+        // The back-blast: a short grey puff out of the rear and the sides.
+        for (int i = 0; i < detail; i++) {
+            double angle = random.nextDouble() * Math.PI * 2;
+            directed(
+                    level,
+                    new BlastSmokeData(0.8f + random.nextFloat() * 0.5f),
+                    pos.x,
+                    pos.y,
+                    pos.z,
+                    Math.cos(angle) * 0.12D - ahead.x * 0.08D,
+                    0.03D,
+                    Math.sin(angle) * 0.12D - ahead.z * 0.08D);
+        }
 
         for (ServerPlayer player : level.players()) {
             double distSqr = player.distanceToSqr(pos);
-            if (distSqr <= reachSqr) {
-                PacketDistributor.sendToPlayer(player, payload);
+            if (distSqr <= 96.0D * 96.0D) {
+                PacketDistributor.sendToPlayer(player, flash);
             }
-            if (distSqr <= 95.0D * 95.0D && distSqr >= 4.0D) {
-                level.sendParticles(player, wave, true, pos.x, pos.y, pos.z, 0, 0.0D, 0.0D, 0.0D, 1.0D);
-            }
-            if (distSqr <= 32.0D * 32.0D) {
-                float proximity = (float) Mth.clamp(1.0D - distSqr / (32.0D * 32.0D), 0.0D, 1.0D);
-                budget.offerShake(player, 12.0f * proximity * proximity, pos);
+            if (distSqr <= 24.0D * 24.0D) {
+                float proximity = (float) Mth.clamp(1.0D - Math.sqrt(distSqr) / 24.0D, 0.0D, 1.0D);
+                budget.offerShake(player, 9.0f * proximity * proximity, pos);
             }
         }
 
+        // The balls reach the ground in front over the next few ticks: clods jump up in
+        // bands, nearest first, and steel rattles off whatever stands out there.
+        double groundY = Math.floor(pos.y) + 0.05D;
+        int bands = 5;
+        double bandWidth = (range - 2.5D) / bands;
+        for (int band = 0; band < bands; band++) {
+            double near = 2.5D + band * bandWidth;
+            double far = near + bandWidth;
+            int delay = (int) Math.max(1, Math.round(near / 2.4D));
+            int count = (2 + band) * detail / 2;
+            boolean rattle = budget.lod() == BombBurstBudget.Lod.FULL;
+            schedule(level, delay, () -> {
+                for (int i = 0; i < count; i++) {
+                    Vec3 dir = fan(ahead, side, halfAngle, random);
+                    double distance = Mth.lerp(random.nextDouble(), near, far);
+                    double x = pos.x + dir.x * distance;
+                    double z = pos.z + dir.z * distance;
+                    // Settle on whatever surface is there, a block either way.
+                    var at = net.minecraft.core.BlockPos.containing(x, groundY, z);
+                    double y = groundY;
+                    if (!level.getBlockState(at).isAir()) {
+                        y += 1.0D;
+                    } else if (level.getBlockState(at.below()).isAir()) {
+                        y -= 1.0D;
+                    }
+                    var ground = level.getBlockState(net.minecraft.core.BlockPos.containing(x, y - 0.5D, z));
+                    if (ground.isAir() || !ground.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    var soil = new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, ground);
+                    directed(
+                            level,
+                            soil,
+                            x,
+                            y + 0.1D,
+                            z,
+                            dir.x * 0.08D,
+                            0.18D + random.nextDouble() * 0.2D,
+                            dir.z * 0.08D);
+                }
+                if (!rattle) {
+                    return;
+                }
+                Vec3 middle = pos.add(ahead.scale((near + far) * 0.5D));
+                level.playSound(
+                        null,
+                        middle.x,
+                        middle.y,
+                        middle.z,
+                        SoundEvents.IRON_GOLEM_DAMAGE,
+                        SoundSource.BLOCKS,
+                        0.7f,
+                        1.6f + random.nextFloat() * 0.3f);
+            });
+        }
+    }
+
+    /** A direction inside the claymore's horizontal fan, level to a few degrees up. */
+    private static Vec3 fan(Vec3 ahead, Vec3 side, double halfAngle, RandomSource random) {
+        double yaw = (random.nextDouble() * 2.0D - 1.0D) * halfAngle;
+        double pitch = random.nextDouble() * 0.12D;
+        Vec3 flat = ahead.scale(Math.cos(yaw)).add(side.scale(Math.sin(yaw)));
+        return flat.scale(Math.cos(pitch)).add(0.0D, Math.sin(pitch), 0.0D);
+    }
+
+    /**
+     * An anti-tank mine: a heavy charge going off under whatever drove onto it. The ground
+     * around it throws the blast upward, so it reads as a column: a fountain of the very
+     * soil it was buried in, a dark smoke stalk that mushrooms out, a fireball at the base
+     * and a ring of dust running out across the ground, then earth raining back down and
+     * smoke hanging over the crater.
+     */
+    public static void playAntiTankMine(
+            ServerLevel level, Vec3 pos, float blockPower, BombBurstBudget.Snapshot budget) {
+        waterBurst(level, pos, blockPower);
+        RandomSource random = level.random;
+        float pitch = 0.7f + random.nextFloat() * 0.08f;
+        float volume = Math.max(14.0f, blockPower * 3.0f);
+        level.playSound(
+                null, pos.x, pos.y, pos.z, ModSounds.BOMB_EXPLOSION_LARGE.get(), SoundSource.BLOCKS, volume, pitch);
+        level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.BLOCKS, 6.0f, .55f);
+
+        int detail =
+                switch (budget.lod()) {
+                    case FULL -> 4;
+                    case REDUCED -> 3;
+                    case MINIMAL -> 2;
+                    case ESSENTIAL -> 1;
+                };
+        var groundPos = net.minecraft.core.BlockPos.containing(pos).below();
+        var ground = level.getBlockState(groundPos);
+        if (ground.isAir() || !ground.getFluidState().isEmpty()) {
+            ground = net.minecraft.world.level.block.Blocks.DIRT.defaultBlockState();
+        }
+        var soil = new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, ground);
+
+        // Fireball at the base.
+        DustParticleOptions hot = new DustParticleOptions(new Vector3f(1.0f, 0.62f, 0.12f), 1.6f);
+        emitFar(level, hot, pos.x, pos.y + 0.4D, pos.z, 10 * detail, 0.9D, 0.5D, 0.9D, 0.02D);
+        emitFar(
+                level,
+                new ShellExplosionCloudParticleData(2.4f, false),
+                pos.x,
+                pos.y + 0.6D,
+                pos.z,
+                1,
+                0.0D,
+                0.0D,
+                0.0D,
+                0.0D);
+
+        // The soil fountain: clods of the ground itself, flung up in a narrow cone.
+        for (int i = 0; i < 18 * detail; i++) {
+            double angle = random.nextDouble() * Math.PI * 2;
+            double spread = random.nextDouble() * .35;
+            directed(
+                    level,
+                    soil,
+                    pos.x + Math.cos(angle) * .4,
+                    pos.y + .2,
+                    pos.z + Math.sin(angle) * .4,
+                    Math.cos(angle) * spread,
+                    .7 + random.nextDouble() * .9,
+                    Math.sin(angle) * spread);
+        }
+        // The smoke stalk: dark puffs rising at different speeds, so it stands as a column.
+        for (int i = 0; i < 4 * detail; i++) {
+            directed(
+                    level,
+                    new BlastSmokeData(2.0f + random.nextFloat() * 1.6f),
+                    pos.x + (random.nextDouble() - .5) * .8,
+                    pos.y + .5 + i * .45,
+                    pos.z + (random.nextDouble() - .5) * .8,
+                    (random.nextDouble() - .5) * .04,
+                    .12 + random.nextDouble() * .22,
+                    (random.nextDouble() - .5) * .04);
+        }
+        // The ground ring: dust and soil racing out across the surface.
+        int ring = 8 + 4 * detail;
+        for (int i = 0; i < ring; i++) {
+            double angle = i * Math.PI * 2 / ring + random.nextDouble() * .2;
+            double speed = .45 + random.nextDouble() * .2;
+            directed(
+                    level,
+                    new BlastSmokeData(1.4f + random.nextFloat() * .6f),
+                    pos.x + Math.cos(angle) * .8,
+                    pos.y + .15,
+                    pos.z + Math.sin(angle) * .8,
+                    Math.cos(angle) * speed,
+                    .02,
+                    Math.sin(angle) * speed);
+            directed(
+                    level,
+                    soil,
+                    pos.x + Math.cos(angle) * .6,
+                    pos.y + .2,
+                    pos.z + Math.sin(angle) * .6,
+                    Math.cos(angle) * (speed + .1),
+                    .25 + random.nextDouble() * .25,
+                    Math.sin(angle) * (speed + .1));
+        }
+
+        // Flash, shock wave and a hard shake for anyone close.
+        float intensity = budget.lod().flashScale();
+        BombFlashPayload payload =
+                new BombFlashPayload(pos.x, pos.y, pos.z, intensity, (byte) BombSize.MEDIUM.ordinal());
+        Holder<SoundEvent> boomHolder =
+                BuiltInRegistries.SOUND_EVENT.wrapAsHolder(ModSounds.BOMB_EXPLOSION_LARGE.get());
+        ShellBlastWaveEffectParticleData wave =
+                new ShellBlastWaveEffectParticleData(32.0D, boomHolder, SoundSource.BLOCKS, 0.0f, pitch, 2.4f, 16.0f);
+        for (ServerPlayer player : level.players()) {
+            double distSqr = player.distanceToSqr(pos);
+            if (distSqr <= 190.0D * 190.0D) {
+                PacketDistributor.sendToPlayer(player, payload);
+            }
+            if (distSqr <= 120.0D * 120.0D && distSqr >= 4.0D) {
+                level.sendParticles(player, wave, true, pos.x, pos.y, pos.z, 0, 0.0D, 0.0D, 0.0D, 1.0D);
+            }
+            if (distSqr <= 40.0D * 40.0D) {
+                float proximity = (float) Mth.clamp(1.0D - distSqr / (40.0D * 40.0D), 0.0D, 1.0D);
+                budget.offerShake(player, 20.0f * proximity * proximity, pos);
+            }
+        }
+
+        // The column mushrooms out at the top.
+        schedule(level, 8, () -> {
+            for (int i = 0; i < 3 * detail; i++) {
+                double angle = random.nextDouble() * Math.PI * 2;
+                directed(
+                        level,
+                        new BlastSmokeData(2.6f + random.nextFloat() * 1.4f),
+                        pos.x,
+                        pos.y + 4.5 + random.nextDouble(),
+                        pos.z,
+                        Math.cos(angle) * .12,
+                        .05,
+                        Math.sin(angle) * .12);
+            }
+        });
+        // Earth rains back down out of the cloud.
+        for (int shower = 0; shower < 3; shower++) {
+            schedule(level, 12 + shower * 6, () -> {
+                for (int i = 0; i < 8 * detail; i++) {
+                    directed(
+                            level,
+                            soil,
+                            pos.x + (random.nextDouble() - .5) * 5,
+                            pos.y + 5 + random.nextDouble() * 3,
+                            pos.z + (random.nextDouble() - .5) * 5,
+                            0,
+                            -.1,
+                            0);
+                }
+            });
+        }
         schedule(
                 level,
-                4,
+                14,
+                () -> level.playSound(
+                        null, pos.x, pos.y, pos.z, SoundEvents.GRAVEL_FALL, SoundSource.BLOCKS, 2.5f, .6f));
+        // Smoke hangs over the crater.
+        schedule(
+                level,
+                24,
                 () -> emitFar(
                         level,
-                        new ShellExplosionCloudParticleData(1.45f, false),
+                        new ShellExplosionSmokeParticleData(180 + level.random.nextInt(40), 2.0f),
                         pos.x,
-                        pos.y + 0.4D,
+                        pos.y + 1.0D,
                         pos.z,
                         1,
                         0.0D,
                         0.0D,
                         0.0D,
                         0.0D));
+    }
+
+    /** One particle with an exact velocity, to every player who can see the spot. */
+    private static void directed(
+            ServerLevel level,
+            net.minecraft.core.particles.ParticleOptions type,
+            double x,
+            double y,
+            double z,
+            double vx,
+            double vy,
+            double vz) {
+        emitFar(level, type, x, y, z, 0, vx, vy, vz, 1.0D);
     }
 
     /** Water reacts only where water exists, including a nearby shore; hulls and roofs stop the spray. */

@@ -26,6 +26,14 @@ public final class ModParticles {
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MISSILE_SMOKE =
             PARTICLE_TYPES.register("missile_smoke", () -> new SimpleParticleType(false));
 
+    /** Wingtip vortex condensation in a hard turn: a thin white streak that fades fast. */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MISSILE_VAPOR =
+            PARTICLE_TYPES.register("missile_vapor", () -> new SimpleParticleType(false));
+
+    /** High-altitude condensation trail behind a cruising turbofan: white and long-lived. */
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> MISSILE_CONTRAIL =
+            PARTICLE_TYPES.register("missile_contrail", () -> new SimpleParticleType(false));
+
     public static final DeferredHolder<ParticleType<?>, ParticleType<com.cbc_more_content.effects.BlastSmokeData>>
             BLAST_SMOKE = PARTICLE_TYPES.register("blast_smoke", () -> new ParticleType<>(true) {
         @Override

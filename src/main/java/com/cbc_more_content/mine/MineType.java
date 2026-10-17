@@ -11,13 +11,15 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  *   <li>{@link #LARGE} — antivehicle: Sable sub-levels and Offroad (Aeronautics stack) wheels</li>
  *   <li>{@link #BOUNDING} — antipersonnel, but it jumps before it goes off</li>
  *   <li>{@link #SEA} — a floating underwater charge: anything solid drifting into it, at any depth</li>
+ *   <li>{@link #CLAYMORE} — directional antipersonnel: fired on command or by a tripwire, never by weight</li>
  * </ul>
  */
 public enum MineType {
     SMALL(Block.box(4.0D, 0.0D, 4.0D, 12.0D, 2.0D, 12.0D), true, false, true, 0.0D, 4.8f, 6.2f),
     LARGE(
             // Full footprint so Offroad wheel rays cannot slip past the disc into dirt below.
-            Block.box(0.0D, 0.0D, 0.0D, 16.0D, 3.0D, 16.0D), false, true, false, 0.0D, 3.4f, 4.5f),
+            // A real anti-tank charge: well past the antipersonnel tier, short of a heavy bomb.
+            Block.box(0.0D, 0.0D, 0.0D, 16.0D, 3.0D, 16.0D), false, true, false, 0.0D, 6.5f, 11.0f),
     /**
      * Trips from a prod rather than from weight, throws itself to about waist height and
      * bursts there — which is why it reaches over cover and why its trigger reads half a
@@ -29,7 +31,13 @@ public enum MineType {
      * the thing it exists to stop is a hull — and it arms on contact from any direction:
      * a swimmer counts as much as a ship. The block supplies its own collision shape.
      */
-    SEA(Shapes.empty(), false, true, false, 0.0D, 6.5f, 8.0f);
+    SEA(Shapes.empty(), false, true, false, 0.0D, 6.5f, 8.0f),
+    /**
+     * Stands above ground and has no fuse of its own: the block supplies its shape and
+     * decides when it fires. Its blast is mostly the steel it throws forward, so the
+     * pressure numbers here are only the short back-blast around it.
+     */
+    CLAYMORE(Shapes.empty(), false, false, false, 0.0D, 0.0f, 3.5f);
 
     /**
      * Additional contact reach around the floating block for swimmers and vanilla boats.

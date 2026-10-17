@@ -104,6 +104,66 @@ public final class SableDropCompat {
 
     /** Native voxel traversal, with only the departing airframe ignored, never its carrier. */
     public static boolean clearRay(ServerLevel level, Vec3 from, Vec3 to, java.util.Set<BlockPos> ignoredCells) {
+        return clearRay(level, from, to, ignoredCells, null);
+    }
+
+    /** The sub-level a block stands in, or null on the ground or without Sable. */
+    @javax.annotation.Nullable
+    public static Object carrierOf(ServerLevel level, BlockPos pos) {
+        if (!ModList.get().isLoaded("sable")) {
+            return null;
+        }
+        try {
+            return Sable.HELPER.getContaining(level, pos) instanceof ServerSubLevel sub ? sub : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    /**
+     * Whether a round leaving {@code localFrom} straight up, in the world's sense of up,
+     * clears its own carrier. Tested in the carrier's own block space: the round shares the
+     * ship's motion, so relative to the ship it simply rises, wherever the ship is going.
+     */
+    public static boolean clearOfCarrier(
+            ServerLevel level,
+            @javax.annotation.Nullable Object carrier,
+            Vec3 localFrom,
+            double length,
+            java.util.Set<BlockPos> ignoredCells) {
+        if (!(carrier instanceof ServerSubLevel sub)) {
+            return true;
+        }
+        Vec3 up = sub.logicalPose().transformNormalInverse(new Vec3(0, 1, 0)).normalize();
+        Vec3 side = up.cross(new Vec3(1, 0, 0));
+        if (side.lengthSqr() < 1.0E-4) {
+            side = up.cross(new Vec3(0, 0, 1));
+        }
+        side = side.normalize();
+        Vec3 other = up.cross(side).normalize();
+        // Five lines leave room for the fins, not only a point through a slit.
+        for (Vec3 offset :
+                new Vec3[] {Vec3.ZERO, side.scale(.28), side.scale(-.28), other.scale(.28), other.scale(-.28)}) {
+            for (double t = 0; t <= length; t += .25) {
+                BlockPos pos = BlockPos.containing(localFrom.add(offset).add(up.scale(t)));
+                if (ignoredCells.contains(pos)) {
+                    continue;
+                }
+                if (!level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /** As {@link #clearRay(ServerLevel, Vec3, Vec3, java.util.Set)}, skipping one sub-level entirely. */
+    public static boolean clearRay(
+            ServerLevel level,
+            Vec3 from,
+            Vec3 to,
+            java.util.Set<BlockPos> ignoredCells,
+            @javax.annotation.Nullable Object ignoredCarrier) {
         java.util.function.Predicate<BlockPos> world = pos -> !ignoredCells.contains(pos)
                 && !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty()
                 && level.getBlockState(pos).getCollisionShape(level, pos).clip(from, to, pos) != null;
@@ -112,7 +172,7 @@ public final class SableDropCompat {
             return trace == null || trace.missed();
         }
         var trace = SableRaycastHelper.rayCastUntilWithSublevels(level, from, to, world, (sub, pos) -> {
-            if (sub == null || sub.isRemoved() || ignoredCells.contains(pos)) {
+            if (sub == null || sub.isRemoved() || sub == ignoredCarrier || ignoredCells.contains(pos)) {
                 return false;
             }
             var shape = level.getBlockState(pos).getCollisionShape(level, pos);

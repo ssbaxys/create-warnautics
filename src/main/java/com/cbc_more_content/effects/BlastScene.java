@@ -71,14 +71,50 @@ public final class BlastScene {
         return Math.abs(coordinate - nearest) < 1.0E-7D ? nearest : coordinate;
     }
 
+    private static final net.minecraft.world.level.chunk.LevelChunk UNLOADED = null;
+    private final it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<
+                    java.util.Optional<net.minecraft.world.level.chunk.LevelChunk>>
+            chunks = new it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<>();
+    private long lastChunkKey = Long.MIN_VALUE;
+
+    @javax.annotation.Nullable
+    private net.minecraft.world.level.chunk.LevelChunk lastChunk;
+
+    /**
+     * The loaded chunk holding a column, remembered for this scene: rays march through the
+     * same few chunks for thousands of steps, and the chunk cache lookup was most of the cost
+     * per step. Terrain and sub-level plots interleave, so more than one chunk is kept.
+     */
+    @javax.annotation.Nullable
+    private net.minecraft.world.level.chunk.LevelChunk chunk(int blockX, int blockZ) {
+        long key = net.minecraft.world.level.ChunkPos.asLong(blockX >> 4, blockZ >> 4);
+        if (key == this.lastChunkKey) {
+            return this.lastChunk;
+        }
+        var found = this.chunks.get(key);
+        if (found == null) {
+            found = java.util.Optional.ofNullable(this.level.getChunkSource().getChunkNow(blockX >> 4, blockZ >> 4));
+            this.chunks.put(key, found);
+        }
+        this.lastChunkKey = key;
+        this.lastChunk = found.orElse(UNLOADED);
+        return this.lastChunk;
+    }
+
+    /** Whether the column under a world point is loaded. */
+    public boolean loaded(Vec3 point) {
+        return this.chunk(net.minecraft.util.Mth.floor(point.x), net.minecraft.util.Mth.floor(point.z)) != null;
+    }
+
     private void add(BlockPos pos, ServerSubLevel body, List<Sample> result) {
         long key = pos.asLong();
         Sample block = blocks.get(key);
         if (block == null) {
-            if (!level.hasChunkAt(pos)) {
+            var chunk = this.chunk(pos.getX(), pos.getZ());
+            if (chunk == null) {
                 return;
             }
-            var state = level.getBlockState(pos);
+            var state = chunk.getBlockState(pos);
             if (state.isAir() || isOpenFluid(level, pos, state)) {
                 block = EMPTY;
             } else {
@@ -158,10 +194,13 @@ public final class BlastScene {
             ServerSubLevel body,
             Vec3 center,
             double radius,
-            Predicate<BlockState> predicate,
+            Predicate<BlockState> test,
             List<Sample> result,
             java.util.Set<BlockPos> opened) {
         var above = new BlockPos.MutableBlockPos();
+        // A section holds only a handful of distinct states; answer each one once.
+        var answers = new java.util.IdentityHashMap<BlockState, Boolean>();
+        Predicate<BlockState> predicate = state -> answers.computeIfAbsent(state, test::test);
         for (int cx = min.getX() >> 4; cx <= max.getX() >> 4; cx++) {
             for (int cz = min.getZ() >> 4; cz <= max.getZ() >> 4; cz++) {
                 var chunk = level.getChunkSource().getChunkNow(cx, cz);
@@ -191,11 +230,15 @@ public final class BlastScene {
                                                     <= body.getPlot()
                                                             .getBoundingBox()
                                                             .maxY();
+                                    // Inside the same section the state above is read straight from
+                                    // it; only the top layer goes through the chunk cache.
+                                    BlockState over = (y & 15) != 15
+                                            ? section.getBlockState(x & 15, (y + 1) & 15, z & 15)
+                                            : level.getBlockState(above);
                                     if (sameBody
-                                            && !opened.contains(above)
-                                            && !level.getBlockState(above)
-                                                    .getCollisionShape(level, above)
-                                                    .isEmpty()) {
+                                            && !over.getCollisionShape(level, above)
+                                                    .isEmpty()
+                                            && !opened.contains(above)) {
                                         continue;
                                     }
                                 }

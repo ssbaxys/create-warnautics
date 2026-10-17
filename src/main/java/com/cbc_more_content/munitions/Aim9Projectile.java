@@ -24,15 +24,41 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
-/** One cold-launched interceptor, with lead pursuit and a fuse for its assigned airborne target. */
+/**
+ * One cold-launched interceptor with a fuse for its assigned airborne target.
+ * <p>
+ * Flown like the real thing: a boost-sustain motor (a short, hard boost, then a weaker
+ * sustain grain), proportional navigation once the seeker has the target ahead of it,
+ * and lead pursuit while it is still swinging its nose round. Every turn is limited by
+ * the lateral acceleration the airframe can pull at its current speed and flown through
+ * an autopilot with a short lag, and hard turns bleed speed the motor then has to win
+ * back, so the path is a set of smooth arcs rather than a string of kinks.
+ */
 public class Aim9Projectile extends Entity {
     public static final int EJECT_TICKS = 14;
     private static final int MOTOR_TICKS = 240;
     private static final double APPROACH_RANGE = 36;
     private static final double RECOVERY_TURN_RATE = .14;
+    /** Boost grain burn after ignition; the sustain grain carries the rest of the flight. */
+    public static final int BOOST_TICKS = 60;
+
+    private static final double BOOST_SPEED = 5.8;
+    private static final double SUSTAIN_SPEED = 5.45;
+    /** Fraction of the speed error the motor closes per tick. */
+    private static final double THRUST_RESPONSE = .16;
+    /** Speed lost per tick per radian-per-tick of turn, per block-per-tick of speed. */
+    private static final double INDUCED_DRAG = .08;
+    /** Lateral acceleration limit, blocks per tick squared. */
+    private static final double MAX_ACCELERATION = 1.5;
+    /** Proportional navigation constant. */
+    private static final double NAVIGATION_GAIN = 4;
+    /** Seeker cone inside which navigation replaces pursuit. */
+    private static final double NAVIGATION_CONE = Math.cos(Math.toRadians(50));
     // Keep adjacent flight chunks entity-ticking before crossing their boundary.
     private static final int TICKET_DISTANCE = 4;
     private static final EntityDataAccessor<Boolean> POWERED =
+            SynchedEntityData.defineId(Aim9Projectile.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> BOOSTING =
             SynchedEntityData.defineId(Aim9Projectile.class, EntityDataSerializers.BOOLEAN);
     private static final TicketType<UUID> TICKET = TicketType.create("aim9", UUID::compareTo, 20);
 
@@ -57,6 +83,11 @@ public class Aim9Projectile extends Entity {
     private ChunkPos ticketChunk;
 
     private boolean finished;
+    /** Negative until ignition, then the speed through the air. */
+    private double airspeed = -1;
+
+    private final Autopilot autopilot = new Autopilot();
+    private final ClientFlightSmoother smoother = new ClientFlightSmoother();
 
     public Aim9Projectile(EntityType<? extends Aim9Projectile> type, Level level) {
         super(type, level);
@@ -66,10 +97,16 @@ public class Aim9Projectile extends Entity {
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(POWERED, false);
+        builder.define(BOOSTING, false);
     }
 
     public boolean isPowered() {
         return this.entityData.get(POWERED);
+    }
+
+    /** True while the boost grain burns: the big flame and the thick smoke. */
+    public boolean isBoosting() {
+        return this.entityData.get(BOOSTING);
     }
 
     public boolean isEjecting() {
@@ -95,6 +132,11 @@ public class Aim9Projectile extends Entity {
     @Override
     public void tick() {
         super.tick();
+        if (level().isClientSide) {
+            smoother.seedVelocity(getDeltaMovement());
+            smoother.tick(this);
+            return;
+        }
         if (!(level() instanceof ServerLevel server) || finished) {
             return;
         }
@@ -136,25 +178,29 @@ public class Aim9Projectile extends Entity {
                 finish(null, position(), false);
                 return;
             }
-            double progress = Mth.clamp(motorTicks / 20.0, 0, 1);
-            double speed = .65 + 4.85 * progress * progress * (3 - 2 * progress);
-            Vec3 heading = motion.subtract(carrierVelocity).normalize();
-            if (target != null && target.isAlive()) {
-                updateApproach(target, heading, motion, speed);
-                if (recovering && recoveryTurning) {
-                    // A wider, slower turn draws a return arc instead of snapping onto a target behind us.
-                    speed *= .88;
-                }
-                Vec3 aim = recovering && !recoveryTurning
-                        ? heading
-                        : lead(
-                                target.position().subtract(position()).add(approachOffset),
-                                target.getDeltaMovement(),
-                                speed);
-                heading = MissileCollision.turn(
-                        heading, aim, recovering ? RECOVERY_TURN_RATE : motorTicks < 10 ? .16 : .30);
+            Vec3 relative = motion.subtract(carrierVelocity);
+            Vec3 heading = relative.lengthSqr() < 1.0E-8 ? new Vec3(0, 1, 0) : relative.normalize();
+            if (airspeed < 0) {
+                airspeed = Math.max(.65, relative.length());
             }
-            motion = heading.scale(speed).add(carrierVelocity);
+            boolean boosting = motorTicks <= BOOST_TICKS;
+            entityData.set(BOOSTING, boosting);
+            // The motor pulls toward its grain's speed; every turn costs speed it must win back.
+            airspeed += ((boosting ? BOOST_SPEED : SUSTAIN_SPEED) - airspeed) * THRUST_RESPONSE;
+            airspeed -= INDUCED_DRAG * autopilot.turnRate() * airspeed;
+            airspeed = Mth.clamp(airspeed, .65, BOOST_SPEED);
+            if (target != null && target.isAlive()) {
+                updateApproach(target, heading, motion, airspeed);
+                double maxRate = recovering
+                        ? RECOVERY_TURN_RATE
+                        : Math.min(motorTicks < 10 ? .16 : .32, MAX_ACCELERATION / Math.max(.65, airspeed));
+                // A wider, slower return arc instead of snapping onto a target behind us.
+                Vec3 desired = recovering && !recoveryTurning ? heading : guidance(target, heading, airspeed);
+                heading = autopilot.steer(heading, desired, maxRate, recovering ? .3 : .55);
+            } else {
+                heading = autopilot.steer(heading, heading, .1, .5);
+            }
+            motion = heading.scale(airspeed).add(carrierVelocity);
             carrierVelocity = carrierVelocity.scale(.9);
             if (tickCount % 8 == 0) {
                 server.playSound(
@@ -253,6 +299,33 @@ public class Aim9Projectile extends Entity {
         }
     }
 
+    /**
+     * Commanded direction. Proportional navigation once the target sits inside the seeker
+     * cone and is closing: it turns the line-of-sight rate into a turn rate, which flies a
+     * collision course instead of a curving tail chase. Outside the cone, or opening, it
+     * points at the lead point first.
+     */
+    private Vec3 guidance(Entity target, Vec3 heading, double speed) {
+        Vec3 offset = target.position().subtract(position()).add(approachOffset);
+        Vec3 targetVelocity = target.getDeltaMovement();
+        Vec3 leadDirection = lead(offset, targetVelocity, speed);
+        double range = offset.length();
+        if (range < 1.0E-4) {
+            return heading;
+        }
+        Vec3 lineOfSight = offset.scale(1 / range);
+        Vec3 relative = targetVelocity.subtract(heading.scale(speed));
+        double closing = -lineOfSight.dot(relative);
+        if (motorTicks < 12 || closing <= 0 || heading.dot(lineOfSight) < NAVIGATION_CONE) {
+            return leadDirection;
+        }
+        // Line-of-sight rotation rate, radians per tick. Command N times that rate; the
+        // autopilot turns a heading error into rate at its own gain, so the command is
+        // expressed as the heading it would be steering toward.
+        Vec3 losRate = offset.cross(relative).scale(1 / (range * range));
+        return Autopilot.rotate(heading, losRate.scale(NAVIGATION_GAIN / .32));
+    }
+
     private static Vec3 lead(Vec3 offset, Vec3 velocity, double speed) {
         double a = velocity.lengthSqr() - speed * speed;
         double b = 2 * offset.dot(velocity), c = offset.lengthSqr();
@@ -274,6 +347,7 @@ public class Aim9Projectile extends Entity {
         }
         finished = true;
         entityData.set(POWERED, false);
+        entityData.set(BOOSTING, false);
         if (burst) {
             if (target != null && target.isAlive()) {
                 target.hurt(server.damageSources().explosion(this, this), 40);
@@ -331,13 +405,12 @@ public class Aim9Projectile extends Entity {
 
     @Override
     public void lerpTo(double x, double y, double z, float yaw, float pitch, int steps) {
-        setPos(x, y, z);
-        setRot(yaw, pitch);
+        smoother.target(this, x, y, z);
     }
 
     @Override
     public void lerpMotion(double x, double y, double z) {
-        setDeltaMovement(x, y, z);
+        smoother.seedVelocity(new Vec3(x, y, z));
     }
 
     private void releaseTicket(ServerLevel server) {
@@ -374,6 +447,8 @@ public class Aim9Projectile extends Entity {
         recoveryTicks = Math.max(0, tag.getInt("RecoveryTicks"));
         closestApproach =
                 tag.contains("ClosestApproach") ? Math.max(0, tag.getDouble("ClosestApproach")) : Double.MAX_VALUE;
+        airspeed = tag.contains("Airspeed") ? tag.getDouble("Airspeed") : -1;
+        autopilot.load(tag, "TurnRate");
         entityData.set(POWERED, ejectTicks == 0 && motorTicks <= MOTOR_TICKS);
     }
 
@@ -403,5 +478,7 @@ public class Aim9Projectile extends Entity {
         tag.putInt("ApproachNumber", approachNumber);
         tag.putInt("RecoveryTicks", recoveryTicks);
         tag.putDouble("ClosestApproach", closestApproach);
+        tag.putDouble("Airspeed", airspeed);
+        autopilot.save(tag, "TurnRate");
     }
 }

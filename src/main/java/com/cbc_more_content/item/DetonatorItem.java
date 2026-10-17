@@ -2,10 +2,12 @@ package com.cbc_more_content.item;
 
 import com.cbc_more_content.block.C4Block;
 import com.cbc_more_content.block.C4BlockEntity;
+import com.cbc_more_content.block.ClaymoreBlock;
+import com.cbc_more_content.ui.Notices;
+import com.cbc_more_content.ui.UiTone;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -28,6 +30,7 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 public class DetonatorItem extends Item {
     public static final double RANGE = 250.0D;
@@ -52,7 +55,8 @@ public class DetonatorItem extends Item {
         Player player = context.getPlayer();
         BlockPos pos = context.getClickedPos();
         BlockState state = level.getBlockState(pos);
-        if (!(state.getBlock() instanceof C4Block)) {
+        boolean claymore = state.getBlock() instanceof ClaymoreBlock;
+        if (!(state.getBlock() instanceof C4Block) && !claymore) {
             return InteractionResult.PASS;
         }
         if (level.isClientSide) {
@@ -62,40 +66,41 @@ public class DetonatorItem extends Item {
 
         if (player != null && player.isShiftKeyDown()) {
             if (!unbind(stack, pos)) {
-                say(player, "message.cbc_more_content.detonator.not_paired", ChatFormatting.RED);
+                say(player, "message.cbc_more_content.detonator.not_paired", UiTone.DANGER);
                 return InteractionResult.CONSUME;
             }
             if (level.getBlockEntity(pos) instanceof C4BlockEntity dropped) {
                 dropped.setPaired(false);
             }
             level.playSound(null, pos, SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.PLAYERS, 0.8f, 0.9f);
-            say(player, "message.cbc_more_content.detonator.unpaired", ChatFormatting.GRAY);
+            say(player, "message.cbc_more_content.detonator.unpaired", UiTone.MUTED);
             return InteractionResult.CONSUME;
         }
 
-        if (!(level.getBlockEntity(pos) instanceof C4BlockEntity charge) || !charge.isWaitingOnRemote()) {
-            say(player, "message.cbc_more_content.detonator.not_remote", ChatFormatting.RED);
+        // A claymore needs nothing set on it: its blasting cap is wired to the firing device.
+        C4BlockEntity charge = level.getBlockEntity(pos) instanceof C4BlockEntity c4 ? c4 : null;
+        if (!claymore && (charge == null || !charge.isWaitingOnRemote())) {
+            say(player, "message.cbc_more_content.detonator.not_remote", UiTone.DANGER);
             return InteractionResult.CONSUME;
         }
 
         List<BlockPos> ring = boundCharges(stack);
         if (ring.contains(pos)) {
-            say(player, "message.cbc_more_content.detonator.already_paired", ChatFormatting.GRAY);
+            say(player, "message.cbc_more_content.detonator.already_paired", UiTone.MUTED);
             return InteractionResult.CONSUME;
         }
         if (ring.size() >= MAX_CHARGES) {
-            say(player, "message.cbc_more_content.detonator.full", ChatFormatting.RED);
+            say(player, "message.cbc_more_content.detonator.full", UiTone.DANGER);
             return InteractionResult.CONSUME;
         }
 
         ring.add(pos.immutable());
         store(stack, ring);
-        charge.setPaired(true);
+        if (charge != null) {
+            charge.setPaired(true);
+        }
         level.playSound(null, pos, SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.PLAYERS, 0.8f, 1.5f);
-        say(
-                Component.translatable("message.cbc_more_content.detonator.paired", ring.size())
-                        .withStyle(ChatFormatting.GREEN),
-                player);
+        Notices.send(player, UiTone.SUCCESS, "message.cbc_more_content.detonator.paired", ring.size());
         return InteractionResult.CONSUME;
     }
 
@@ -127,13 +132,13 @@ public class DetonatorItem extends Item {
                         SoundSource.PLAYERS,
                         0.6f,
                         0.8f);
-                say(player, "message.cbc_more_content.detonator.cleared", ChatFormatting.GRAY);
+                say(player, "message.cbc_more_content.detonator.cleared", UiTone.MUTED);
             }
             return InteractionResultHolder.success(stack);
         }
 
         if (ring.isEmpty() && boundVest(stack) == null) {
-            say(player, "message.cbc_more_content.detonator.unbound", ChatFormatting.GRAY);
+            say(player, "message.cbc_more_content.detonator.unbound", UiTone.MUTED);
             return InteractionResultHolder.success(stack);
         }
 
@@ -148,14 +153,26 @@ public class DetonatorItem extends Item {
         List<BlockPos> reached = new ArrayList<>();
         List<BlockPos> left = new ArrayList<>();
         for (BlockPos charge : ring) {
-            double distanceSqr = player.distanceToSqr(charge.getX() + 0.5D, charge.getY() + 0.5D, charge.getZ() + 0.5D);
+            // A charge on a ship lives in the ship's plot, far out in the storage grid: the
+            // radio reaches where the ship is, not where its blocks are filed.
+            Vec3 where = com.cbc_more_content.compat.SableDropCompat.resolveWorldBlastChecked(
+                            server, charge.getCenter())
+                    .pos();
+            double distanceSqr = player.distanceToSqr(where);
             if (distanceSqr > RANGE * RANGE || !level.isLoaded(charge)) {
                 left.add(charge);
             } else {
                 reached.add(charge);
             }
         }
-        int fired = C4BlockEntity.fireRing(server, reached);
+        // Claymores first: a charge going off beside one would otherwise set it off itself.
+        int fired = 0;
+        for (BlockPos at : reached) {
+            if (ClaymoreBlock.fireRemote(server, at)) {
+                fired++;
+            }
+        }
+        fired += C4BlockEntity.fireRing(server, reached);
         int unreachable = left.size();
         store(stack, left);
 
@@ -173,17 +190,14 @@ public class DetonatorItem extends Item {
         }
 
         if (firedVests > 0) {
-            say(player, "message.cbc_more_content.detonator.vest_fired", ChatFormatting.GREEN);
+            say(player, "message.cbc_more_content.detonator.vest_fired", UiTone.SUCCESS);
         }
         if (fired > 0) {
-            say(
-                    Component.translatable("message.cbc_more_content.detonator.fired", fired)
-                            .withStyle(ChatFormatting.GREEN),
-                    player);
+            Notices.send(player, UiTone.SUCCESS, "message.cbc_more_content.detonator.fired", fired);
         } else if (unreachable > 0) {
-            say(player, "message.cbc_more_content.detonator.out_of_range", ChatFormatting.RED);
+            say(player, "message.cbc_more_content.detonator.out_of_range", UiTone.DANGER);
         } else if (firedVests == 0) {
-            say(player, "message.cbc_more_content.detonator.no_signal", ChatFormatting.RED);
+            say(player, "message.cbc_more_content.detonator.no_signal", UiTone.DANGER);
         }
         return InteractionResultHolder.success(stack);
     }
@@ -197,6 +211,7 @@ public class DetonatorItem extends Item {
         List<BlockPos> left = new ArrayList<>(ring.size());
         for (BlockPos charge : ring) {
             if (!level.isLoaded(charge)
+                    || level.getBlockState(charge).getBlock() instanceof ClaymoreBlock
                     || (level.getBlockEntity(charge) instanceof C4BlockEntity target && target.isWaitingOnRemote())) {
                 left.add(charge);
             }
@@ -288,14 +303,14 @@ public class DetonatorItem extends Item {
             BombVestItem.syncLinkMirror(player);
             level.playSound(
                     null, player.blockPosition(), SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.PLAYERS, 0.8f, 0.9f);
-            say(player, "message.cbc_more_content.detonator.vest_unlinked", ChatFormatting.GRAY);
+            say(player, "message.cbc_more_content.detonator.vest_unlinked", UiTone.MUTED);
             return;
         }
         storeVestLink(stack, self);
         BombVestItem.syncLinkMirror(player);
         level.playSound(
                 null, player.blockPosition(), SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.PLAYERS, 0.8f, 1.5f);
-        say(player, "message.cbc_more_content.detonator.vest_linked", ChatFormatting.GREEN);
+        say(player, "message.cbc_more_content.detonator.vest_linked", UiTone.SUCCESS);
     }
 
     private static void store(ItemStack stack, List<BlockPos> ring) {
@@ -323,16 +338,8 @@ public class DetonatorItem extends Item {
         return data != null ? data.copyTag() : new CompoundTag();
     }
 
-    private static void say(@Nullable Player player, String key, ChatFormatting colour) {
-        if (player != null) {
-            player.displayClientMessage(Component.translatable(key).withStyle(colour), true);
-        }
-    }
-
-    private static void say(Component message, @Nullable Player player) {
-        if (player != null) {
-            player.displayClientMessage(message, true);
-        }
+    private static void say(@Nullable Player player, String key, UiTone tone) {
+        Notices.send(player, tone, key);
     }
 
     @Override
@@ -340,16 +347,14 @@ public class DetonatorItem extends Item {
             ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         List<BlockPos> ring = boundCharges(stack);
         if (!ring.isEmpty()) {
-            tooltip.add(Component.translatable("tooltip.cbc_more_content.detonator.bound", ring.size(), MAX_CHARGES)
-                    .withStyle(ChatFormatting.GRAY));
+            tooltip.add(UiTone.ACCENT.text("tooltip.cbc_more_content.detonator.bound", ring.size(), MAX_CHARGES));
             for (BlockPos charge : ring) {
                 tooltip.add(Component.literal(" %d, %d, %d".formatted(charge.getX(), charge.getY(), charge.getZ()))
-                        .withStyle(ChatFormatting.DARK_GRAY));
+                        .withStyle(UiTone.MUTED.style()));
             }
         }
         if (boundVest(stack) != null) {
-            tooltip.add(Component.translatable("tooltip.cbc_more_content.detonator.vest")
-                    .withStyle(ChatFormatting.GREEN));
+            tooltip.add(UiTone.SUCCESS.text("tooltip.cbc_more_content.detonator.vest"));
         }
     }
 }

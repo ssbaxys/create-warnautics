@@ -8,6 +8,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import rbasamoyai.createbigcannons.munitions.big_cannon.shrapnel.ShrapnelBurst;
 import rbasamoyai.ritchiesprojectilelib.projectile_burst.ProjectileBurst.SubProjectile;
 
@@ -25,6 +26,24 @@ public class ShrapnelBurstMixin {
         BlockPos pos = hit.getBlockPos();
         if (!MineExplosionHandler.mayChipBlock((ServerLevel) self.level(), pos, self.position())) {
             ci.cancel();
+        }
+    }
+
+    /**
+     * A claymore's steel balls are pellets, not shell splinters. At CBC's shell-fragment
+     * size the first body in front caught half the fan and shaded everyone behind it.
+     */
+    @Inject(method = "getSubProjectileWidth", at = @At("HEAD"), cancellable = true)
+    private void cbc_more_content$claymoreBallWidth(CallbackInfoReturnable<Double> cir) {
+        if (((ShrapnelBurst) (Object) this).getPersistentData().getBoolean(MineExplosionHandler.CLAYMORE_BURST_TAG)) {
+            cir.setReturnValue(MineExplosionHandler.CLAYMORE_BALL_SIZE);
+        }
+    }
+
+    @Inject(method = "getSubProjectileHeight", at = @At("HEAD"), cancellable = true)
+    private void cbc_more_content$claymoreBallHeight(CallbackInfoReturnable<Double> cir) {
+        if (((ShrapnelBurst) (Object) this).getPersistentData().getBoolean(MineExplosionHandler.CLAYMORE_BURST_TAG)) {
+            cir.setReturnValue(MineExplosionHandler.CLAYMORE_BALL_SIZE);
         }
     }
 }

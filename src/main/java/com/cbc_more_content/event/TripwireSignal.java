@@ -29,18 +29,26 @@ public final class TripwireSignal {
     public static final int PULSE_TICKS = 20;
 
     private static final Map<Level, Map<BlockPos, Long>> LIVE = Collections.synchronizedMap(new WeakHashMap<>());
+    /**
+     * Live posts anywhere. Every redstone read in the world passes through {@link #strength},
+     * so with no wire parted it has to cost nothing, not a lock.
+     */
+    private static volatile int liveCount;
 
     private TripwireSignal() {}
 
     /** Marks a post live for {@link #PULSE_TICKS}, and tells its neighbours about it. */
     public static void pulse(ServerLevel level, BlockPos post) {
-        LIVE.computeIfAbsent(level, l -> new HashMap<>()).put(post.immutable(), level.getGameTime() + PULSE_TICKS);
+        Map<BlockPos, Long> live = LIVE.computeIfAbsent(level, l -> new HashMap<>());
+        if (live.put(post.immutable(), level.getGameTime() + PULSE_TICKS) == null) {
+            liveCount++;
+        }
         level.updateNeighborsAt(post, level.getBlockState(post).getBlock());
     }
 
     /** Redstone power at this position, 15 while the pulse lasts and 0 otherwise. */
     public static int strength(BlockGetter getter, BlockPos pos) {
-        if (!(getter instanceof Level level)) {
+        if (liveCount <= 0 || !(getter instanceof Level level)) {
             return 0;
         }
         Map<BlockPos, Long> live = LIVE.get(level);
@@ -70,6 +78,7 @@ public final class TripwireSignal {
             }
             BlockPos post = entry.getKey();
             it.remove();
+            liveCount--;
             if (level.isLoaded(post)) {
                 level.updateNeighborsAt(post, level.getBlockState(post).getBlock());
             }

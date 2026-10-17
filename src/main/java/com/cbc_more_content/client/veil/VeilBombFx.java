@@ -249,8 +249,8 @@ public final class VeilBombFx {
 
     private static final class ActiveLight {
         final BombFlashClient.Flash flash;
-        final PointLightData main = new PointLightData().setOcclusionEnabled(true);
-        final PointLightData sky = new PointLightData().setOcclusionEnabled(true);
+        final PointLightData main = new PointLightData().setOcclusionEnabled(WarnauticsClientConfig.bombLightShadows());
+        final PointLightData sky = new PointLightData().setOcclusionEnabled(WarnauticsClientConfig.bombLightShadows());
         LightRenderHandle<?> mainHandle;
         LightRenderHandle<?> skyHandle;
 

@@ -3,7 +3,6 @@ package com.cbc_more_content.mixin.compat.simulated;
 import com.cbc_more_content.block.ChainConnectorBlock;
 import dev.simulated_team.simulated.content.items.rope.RopeItem.RopeItem;
 import dev.simulated_team.simulated.index.SimDataComponents;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.context.UseOnContext;
 import org.spongepowered.asm.mixin.Mixin;
@@ -28,8 +27,8 @@ public abstract class ChainConnectorItemMixin {
                 stack.remove(SimDataComponents.ROPE_FIRST_CONNECTION);
             }
             if (player != null && !level.isClientSide) {
-                player.displayClientMessage(
-                        Component.translatable("message.cbc_more_content.chain_connector_only"), true);
+                com.cbc_more_content.ui.Notices.send(
+                        player, com.cbc_more_content.ui.UiTone.DANGER, "message.cbc_more_content.chain_connector_only");
             }
             ci.setReturnValue(InteractionResult.FAIL);
         }

@@ -3,9 +3,9 @@ package com.cbc_more_content.item;
 import com.cbc_more_content.damage.BombDamageSource;
 import com.cbc_more_content.effects.BombExplosionHandler;
 import com.cbc_more_content.registry.ModSounds;
+import com.cbc_more_content.ui.UiTone;
 import java.util.List;
 import javax.annotation.Nullable;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -141,8 +141,7 @@ public class BombVestItem extends ArmorItem {
     public void appendHoverText(
             ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         if (isLinked(stack)) {
-            tooltip.add(Component.translatable("tooltip.cbc_more_content.bomb_vest.armed")
-                    .withStyle(ChatFormatting.RED));
+            tooltip.add(UiTone.DANGER.text("tooltip.cbc_more_content.bomb_vest.armed"));
         }
     }
 }

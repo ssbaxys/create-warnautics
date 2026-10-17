@@ -2,12 +2,13 @@ package com.cbc_more_content.item;
 
 import com.cbc_more_content.block.CruiseMissileBlock;
 import com.cbc_more_content.block.CruiseMissileBlockEntity;
+import com.cbc_more_content.ui.Notices;
+import com.cbc_more_content.ui.UiTone;
 import dev.ryanhcode.sable.api.sublevel.SubLevelContainer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -56,22 +57,22 @@ public class TargetDesignatorItem extends Item {
                 int count = addBinding(context.getItemInHand(), body, missile.missileId(), level);
                 if (count < 0) {
                     if (context.getPlayer() != null) {
-                        context.getPlayer()
-                                .displayClientMessage(
-                                        Component.translatable("message.cbc_more_content.designator.full", MAX_GROUP)
-                                                .withStyle(ChatFormatting.RED),
-                                        true);
+                        Notices.send(
+                                context.getPlayer(),
+                                UiTone.DANGER,
+                                "message.cbc_more_content.designator.full",
+                                MAX_GROUP);
                     }
                     return InteractionResult.CONSUME;
                 }
                 missile.armRemote();
                 if (context.getPlayer() != null) {
-                    context.getPlayer()
-                            .displayClientMessage(
-                                    Component.translatable(
-                                                    "message.cbc_more_content.designator.bound", count, MAX_GROUP)
-                                            .withStyle(ChatFormatting.GREEN),
-                                    true);
+                    Notices.send(
+                            context.getPlayer(),
+                            UiTone.SUCCESS,
+                            "message.cbc_more_content.designator.bound",
+                            count,
+                            MAX_GROUP);
                 }
             }
             level.playSound(null, body, SoundEvents.UI_BUTTON_CLICK.value(), SoundSource.PLAYERS, 0.7f, 1.6f);
@@ -258,8 +259,7 @@ public class TargetDesignatorItem extends Item {
             ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         int count = boundCount(stack);
         if (count > 0) {
-            tooltip.add(Component.translatable("tooltip.cbc_more_content.target_designator.group", count, MAX_GROUP)
-                    .withStyle(ChatFormatting.AQUA));
+            tooltip.add(UiTone.ACCENT.text("tooltip.cbc_more_content.target_designator.group", count, MAX_GROUP));
         }
     }
 }

@@ -279,9 +279,17 @@ public class TripwireGameTests {
             var player = player(helper);
             click(player, local);
             helper.assertTrue(
-                    TripwireCoilItem.pendingPost(player.getMainHandItem()) == null
+                    local.equals(TripwireCoilItem.pendingPost(player.getMainHandItem()))
                             && player.getMainHandItem().getCount() == 2,
-                    "An occupied ship post cannot accept a duplicate wire");
+                    "A post that already carries a wire can start another");
+            click(player, a);
+            helper.assertTrue(
+                    TripwireCoilItem.pendingPost(player.getMainHandItem()) != null
+                            && player.getMainHandItem().getCount() == 2,
+                    "The same two posts cannot be joined twice");
+            click(player, local);
+            helper.assertTrue(
+                    TripwireCoilItem.pendingPost(player.getMainHandItem()) == null, "Clicking the first post drops it");
             helper.assertTrue(TripwireEntity.cutAt(level, local), "Cut mixed wire from ship post");
             helper.assertFalse(
                     TripwireEntity.occupied(level, a) || TripwireEntity.occupied(level, local), "Cut frees both posts");
@@ -311,5 +319,34 @@ public class TripwireGameTests {
             clean(level, ship);
             helper.succeed();
         });
+    }
+
+    @GameTest(template = "empty", batch = "tripwire_shared_post", timeoutTicks = 60)
+    public static void onePostCarriesSeveralWiresAndCuttersTakeThemOneAtATime(GameTestHelper helper) {
+        var level = helper.getLevel();
+        var hub = helper.absolutePos(new BlockPos(8, 8, 30));
+        var east = hub.east(5);
+        var north = hub.north(5);
+        for (var post : List.of(hub, east, north)) {
+            level.setBlockAndUpdate(post, Blocks.IRON_BLOCK.defaultBlockState());
+        }
+        var player = player(helper);
+        click(player, hub);
+        click(player, east);
+        click(player, hub);
+        click(player, north);
+        helper.assertTrue(
+                level.getEntitiesOfClass(TripwireEntity.class, new net.minecraft.world.phys.AABB(hub).inflate(8))
+                                .size()
+                        == 2,
+                "Two wires share the hub post");
+        helper.assertTrue(
+                TripwireEntity.linked(level, hub, east) && TripwireEntity.linked(level, north, hub),
+                "Both runs are tied");
+        helper.assertTrue(TripwireEntity.cutAt(level, hub), "First snip");
+        helper.assertTrue(TripwireEntity.occupied(level, hub), "One snip cuts one wire");
+        helper.assertTrue(TripwireEntity.cutAt(level, hub), "Second snip");
+        helper.assertFalse(TripwireEntity.occupied(level, hub), "Two snips clear the post");
+        helper.succeed();
     }
 }

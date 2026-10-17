@@ -2,11 +2,12 @@ package com.cbc_more_content.item;
 
 import com.cbc_more_content.compat.sable.TripwireGeometry;
 import com.cbc_more_content.entity.TripwireEntity;
+import com.cbc_more_content.ui.Notices;
+import com.cbc_more_content.ui.UiTone;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import javax.annotation.Nullable;
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -55,37 +56,42 @@ public class TripwireCoilItem extends Item {
         BlockPos first = pendingPost(stack);
 
         if (first == null) {
-            if (level instanceof ServerLevel server && TripwireEntity.occupied(server, pos)) {
-                say(player, "message.cbc_more_content.tripwire.occupied", ChatFormatting.RED);
+            if (level instanceof ServerLevel server && TripwireEntity.full(server, pos)) {
+                say(player, "message.cbc_more_content.tripwire.full", UiTone.DANGER);
                 return InteractionResult.CONSUME;
             }
             setPending(stack, level, pos);
             playTieSound(level, pos, 0.7f, 1.2f);
-            say(player, "message.cbc_more_content.tripwire.first", ChatFormatting.GRAY);
+            say(player, "message.cbc_more_content.tripwire.first", UiTone.MUTED);
             return InteractionResult.CONSUME;
         }
 
         if (first.equals(pos)) {
             clearPending(stack);
-            say(player, "message.cbc_more_content.tripwire.dropped", ChatFormatting.GRAY);
+            say(player, "message.cbc_more_content.tripwire.dropped", UiTone.MUTED);
             return InteractionResult.CONSUME;
         }
         Vec3 from = pendingPosition(stack, level);
         if (from == null || !TripwireEntity.canAnchor(level.getBlockState(first))) {
             clearPending(stack);
-            say(player, "message.cbc_more_content.tripwire.dropped", ChatFormatting.GRAY);
+            say(player, "message.cbc_more_content.tripwire.dropped", UiTone.MUTED);
             return InteractionResult.CONSUME;
         }
         // Straight-line distance, so a diagonal run is held to the same length as one
         // along an axis rather than quietly reaching half again as far.
         if (from.distanceTo(TripwireGeometry.position(level, pos)) > TripwireEntity.MAX_SPAN + 1.0E-4) {
-            say(player, "message.cbc_more_content.tripwire.too_far", ChatFormatting.RED);
+            say(player, "message.cbc_more_content.tripwire.too_far", UiTone.DANGER);
             return InteractionResult.CONSUME;
         }
-        if (level instanceof ServerLevel server
-                && (TripwireEntity.occupied(server, pos) || TripwireEntity.occupied(server, first))) {
-            say(player, "message.cbc_more_content.tripwire.occupied", ChatFormatting.RED);
-            return InteractionResult.CONSUME;
+        if (level instanceof ServerLevel server) {
+            if (TripwireEntity.linked(server, first, pos)) {
+                say(player, "message.cbc_more_content.tripwire.linked", UiTone.DANGER);
+                return InteractionResult.CONSUME;
+            }
+            if (TripwireEntity.full(server, pos) || TripwireEntity.full(server, first)) {
+                say(player, "message.cbc_more_content.tripwire.full", UiTone.DANGER);
+                return InteractionResult.CONSUME;
+            }
         }
 
         TripwireEntity wire = new TripwireEntity(level, first, pos);
@@ -95,7 +101,7 @@ public class TripwireCoilItem extends Item {
         }
         clearPending(stack);
         playTieSound(level, pos, 0.9f, 0.85f);
-        say(player, "message.cbc_more_content.tripwire.set", ChatFormatting.GREEN);
+        say(player, "message.cbc_more_content.tripwire.set", UiTone.SUCCESS);
         if (player == null || !player.getAbilities().instabuild) {
             stack.shrink(1);
         }
@@ -108,7 +114,7 @@ public class TripwireCoilItem extends Item {
         ItemStack stack = player.getItemInHand(hand);
         if (!level.isClientSide && player.isShiftKeyDown() && pendingPost(stack) != null) {
             clearPending(stack);
-            say(player, "message.cbc_more_content.tripwire.dropped", ChatFormatting.GRAY);
+            say(player, "message.cbc_more_content.tripwire.dropped", UiTone.MUTED);
         }
         return InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
     }
@@ -170,10 +176,8 @@ public class TripwireCoilItem extends Item {
         }
     }
 
-    private static void say(@Nullable Player player, String key, ChatFormatting colour) {
-        if (player != null) {
-            player.displayClientMessage(Component.translatable(key).withStyle(colour), true);
-        }
+    private static void say(@Nullable Player player, String key, UiTone tone) {
+        Notices.send(player, tone, key);
     }
 
     @Override
@@ -181,8 +185,7 @@ public class TripwireCoilItem extends Item {
             ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         BlockPos pending = pendingPost(stack);
         if (pending != null) {
-            tooltip.add(Component.translatable("tooltip.cbc_more_content.tripwire_coil.pending")
-                    .withStyle(ChatFormatting.GRAY));
+            tooltip.add(UiTone.ACCENT.text("tooltip.cbc_more_content.tripwire_coil.pending"));
         }
     }
 }

@@ -8,7 +8,6 @@ import com.cbc_more_content.item.WireCuttersItem;
 import com.cbc_more_content.siren.SirenSource;
 import com.cbc_more_content.util.ReflectiveDispatcher;
 import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -29,7 +28,7 @@ public final class ModNetworking {
     private ModNetworking() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        event.registrar("4")
+        event.registrar("5")
                 .playToServer(
                         Aim9SettingsPayload.TYPE, Aim9SettingsPayload.STREAM_CODEC, ModNetworking::handleAim9Settings)
                 .playToClient(BombFlashPayload.TYPE, BombFlashPayload.STREAM_CODEC, ModNetworking::handleClient)
@@ -71,7 +70,8 @@ public final class ModNetworking {
                         OpenControlPanelPayload.STREAM_CODEC,
                         ModNetworking::handleOpenControlPanel)
                 .playToServer(
-                        ControlPanelPayload.TYPE, ControlPanelPayload.STREAM_CODEC, ModNetworking::handleControlPanel);
+                        ControlPanelPayload.TYPE, ControlPanelPayload.STREAM_CODEC, ModNetworking::handleControlPanel)
+                .playToClient(NoticePayload.TYPE, NoticePayload.STREAM_CODEC, ModNetworking::handleNotice);
     }
 
     private static void handleConcussion(ConcussionPayload payload, IPayloadContext context) {
@@ -244,6 +244,10 @@ public final class ModNetworking {
     }
 
     /** The switchboard is opened by an operator who ran the command. */
+    private static void handleNotice(NoticePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> com.cbc_more_content.ui.Notices.show(payload));
+    }
+
     private static void handleOpenControlPanel(OpenControlPanelPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             ReflectiveDispatcher.invoke(
@@ -267,16 +271,12 @@ public final class ModNetworking {
             }
             com.cbc_more_content.settings.WarnauticsServerSettings.get(player.server)
                     .setCannonFx(payload.cannonFx());
-            player.displayClientMessage(
-                    Component.translatable(
-                                    payload.cannonFx()
-                                            ? "message.cbc_more_content.panel.cannon_fx_on"
-                                            : "message.cbc_more_content.panel.cannon_fx_off")
-                            .withStyle(
-                                    payload.cannonFx()
-                                            ? net.minecraft.ChatFormatting.GREEN
-                                            : net.minecraft.ChatFormatting.GRAY),
-                    true);
+            com.cbc_more_content.ui.Notices.send(
+                    player,
+                    payload.cannonFx() ? com.cbc_more_content.ui.UiTone.SUCCESS : com.cbc_more_content.ui.UiTone.MUTED,
+                    payload.cannonFx()
+                            ? "message.cbc_more_content.panel.cannon_fx_on"
+                            : "message.cbc_more_content.panel.cannon_fx_off");
         });
     }
 
@@ -448,10 +448,11 @@ public final class ModNetworking {
             }
             com.cbc_more_content.item.TargetDesignatorItem.removeLaunched(designator, fired);
             if (!fired.isEmpty()) {
-                player.displayClientMessage(
-                        Component.translatable("message.cbc_more_content.designator.fired", fired.size())
-                                .withStyle(net.minecraft.ChatFormatting.GREEN),
-                        true);
+                com.cbc_more_content.ui.Notices.send(
+                        player,
+                        com.cbc_more_content.ui.UiTone.SUCCESS,
+                        "message.cbc_more_content.designator.fired",
+                        fired.size());
             }
         });
     }

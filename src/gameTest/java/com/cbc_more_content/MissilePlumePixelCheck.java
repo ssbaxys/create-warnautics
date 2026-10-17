@@ -44,7 +44,16 @@ final class MissilePlumePixelCheck {
                     GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT);
                     GL11.glClearDepth(1);
                 }
-                VeilMissilePlume.render(matrix, perspective, i == 2 ? 2.4f : 1.3f, 1, 24, 140, 160, i == 0 ? 0 : 1);
+                VeilMissilePlume.render(
+                        matrix,
+                        perspective,
+                        i == 2 ? 2.4f : 1.3f,
+                        1,
+                        24,
+                        140,
+                        160,
+                        i == 0 ? VeilMissilePlume.BOOSTER : VeilMissilePlume.INTERCEPTOR,
+                        0);
                 target.bindRead();
                 try (NativeImage image = new NativeImage(512, 512, false)) {
                     image.downloadTexture(0, false);
@@ -184,7 +193,9 @@ final class MissilePlumePixelCheck {
                         dead ? 0 : 1,
                         i >= 15 ? 8 : i == 5 || i >= 11 ? 36 : 12,
                         i == 14 ? Float.MAX_VALUE : i >= 15 ? 500 : i >= 11 ? 240 : 140,
-                        i == 14 ? Float.MAX_VALUE : i >= 15 ? 512 : i >= 11 ? 256 : 160);
+                        i == 14 ? Float.MAX_VALUE : i >= 15 ? 512 : i >= 11 ? 256 : 160,
+                        VeilMissilePlume.BOOSTER,
+                        0);
                 if (i == 13) {
                     RenderSystem.setProjectionMatrix(worldProjection, VertexSorting.DISTANCE_TO_ORIGIN);
                     RenderSystem.setShaderFogStart(140);

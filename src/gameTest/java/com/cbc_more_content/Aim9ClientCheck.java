@@ -90,17 +90,21 @@ public final class Aim9ClientCheck {
                     throw new AssertionError("Settings key on tail did not open AIM-9 menu");
                 }
                 screen = opened;
-                double left = (screen.width - 300) / 2.0, top = (screen.height - 222) / 2.0;
+                int left = (screen.width - Aim9SettingsScreen.PANEL_WIDTH) / 2;
+                int top = (screen.height - Aim9SettingsScreen.PANEL_HEIGHT) / 2;
+                double column = left + Aim9SettingsScreen.COLUMN_X + Aim9SettingsScreen.COLUMN_W / 2.0;
                 if (be.enabled() != ENABLED[stage]) {
-                    screen.mouseClicked(left + 190, top + 59, 0);
+                    screen.mouseClicked(column, top + Aim9SettingsScreen.POWER_Y + 9, 0);
                 }
                 if (be.interceptCruise() != FILTER[stage]) {
-                    screen.mouseClicked(left + 190, top + 101, 0);
+                    screen.mouseClicked(column, top + Aim9SettingsScreen.CRUISE_Y + 9, 0);
                 }
-                double knob = left + 14 + 4 + (RANGES[stage] - 40) / 180.0 * 264;
-                screen.mouseClicked(left + 60, top + 169, 0);
-                screen.mouseDragged(knob, top + 169, 0, knob - left - 60, 0);
-                screen.mouseReleased(knob, top + 169, 0);
+                double track = top + Aim9SettingsScreen.SLIDER_Y + 18;
+                double start = left + Aim9SettingsScreen.SLIDER_X + 40;
+                double knob = Aim9SettingsScreen.sliderX(left, RANGES[stage]);
+                screen.mouseClicked(start, track, 0);
+                screen.mouseDragged(knob, track, 0, knob - start, 0);
+                screen.mouseReleased(knob, track, 0);
                 age = 0;
             }
             if (age == 10) {
@@ -108,7 +112,10 @@ public final class Aim9ClientCheck {
                 capture = true;
             }
             if (age > 12 && !capture) {
-                screen.mouseClicked((screen.width - 300) / 2.0 + 220, (screen.height - 222) / 2.0 + 203, 0);
+                screen.mouseClicked(
+                        Aim9SettingsScreen.applyX((screen.width - Aim9SettingsScreen.PANEL_WIDTH) / 2),
+                        Aim9SettingsScreen.footerCentreY((screen.height - Aim9SettingsScreen.PANEL_HEIGHT) / 2),
+                        0);
                 if (mc.screen != null) {
                     throw new AssertionError("Apply button did not submit AIM-9 settings");
                 }

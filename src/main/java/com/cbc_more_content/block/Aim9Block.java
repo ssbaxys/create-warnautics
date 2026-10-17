@@ -368,13 +368,49 @@ public class Aim9Block extends BaseEntityBlock implements SimpleWaterloggedBlock
             net.minecraft.server.level.ServerLevel level,
             BlockPos body,
             com.cbc_more_content.munitions.CruiseMissileProjectile target) {
+        return check(level, body, target) == Readiness.READY;
+    }
+
+    /** Why a rack would or would not launch at this target: the same tests the launch makes. */
+    public static Readiness check(
+            net.minecraft.server.level.ServerLevel level,
+            BlockPos body,
+            com.cbc_more_content.munitions.CruiseMissileProjectile target) {
+        Readiness sky = skyCheck(level, body);
+        if (sky != Readiness.READY) {
+            return sky;
+        }
         var frame = com.cbc_more_content.compat.SableDropCompat.resolveLaunch(
                 level, body.getCenter(), Vec3.ZERO, new Vec3(0, 1, 0));
         var ignored = java.util.Set.copyOf(
                 com.cbc_more_content.compat.AirframeMovement.cells(level, body, level.getBlockState(body)));
-        if (!com.cbc_more_content.compat.SableDropCompat.clearRay(
-                frame.level(), frame.pos(), target.position(), ignored)) {
-            return false;
+        Object carrier = com.cbc_more_content.compat.SableDropCompat.carrierOf(level, body);
+        // The seeker's view through its own ship does not matter: the round rises clear of
+        // the deck before it turns onto the target.
+        return com.cbc_more_content.compat.SableDropCompat.clearRay(
+                        frame.level(), frame.pos(), target.position(), ignored, carrier)
+                ? Readiness.READY
+                : Readiness.NO_SIGHT;
+    }
+
+    /** Whether the cold-launch climb is clear. Needs no target, so a rack can report it at any time. */
+    public static Readiness skyCheck(net.minecraft.server.level.ServerLevel level, BlockPos body) {
+        var frame = com.cbc_more_content.compat.SableDropCompat.resolveLaunch(
+                level, body.getCenter(), Vec3.ZERO, new Vec3(0, 1, 0));
+        var ignored = java.util.Set.copyOf(
+                com.cbc_more_content.compat.AirframeMovement.cells(level, body, level.getBlockState(body)));
+        Object carrier = com.cbc_more_content.compat.SableDropCompat.carrierOf(level, body);
+        if (carrier != null) {
+            // On a ship: the climb must clear the ship itself, tested in the ship's own
+            // block space, and the open world above it, without the ship in the way twice.
+            if (!com.cbc_more_content.compat.SableDropCompat.clearOfCarrier(
+                    level, carrier, body.getCenter(), 11, ignored)) {
+                return Readiness.SHIP_ABOVE;
+            }
+            return com.cbc_more_content.compat.SableDropCompat.clearRay(
+                            frame.level(), frame.pos(), frame.pos().add(0, 10.99, 0), ignored, carrier)
+                    ? Readiness.READY
+                    : Readiness.WORLD_ABOVE;
         }
         // Test the cold-launch path with the carrier's inherited motion. The five
         // rays leave clearance for fins instead of passing only a point through a slit.
@@ -384,10 +420,24 @@ public class Aim9Block extends BaseEntityBlock implements SimpleWaterloggedBlock
         }) {
             if (!com.cbc_more_content.compat.SableDropCompat.clearRay(
                     frame.level(), frame.pos().add(offset), end.add(offset), ignored)) {
-                return false;
+                return Readiness.WORLD_ABOVE;
             }
         }
-        return true;
+        return Readiness.READY;
+    }
+
+    /** What a switched-on rack is doing, shown on its settings panel. */
+    public enum Readiness {
+        /** Sky clear, watching. */
+        READY,
+        /** A target in range, but something stands between it and the seeker. */
+        NO_SIGHT,
+        /** Part of its own ship is over it: the round would leave straight into it. */
+        SHIP_ABOVE,
+        /** Terrain or a building over it. */
+        WORLD_ABOVE,
+        /** Standing in water. */
+        FLOODED
     }
 
     public enum Part implements StringRepresentable {

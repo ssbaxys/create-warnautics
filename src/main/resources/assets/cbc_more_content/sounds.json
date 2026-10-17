@@ -198,5 +198,32 @@
         "pitch": 1.0
       }
     ]
+  },
+  "cruise_missile_booster": {
+    "subtitle": "subtitles.cbc_more_content.cruise_missile_booster",
+    "sounds": [
+      {
+        "name": "cbc_more_content:cruise_missile_booster",
+        "stream": true
+      }
+    ]
+  },
+  "cruise_missile_turbofan": {
+    "subtitle": "subtitles.cbc_more_content.cruise_missile_turbofan",
+    "sounds": [
+      {
+        "name": "cbc_more_content:cruise_missile_turbofan",
+        "stream": true
+      }
+    ]
+  },
+  "cruise_missile_flyby": {
+    "subtitle": "subtitles.cbc_more_content.cruise_missile_flyby",
+    "sounds": [
+      {
+        "name": "cbc_more_content:cruise_missile_flyby",
+        "stream": false
+      }
+    ]
   }
 }

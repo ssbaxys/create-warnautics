@@ -1,30 +1,49 @@
 package com.cbc_more_content.client.gui;
 
 import com.cbc_more_content.block.Aim9BlockEntity;
+import com.cbc_more_content.client.gui.kit.Ui;
+import com.cbc_more_content.client.gui.kit.UiSlider;
+import com.cbc_more_content.client.gui.kit.UiSounds;
+import com.cbc_more_content.client.gui.kit.UiToggle;
+import com.cbc_more_content.client.gui.kit.WarnauticsScreen;
 import com.cbc_more_content.network.Aim9SettingsPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractSliderButton;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-/** A readable interceptor panel: preview, two switches and a keyboard-accessible range control. */
-public class Aim9SettingsScreen extends Screen {
-    public static final int PANEL_WIDTH = 300;
-    public static final int PANEL_HEIGHT = 222;
+/**
+ * The interceptor rack: a live scope on the left, the two switches that decide whether
+ * it fires and at what, and the acquisition radius under both.
+ */
+@OnlyIn(Dist.CLIENT)
+public class Aim9SettingsScreen extends WarnauticsScreen {
+    public static final int PANEL_WIDTH = 248;
+    public static final int PANEL_HEIGHT = 196;
+    /** Layout, public so the client check can operate the real controls. */
+    public static final int SCOPE = 92;
+
+    public static final int COLUMN_X = Ui.MARGIN + SCOPE + 8;
+    public static final int COLUMN_W = PANEL_WIDTH - COLUMN_X - Ui.MARGIN;
+    public static final int POWER_Y = 32;
+    public static final int CRUISE_Y = 66;
+    public static final int SLIDER_X = Ui.MARGIN;
+    public static final int SLIDER_Y = 126;
+    public static final int SLIDER_W = PANEL_WIDTH - Ui.MARGIN * 2;
+
     private final BlockPos pos;
     private boolean enabled;
     private boolean interceptCruise;
     private int range;
-    private int left, top;
-    private float age, glow;
+    private float glow;
+    private boolean sent;
 
     public Aim9SettingsScreen(BlockPos pos, boolean enabled, boolean interceptCruise, int range) {
-        super(Component.translatable("gui.cbc_more_content.aim9.title"));
+        super(Component.translatable("gui.cbc_more_content.aim9.title"), PANEL_WIDTH, PANEL_HEIGHT);
         this.pos = pos;
         this.enabled = enabled;
         this.interceptCruise = interceptCruise;
@@ -32,193 +51,198 @@ public class Aim9SettingsScreen extends Screen {
         this.glow = enabled ? 1 : 0;
     }
 
-    @Override
-    protected void init() {
-        left = (width - PANEL_WIDTH) / 2;
-        top = (height - PANEL_HEIGHT) / 2;
-        addRenderableWidget(new SwitchButton(left + 112, top + 49, "power", () -> enabled, () -> enabled = !enabled));
-        addRenderableWidget(new SwitchButton(
-                left + 112, top + 91, "cruise", () -> interceptCruise, () -> interceptCruise = !interceptCruise));
-        addRenderableWidget(new RangeSlider(left + 14, top + 159, 272));
-        addRenderableWidget(Button.builder(Component.translatable("gui.cbc_more_content.aim9.apply"), button -> {
-                    PacketDistributor.sendToServer(new Aim9SettingsPayload(pos, enabled, interceptCruise, range));
-                    onClose();
-                })
-                .bounds(left + 156, top + 193, 130, 20)
-                .build());
-        addRenderableWidget(Button.builder(Component.translatable("gui.cancel"), button -> onClose())
-                .bounds(left + 14, top + 193, 130, 20)
-                .build());
+    /** Applies the click point the check needs to land on a given radius. */
+    public static double sliderX(int left, int range) {
+        double t =
+                (range - Aim9BlockEntity.MIN_RANGE) / (double) (Aim9BlockEntity.MAX_RANGE - Aim9BlockEntity.MIN_RANGE);
+        return left + SLIDER_X + 3.5 + t * (SLIDER_W - 7);
     }
 
-    private static Component switchLabel(String label, boolean active) {
-        return Component.translatable(
-                "gui.cbc_more_content.aim9." + label,
-                Component.translatable("gui.cbc_more_content.aim9." + (active ? "on" : "off")));
+    @Override
+    protected void build() {
+        this.addRenderableWidget(new UiToggle(
+                this.x(COLUMN_X),
+                this.y(POWER_Y),
+                COLUMN_W,
+                () -> Component.translatable("gui.cbc_more_content.aim9.power_label"),
+                () -> this.enabled,
+                () -> this.enabled = !this.enabled));
+        this.addRenderableWidget(new UiToggle(
+                this.x(COLUMN_X),
+                this.y(CRUISE_Y),
+                COLUMN_W,
+                () -> Component.translatable("gui.cbc_more_content.aim9.cruise_label"),
+                () -> this.interceptCruise,
+                () -> this.interceptCruise = !this.interceptCruise));
+        this.addRenderableWidget(new UiSlider(
+                this.x(SLIDER_X),
+                this.y(SLIDER_Y),
+                SLIDER_W,
+                Component.translatable("gui.cbc_more_content.aim9.radius_label"),
+                Aim9BlockEntity.MAX_RANGE - Aim9BlockEntity.MIN_RANGE,
+                6,
+                () -> this.range - Aim9BlockEntity.MIN_RANGE,
+                step -> this.range = Aim9BlockEntity.MIN_RANGE + step,
+                step -> Component.translatable("gui.cbc_more_content.unit.blocks", Aim9BlockEntity.MIN_RANGE + step)));
+        this.addCancelApply(Component.translatable("gui.cbc_more_content.aim9.apply"), this::apply);
+    }
+
+    /** Footer button centres, for the client check. */
+    public static double applyX(int left) {
+        return left + PANEL_WIDTH - Ui.MARGIN - 39;
+    }
+
+    public static double footerCentreY(int top) {
+        return top + PANEL_HEIGHT - Ui.STATUS_H - 6 - Ui.BUTTON_H - 5 + Ui.BUTTON_H / 2.0;
     }
 
     @Override
     public void tick() {
-        age++;
-        glow = Mth.lerp(.2f, glow, enabled && interceptCruise ? 1 : 0);
+        super.tick();
+        this.glow = Mth.lerp(.2f, this.glow, this.enabled && this.interceptCruise ? 1 : 0);
         var mc = Minecraft.getInstance();
-        if (mc.level == null || !(mc.level.getBlockEntity(pos) instanceof Aim9BlockEntity be) || !be.isLiveAirframe()) {
-            onClose();
+        if (mc.level == null
+                || !(mc.level.getBlockEntity(this.pos) instanceof Aim9BlockEntity be)
+                || !be.isLiveAirframe()) {
+            this.onClose();
         }
     }
 
     @Override
-    public void renderBackground(GuiGraphics graphics, int x, int y, float partial) {
-        int alpha = (int) (100 * Mth.clamp((age + partial) / 6, 0, 1));
-        graphics.fillGradient(0, 0, width, height, alpha << 24 | 0x10151C, alpha << 24 | 0x04070C);
-    }
-
-    @Override
-    public void render(GuiGraphics g, int x, int y, float partial) {
-        renderBackground(g, x, y, partial);
-        g.fill(left - 2, top - 2, left + PANEL_WIDTH + 2, top + PANEL_HEIGHT + 2, 0xFF97785A);
-        g.fill(left, top, left + PANEL_WIDTH, top + PANEL_HEIGHT, 0xFF15212B);
-        g.fillGradient(left + 2, top + 2, left + PANEL_WIDTH - 2, top + 30, 0xFF354B57, 0xFF24333D);
-        g.drawString(font, title, left + 14, top + 10, 0xF3E5C9, false);
-        g.drawString(
-                font,
+    protected void renderContent(GuiGraphics g, int mouseX, int mouseY, float partialTick, float now) {
+        Ui.caseLabel(
+                g,
+                this.font,
                 Component.translatable("gui.cbc_more_content.aim9.automatic"),
-                left + 112,
-                top + 36,
-                0x92ADAF,
-                false);
-        g.drawString(
-                font,
+                this.x(COLUMN_X),
+                this.y(POWER_Y - 10),
+                COLUMN_W);
+        Ui.caseLabel(
+                g,
+                this.font,
                 Component.translatable("gui.cbc_more_content.aim9.targets"),
-                left + 112,
-                top + 78,
-                0x92ADAF,
-                false);
-        g.drawWordWrap(
-                font, Component.translatable("gui.cbc_more_content.aim9.hint"), left + 112, top + 119, 174, 0xBDC4BA);
-        g.fill(left + 14, top + 143, left + 286, top + 144, 0xFF425158);
-        g.drawString(
-                font,
-                Component.translatable("gui.cbc_more_content.aim9.radius", range),
-                left + 14,
-                top + 148,
-                0xF3E5C9,
-                false);
-        preview(g, partial);
-        super.render(g, x, y, partial);
+                this.x(COLUMN_X),
+                this.y(CRUISE_Y - 10),
+                COLUMN_W);
+        Ui.paragraph(
+                g,
+                this.font,
+                Component.translatable("gui.cbc_more_content.aim9.hint"),
+                this.x(COLUMN_X),
+                this.y(CRUISE_Y + Ui.ROW_H + 5),
+                COLUMN_W,
+                3,
+                Ui.TEXT,
+                true);
+        this.scope(g, now);
     }
 
-    private void preview(GuiGraphics g, float partial) {
-        int cx = left + 58, cy = top + 86;
-        g.fill(left + 13, top + 38, left + 103, top + 137, 0xFF0B141C);
-        for (int radius : new int[] {15, 29, 41}) {
+    /** The scope: range rings, a sweeping beam, the rack in the centre and a contact. */
+    private void scope(GuiGraphics g, float now) {
+        int x0 = this.x(Ui.MARGIN);
+        int y0 = this.y(this.contentTop());
+        Ui.well(g, x0, y0, SCOPE, SCOPE);
+        int cx = x0 + SCOPE / 2;
+        int cy = y0 + SCOPE / 2 - 4;
+        boolean live = this.enabled;
+        int ring = live ? Ui.PHOSPHOR_DIM : Ui.WELL_LINE;
+        for (int radius : new int[] {13, 25, 37}) {
             for (int i = 0; i < 96; i++) {
                 double angle = i * Math.PI * 2 / 96;
-                int px = cx + (int) (Math.cos(angle) * radius);
-                int py = cy + (int) (Math.sin(angle) * radius);
-                g.fill(px, py, px + 1, py + 1, 0xFF344A4D);
+                int px = cx + (int) Math.round(Math.cos(angle) * radius);
+                int py = cy + (int) Math.round(Math.sin(angle) * radius);
+                g.fill(px, py, px + 1, py + 1, ring);
             }
         }
-        double sweep = (age + partial) * .045;
-        for (int i = 0; i < 40; i++) {
-            int px = cx + (int) (Math.cos(sweep) * i), py = cy + (int) (Math.sin(sweep) * i);
-            g.fill(px, py, px + 1, py + 1, 0xFF3F655F);
+        g.fill(cx - 37, cy, cx + 38, cy + 1, ring);
+        g.fill(cx, cy - 37, cx + 1, cy + 38, ring);
+        if (live) {
+            // The beam leaves a fading trail behind it, the way a phosphor scope does.
+            double sweep = now * .06;
+            for (int trail = 0; trail < 10; trail++) {
+                double angle = sweep - trail * .05;
+                int colour = Ui.withAlpha(Ui.PHOSPHOR, (1 - trail / 10f) * .8f);
+                for (int i = 2; i < 38; i++) {
+                    int px = cx + (int) Math.round(Math.cos(angle) * i);
+                    int py = cy + (int) Math.round(Math.sin(angle) * i);
+                    g.fill(px, py, px + 1, py + 1, colour);
+                }
+            }
         }
-        int green = Mth.color(.28f + .22f * glow, .38f + .4f * glow, .37f + .22f * glow) | 0xFF000000;
-        g.fill(cx - 2, cy - 7, cx + 2, cy + 5, 0xFFEAD9B7);
-        g.fill(cx - 5, cy + 2, cx + 5, cy + 5, 0xFF97785A);
-        int tx = cx + 23, ty = cy - 19;
-        g.fill(tx - 3, ty - 2, tx + 4, ty + 1, green);
-        g.fill(tx - 1, ty - 4, tx + 1, ty + 3, green);
-        g.drawCenteredString(
-                font,
-                Component.translatable(
-                        "gui.cbc_more_content.aim9." + (enabled && interceptCruise ? "ready" : "standby")),
+        // The rack itself, in brass.
+        g.fill(cx - 1, cy - 4, cx + 2, cy + 4, Ui.BRASS_LIGHT);
+        g.fill(cx - 3, cy + 2, cx + 4, cy + 4, Ui.BRASS);
+        // A contact, lit only when the rack would actually engage it.
+        int contact = Ui.mix(Ui.WELL_LINE, Ui.AMBER, this.glow);
+        int tx = cx + 19;
+        int ty = cy - 15;
+        g.fill(tx - 2, ty - 1, tx + 3, ty + 2, contact);
+        g.fill(tx - 1, ty - 2, tx + 2, ty + 3, contact);
+        Component state = Component.translatable(
+                "gui.cbc_more_content.aim9." + (this.enabled && this.interceptCruise ? "ready" : "standby"));
+        Ui.fitCentered(
+                g,
+                this.font,
+                state,
                 cx,
-                top + 124,
-                green & 0xFFFFFF);
+                y0 + SCOPE - 11,
+                SCOPE - 6,
+                this.enabled && this.interceptCruise ? Ui.PHOSPHOR : Ui.TEXT_DIM,
+                false);
+    }
+
+    /** What the rack itself last reported, so a silent rack says why it is silent. */
+    private com.cbc_more_content.block.Aim9Block.Readiness readiness() {
+        var mc = Minecraft.getInstance();
+        return mc.level != null && mc.level.getBlockEntity(this.pos) instanceof Aim9BlockEntity be
+                ? be.readiness()
+                : com.cbc_more_content.block.Aim9Block.Readiness.READY;
     }
 
     @Override
-    public boolean isPauseScreen() {
-        return false;
+    protected Component status() {
+        if (!this.enabled) {
+            return Component.translatable("gui.cbc_more_content.aim9.status.off");
+        }
+        var readiness = this.readiness();
+        if (readiness != com.cbc_more_content.block.Aim9Block.Readiness.READY) {
+            return Component.translatable(
+                    "gui.cbc_more_content.aim9.status." + readiness.name().toLowerCase(java.util.Locale.ROOT));
+        }
+        return Component.translatable(
+                this.interceptCruise
+                        ? "gui.cbc_more_content.aim9.status.live"
+                        : "gui.cbc_more_content.aim9.status.no_targets",
+                this.range);
     }
 
-    private final class SwitchButton extends Button {
-        private final String label;
-        private final java.util.function.BooleanSupplier state;
-        private float progress;
-        private long previousFrameNanos;
-
-        SwitchButton(int x, int y, String label, java.util.function.BooleanSupplier state, Runnable toggle) {
-            super(
-                    x,
-                    y,
-                    174,
-                    22,
-                    switchLabel(label, state.getAsBoolean()),
-                    button -> {
-                        toggle.run();
-                        button.setMessage(switchLabel(label, state.getAsBoolean()));
-                    },
-                    DEFAULT_NARRATION);
-            this.label = label;
-            this.state = state;
-            progress = state.getAsBoolean() ? 1 : 0;
+    @Override
+    protected int statusColour() {
+        if (this.enabled && this.readiness() != com.cbc_more_content.block.Aim9Block.Readiness.READY) {
+            return Ui.RED;
         }
-
-        @Override
-        public void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partial) {
-            long now = System.nanoTime();
-            double seconds = previousFrameNanos == 0 ? 1.0 / 60 : Math.min(.1, (now - previousFrameNanos) * 1e-9);
-            previousFrameNanos = now;
-            float smoothing = 1 - (float) Math.exp(-seconds / .08);
-            progress = Mth.lerp(smoothing, progress, state.getAsBoolean() ? 1 : 0);
-            int x = getX(), y = getY();
-            g.fill(x, y, x + width, y + height, isHoveredOrFocused() ? 0xFFAD9874 : 0xFF4B5E67);
-            g.fill(x + 1, y + 1, x + width - 1, y + height - 1, 0xFF1A2A35);
-            g.drawString(
-                    font,
-                    Component.translatable("gui.cbc_more_content.aim9." + label + "_label"),
-                    x + 7,
-                    y + 7,
-                    state.getAsBoolean() ? 0xE8E1CF : 0x93A1A6,
-                    false);
-            int trackX = x + width - 41;
-            g.fill(trackX, y + 5, trackX + 33, y + 17, state.getAsBoolean() ? 0xFF497E6C : 0xFF0C151C);
-            int knobX = trackX + 2 + Math.round(progress * 19);
-            g.fill(knobX, y + 6, knobX + 10, y + 16, 0xFFE4D7B8);
-        }
+        return this.enabled ? Ui.PHOSPHOR : Ui.CONTROL;
     }
 
-    private final class RangeSlider extends AbstractSliderButton {
-        RangeSlider(int x, int y, int width) {
-            super(x, y, width, 20, Component.empty(), (range - Aim9BlockEntity.MIN_RANGE) / 180.0);
-            updateMessage();
-        }
+    @Override
+    protected int lampColour() {
+        return this.enabled ? Ui.GREEN : Ui.CONTROL;
+    }
 
-        @Override
-        protected void updateMessage() {
-            setMessage(Component.translatable("gui.cbc_more_content.aim9.radius", range));
-        }
+    @Override
+    protected boolean primaryAction() {
+        this.apply();
+        return true;
+    }
 
-        @Override
-        protected void applyValue() {
-            range = Aim9BlockEntity.MIN_RANGE + (int) Math.round(value * 180);
+    private void apply() {
+        if (this.sent) {
+            return;
         }
-
-        @Override
-        public void renderWidget(GuiGraphics g, int x, int y, float partial) {
-            int knob = getX() + 4 + (int) Math.round(value * (width - 8));
-            g.fill(getX(), getY() + 8, getX() + width, getY() + 11, 0xFF081119);
-            g.fill(getX(), getY() + 8, knob, getY() + 11, 0xFF729E90);
-            for (int i = 0; i <= 6; i++) {
-                int tick = getX() + i * (width - 1) / 6;
-                g.fill(tick, getY() + 12, tick + 1, getY() + 15, 0xFF465963);
-            }
-            g.fill(knob - 4, getY() + 4, knob + 4, getY() + 16, isHoveredOrFocused() ? 0xFFF4E6C5 : 0xFFC5B593);
-            g.drawString(font, "40", getX(), getY() + 20, 0x829399, false);
-            g.drawString(font, "220", getX() + width - font.width("220"), getY() + 20, 0x829399, false);
-        }
+        this.sent = true;
+        PacketDistributor.sendToServer(
+                new Aim9SettingsPayload(this.pos, this.enabled, this.interceptCruise, this.range));
+        UiSounds.confirm();
+        this.onClose();
     }
 }

@@ -224,6 +224,19 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
         systemProperty 'neoforge.gameTestServer', 'true'
         programArguments.addAll '--mixin', 'cbc_more_content.gametest.mixins.json'
     }
+    // Detonation cost measurement, kept out of the regular suites. -Pjfr records a profile.
+    neoForge.runs.register('timingTest') {
+        type = 'gameTestServer'
+        logLevel = org.slf4j.event.Level.INFO
+        sourceSet = sourceSets.gameTest
+        gameDirectory = file("build/timing-tests/${System.currentTimeMillis()}")
+        systemProperty 'neoforge.enabledGameTestNamespaces', 'warnautics_timing'
+        systemProperty 'neoforge.gameTestServer', 'true'
+        programArguments.addAll '--mixin', 'cbc_more_content.gametest.mixins.json'
+        if (providers.gradleProperty('jfr').isPresent()) {
+            jvmArguments.add("-XX:StartFlightRecording=filename=${file('build/timing.jfr')},settings=profile,dumponexit=true")
+        }
+    }
     neoForge.runs.register('aim9Test') {
         type = 'gameTestServer'
         logLevel = org.slf4j.event.Level.INFO
@@ -275,6 +288,64 @@ if (providers.gradleProperty('seaMineTests').isPresent()) {
             if (!aim9.exists() || !aim9.getText('UTF-8').startsWith('PASS')) {
                 throw new GradleException("AIM-9 client check failed: ${aim9}")
             }
+        }
+    }
+    def stallCheckDirectory = file("build/stall-check/${System.currentTimeMillis()}")
+    neoForge.runs.register('stallCheck') {
+        type = 'client'
+        logLevel = org.slf4j.event.Level.INFO
+        sourceSet = sourceSets.gameTest
+        gameDirectory = stallCheckDirectory
+        systemProperty 'warnautics.stallCheck', 'true'
+        jvmArguments.addAll '-Xmx3G', '-XX:ActiveProcessorCount=4'
+        programArguments.addAll '--width', '960', '--height', '720'
+    }
+    tasks.matching { it.name == 'runStallCheck' }.configureEach {
+        doLast {
+            def result = new File(stallCheckDirectory, 'stall-check.txt')
+            if (!result.exists() || !result.getText('UTF-8').startsWith('DONE')) {
+                throw new GradleException("Detonation stall check did not finish: ${result}")
+            }
+            println result.getText('UTF-8')
+        }
+    }
+    def uiGalleryDirectory = file("build/ui-gallery/${System.currentTimeMillis()}")
+    neoForge.runs.register('uiGallery') {
+        type = 'client'
+        logLevel = org.slf4j.event.Level.INFO
+        sourceSet = sourceSets.gameTest
+        gameDirectory = uiGalleryDirectory
+        systemProperty 'warnautics.uiGallery', 'true'
+        jvmArguments.addAll '-Xmx3G', '-XX:ActiveProcessorCount=4'
+        programArguments.addAll '--width', '960', '--height', '540'
+    }
+    tasks.matching { it.name == 'runUiGallery' }.configureEach {
+        doLast {
+            def result = new File(uiGalleryDirectory, 'ui-gallery.txt')
+            if (!result.exists() || !result.getText('UTF-8').startsWith('PASS')) {
+                throw new GradleException("UI gallery failed: ${result}")
+            }
+            println "UI gallery: ${new File(uiGalleryDirectory, 'ui-gallery')}"
+        }
+    }
+    def flightFxDirectory = file("build/flight-fx/${System.currentTimeMillis()}")
+    neoForge.runs.register('flightFx') {
+        type = 'client'
+        logLevel = org.slf4j.event.Level.INFO
+        sourceSet = sourceSets.gameTest
+        gameDirectory = flightFxDirectory
+        systemProperty 'warnautics.flightFx', 'true'
+        jvmArguments.addAll '-Xmx3G', '-XX:ActiveProcessorCount=4'
+        programArguments.addAll '--width', '960', '--height', '540'
+    }
+    tasks.matching { it.name == 'runFlightFx' }.configureEach {
+        doLast {
+            def result = new File(flightFxDirectory, 'flight-fx.txt')
+            if (!result.exists() || !result.getText('UTF-8').startsWith('PASS')) {
+                throw new GradleException("Flight FX check failed: ${result}")
+            }
+            println result.getText('UTF-8')
+            println "Flight FX frames: ${new File(flightFxDirectory, 'flight-fx')}"
         }
     }
     def blastFxDirectory = file("build/blast-fx-check/${System.currentTimeMillis()}")

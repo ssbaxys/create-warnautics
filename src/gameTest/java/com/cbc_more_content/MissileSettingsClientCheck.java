@@ -81,7 +81,14 @@ public final class MissileSettingsClientCheck {
                 mc.setScreen(screen);
                 profile = (completed + 1) % 3;
                 if (!screen.mouseClicked(
-                        (screen.width - 252) / 2.0 + 9 + profile * 80 + 35, (screen.height - 204) / 2.0 + 70, 0)) {
+                        (screen.width - MissileTargetScreen.PANEL_W) / 2
+                                + MissileTargetScreen.PROFILE_X
+                                + profile * (MissileTargetScreen.PROFILE_W + MissileTargetScreen.PROFILE_GAP)
+                                + MissileTargetScreen.PROFILE_W / 2.0,
+                        (screen.height - MissileTargetScreen.PANEL_H) / 2
+                                + MissileTargetScreen.PROFILE_Y
+                                + MissileTargetScreen.PROFILE_H / 2.0,
+                        0)) {
                     throw new IllegalStateException("Trajectory card did not accept the click");
                 }
                 age = 0;
@@ -91,7 +98,9 @@ public final class MissileSettingsClientCheck {
                 capture = true;
             }
             if (age >= 14 && !capture) {
-                screen.mouseClicked((screen.width - 252) / 2.0 + 126, (screen.height - 204) / 2.0 + 176, 0);
+                int left = (screen.width - MissileTargetScreen.PANEL_W) / 2;
+                int top = (screen.height - MissileTargetScreen.PANEL_H) / 2;
+                screen.mouseClicked(MissileTargetScreen.confirmX(left), MissileTargetScreen.confirmY(top), 0);
                 if (mc.screen != null) {
                     throw new IllegalStateException("Confirm did not submit settings");
                 }

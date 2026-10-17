@@ -19,19 +19,19 @@
       "model": "cbc_more_content:block/cruise_missile_empty"
     },
     "facing=west,part=body": {
-      "model": "cbc_more_content:block/cruise_missile"
-    },
-    "facing=north,part=body": {
       "model": "cbc_more_content:block/cruise_missile",
       "y": 90
     },
-    "facing=east,part=body": {
+    "facing=north,part=body": {
       "model": "cbc_more_content:block/cruise_missile",
       "y": 180
     },
-    "facing=south,part=body": {
+    "facing=east,part=body": {
       "model": "cbc_more_content:block/cruise_missile",
       "y": 270
+    },
+    "facing=south,part=body": {
+      "model": "cbc_more_content:block/cruise_missile"
     },
     "facing=up,part=body": {
       "model": "cbc_more_content:block/cruise_missile_empty"

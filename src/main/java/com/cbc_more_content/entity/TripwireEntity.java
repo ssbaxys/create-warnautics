@@ -413,6 +413,9 @@ public class TripwireEntity extends Entity {
         TripwireSignal.pulse(server, this.entityData.get(ANCHOR_B));
         server.playSound(null, this.blockPosition(), SoundEvents.LEASH_KNOT_BREAK, SoundSource.BLOCKS, 1.0f, 1.6f);
         this.snap();
+        // A wire tied straight to a claymore pulls its firing device.
+        com.cbc_more_content.block.ClaymoreBlock.tripped(server, this.entityData.get(ANCHOR_A));
+        com.cbc_more_content.block.ClaymoreBlock.tripped(server, this.entityData.get(ANCHOR_B));
     }
 
     /**
@@ -426,30 +429,52 @@ public class TripwireEntity extends Entity {
         this.discard();
     }
 
-    /** Cuts any wire tied off at {@code post}. Called by the wire cutters. */
+    /** How many wires one post can take: enough for a fan of trip lines, not a hairball. */
+    public static final int MAX_WIRES_PER_POST = 4;
+
+    /**
+     * Cuts one wire tied off at {@code post} per snip, newest first, so a post carrying
+     * several can be cleared a wire at a time. Called by the wire cutters.
+     */
     public static boolean cutAt(ServerLevel server, BlockPos post) {
-        Vec3 at = TripwireGeometry.position(server, post);
-        AABB around = new AABB(at, at).inflate(MAX_SPAN + 1);
-        boolean cut = false;
-        for (TripwireEntity wire : server.getEntitiesOfClass(TripwireEntity.class, around)) {
-            if (post.equals(wire.entityData.get(ANCHOR_A)) || post.equals(wire.entityData.get(ANCHOR_B))) {
-                wire.snap();
-                cut = true;
-            }
+        var wires = wiresAt(server, post);
+        if (wires.isEmpty()) {
+            return false;
         }
-        return cut;
+        wires.stream()
+                .max(java.util.Comparator.comparingInt(wire -> -wire.tickCount))
+                .ifPresent(TripwireEntity::snap);
+        return true;
     }
 
-    /** True if a wire is already tied off at this post, so one post carries one wire. */
+    /** True if any wire is tied off at this post. */
     public static boolean occupied(ServerLevel server, BlockPos post) {
-        Vec3 at = TripwireGeometry.position(server, post);
-        AABB around = new AABB(at, at).inflate(MAX_SPAN + 1);
-        for (TripwireEntity wire : server.getEntitiesOfClass(TripwireEntity.class, around)) {
-            if (post.equals(wire.entityData.get(ANCHOR_A)) || post.equals(wire.entityData.get(ANCHOR_B))) {
+        return !wiresAt(server, post).isEmpty();
+    }
+
+    /** True if this post already carries as many wires as it can. */
+    public static boolean full(ServerLevel server, BlockPos post) {
+        return wiresAt(server, post).size() >= MAX_WIRES_PER_POST;
+    }
+
+    /** True if these two posts are already joined by a wire, in either direction. */
+    public static boolean linked(ServerLevel server, BlockPos a, BlockPos b) {
+        for (TripwireEntity wire : wiresAt(server, a)) {
+            if (b.equals(wire.entityData.get(ANCHOR_A)) || b.equals(wire.entityData.get(ANCHOR_B))) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static java.util.List<TripwireEntity> wiresAt(ServerLevel server, BlockPos post) {
+        Vec3 at = TripwireGeometry.position(server, post);
+        AABB around = new AABB(at, at).inflate(MAX_SPAN + 1);
+        return server.getEntitiesOfClass(
+                TripwireEntity.class,
+                around,
+                wire -> wire.isAlive()
+                        && (post.equals(wire.entityData.get(ANCHOR_A)) || post.equals(wire.entityData.get(ANCHOR_B))));
     }
 
     // —— persistence ——

@@ -86,15 +86,9 @@ public final class WarnauticsExplosion extends CustomExplosion.Impl {
                     server, center(), scarRadius, BlastScorch.SCAR_STRENGTH, getToBlow(), scarBudget, seed);
             int available = cap - surfaceChanges.size();
             if (getToBlow().size() > available) {
-                getToBlow().subList(available, getToBlow().size()).clear();
-                surfaceChanges = BlastScorch.gather(
-                        server,
-                        center(),
-                        scarRadius,
-                        BlastScorch.SCAR_STRENGTH,
-                        getToBlow(),
-                        Math.min(scarBudget, cap - getToBlow().size()),
-                        seed);
+                // Trim the outermost crater cells instead of planning the scars a second
+                // time: a scar on ground that keeps its cover is refused by Change.apply.
+                getToBlow().subList(Math.max(0, available), getToBlow().size()).clear();
             }
             getToBlow().addAll(surfaceChanges.keySet());
         }
@@ -103,7 +97,11 @@ public final class WarnauticsExplosion extends CustomExplosion.Impl {
                 server.getEntities((Entity) null, new AABB(center(), center()).inflate(reach), Entity::isAlive));
         var protectedBlocks = new java.util.HashSet<>(getToBlow());
         NeoForge.EVENT_BUS.post(new ExplosionEvent.Detonate(server, this, affectedEntities));
-        protectedBlocks.removeAll(getToBlow());
+        // HashSet.removeAll(List) falls back to List.contains when the set is larger, which
+        // made this one line quadratic in the crater size. Remove the survivors one by one.
+        for (var pos : getToBlow()) {
+            protectedBlocks.remove(pos);
+        }
         impulses.apply(protectedBlocks);
     }
 

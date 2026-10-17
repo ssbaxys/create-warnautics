@@ -21,6 +21,10 @@ public final class WarnauticsConfig {
     public static final ModConfigSpec.DoubleValue BLAST_FX_SCALE;
     /** Multiplier on the arc a bomb is pushed onto when it leaves the rack. */
     public static final ModConfigSpec.DoubleValue RELEASE_IMPULSE;
+    /** Powered flight time of a cruise missile, in seconds. */
+    public static final ModConfigSpec.IntValue CRUISE_FUEL_SECONDS;
+    /** Whether cruise missiles hug the terrain between launch and terminal approach. */
+    public static final ModConfigSpec.BooleanValue CRUISE_TERRAIN_FOLLOWING;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -62,6 +66,17 @@ public final class WarnauticsConfig {
                 .defineInRange("releaseImpulse", 1.0D, 0.0D, 3.0D);
         builder.pop();
 
+        builder.comment("Create Warnautics — cruise missile").push("cruiseMissile");
+        CRUISE_FUEL_SECONDS = builder.comment(
+                        "Sustainer fuel in seconds of powered flight. Range is roughly",
+                        "fuel x 80 blocks for the direct profile; arc and weave burn faster.")
+                .defineInRange("fuelSeconds", 24, 5, 120);
+        CRUISE_TERRAIN_FOLLOWING = builder.comment(
+                        "Fly low over the ground and the sea (terrain following) during cruise.",
+                        "When off, the missile flies a straight line at its launch altitude.")
+                .define("terrainFollowing", true);
+        builder.pop();
+
         SPEC = builder.build();
     }
 
@@ -89,5 +104,13 @@ public final class WarnauticsConfig {
 
     public static double releaseImpulse() {
         return SPEC.isLoaded() ? RELEASE_IMPULSE.get() : 1.0D;
+    }
+
+    public static int cruiseFuelTicks() {
+        return (SPEC.isLoaded() ? CRUISE_FUEL_SECONDS.get() : 24) * 20;
+    }
+
+    public static boolean cruiseTerrainFollowing() {
+        return !SPEC.isLoaded() || CRUISE_TERRAIN_FOLLOWING.get();
     }
 }

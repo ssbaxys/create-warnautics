@@ -55,7 +55,10 @@ public final class VeilMissileFx {
             }
             if (tracked == null) {
                 var light = new PointLightData()
-                        .setColor(1f, .66f, .29f)
+                        .setColor(
+                                com.cbc_more_content.config.WarnauticsClientConfig.plasmaPlume() ? .72f : 1f,
+                                com.cbc_more_content.config.WarnauticsClientConfig.plasmaPlume() ? .55f : .66f,
+                                com.cbc_more_content.config.WarnauticsClientConfig.plasmaPlume() ? 1f : .29f)
                         .setRadius(RADIUS)
                         .setBrightness(strength);
                 light.setPosition(nozzle.x, nozzle.y, nozzle.z);

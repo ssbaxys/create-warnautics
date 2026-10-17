@@ -41,6 +41,14 @@ public final class ModSounds {
     /** Sustained engine note while the missile is under power. */
     public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_MISSILE_ENGINE =
             register("cruise_missile_engine");
+    /** Solid booster burning, looped by the client while the missile is in its boost phase. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_MISSILE_BOOSTER =
+            register("cruise_missile_booster");
+    /** Turbofan sustainer, looped by the client for the cruise. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_MISSILE_TURBOFAN =
+            register("cruise_missile_turbofan");
+    /** A close pass overhead. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_MISSILE_FLYBY = register("cruise_missile_flyby");
     /** Air-raid post, close enough to hear the wail itself. */
     public static final DeferredHolder<SoundEvent, SoundEvent> SIREN = register("siren");
     /** The same post from a long way off: the edge rolled off, only the swell left. */

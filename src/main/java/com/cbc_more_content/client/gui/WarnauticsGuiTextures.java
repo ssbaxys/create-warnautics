@@ -7,7 +7,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
 /**
- * Sprite table for the Warnautics screens.
+ * Sprite table for the authored parts of the Warnautics screens.
  * <p>
  * Structured after Simulated's {@code SimGUITextures}: one enum entry per sprite,
  * carrying its atlas offset and size, so screen code never repeats blit coordinates.
@@ -15,17 +15,10 @@ import net.neoforged.api.distmarker.OnlyIn;
  */
 @OnlyIn(Dist.CLIENT)
 public enum WarnauticsGuiTextures {
-    // Coordinates read off the authored atlas rather than assumed: the panel occupies
-    // the first band, the two knob states and the two detent dots sit in the second.
-    BOMB_SETTINGS("bomb_settings", 0, 0, 176, 95),
-    /** Own panel: the bomb sheet has a round dial well the slider cannot sit in. */
-    C4_SETTINGS("c4_settings", 0, 0, 176, 95),
-    /** Same frame, empty body — for screens that draw their own furniture. */
-    C4_PANEL("c4_panel", 0, 0, 176, 95),
+    // The brass knob, in its two states, is the one authored sprite the kit still uses;
+    // the cases, wells and controls around it are drawn by the kit itself.
     KNOB("bomb_settings", 2, 102, 42, 42),
-    KNOB_LIT("bomb_settings", 50, 102, 42, 42),
-    DETENT("bomb_settings", 98, 102, 3, 3),
-    DETENT_LIT("bomb_settings", 106, 102, 3, 3);
+    KNOB_LIT("bomb_settings", 50, 102, 42, 42);
 
     private static final int ATLAS = 256;
 

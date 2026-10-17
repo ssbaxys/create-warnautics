@@ -80,7 +80,7 @@ public final class BlastPropagation {
             double fracture = fracturePower >= 5.0D ? fracturePower * 1.3D * (0.85D + random.nextFloat() * 0.3D) : 0;
             Vec3 point = center;
             for (double distance = 0; distance <= limit && (pressure > 0 || fracture > 0); distance += normalizedStep) {
-                if (!level.hasChunkAt(BlockPos.containing(point))) {
+                if (!scene.loaded(point)) {
                     break;
                 }
                 if (distance >= fracturePower) {

@@ -36,6 +36,9 @@ public final class MissileExhaustLights {
     public static final double NOZZLE_OFFSET = 1.51;
     private static final double MAX_EFFECT_RANGE = 512;
     private static final int MAX_DETAILED_MISSILES = 24;
+    /** Contrails form this far above sea level, where the air is cold enough. */
+    private static final double CONTRAIL_ABOVE_SEA = 70;
+
     private static final Map<Integer, Trail> TRAILS = new HashMap<>();
     private static ClientLevel previousLevel;
     private static final boolean VEIL = ModList.get().isLoaded("veil");
@@ -75,7 +78,7 @@ public final class MissileExhaustLights {
         }
         missiles.sort(Comparator.comparingDouble(e -> e.position().distanceToSqr(camera)));
         Set<Integer> seen = new HashSet<>();
-        int budget = 48;
+        int budget = 96;
         boolean volume = VEIL
                 && WarnauticsClientConfig.missilePlume()
                 && com.cbc_more_content.client.veil.VeilMissilePlume.available();
@@ -118,9 +121,16 @@ public final class MissileExhaustLights {
                 } else if (powered || trail.cooldown > 0) {
                     // A sampled segment closes the gaps at 28 blocks/sec. Never bridge a teleport.
                     Vec3 previous = nozzle.distanceToSqr(trail.emittedNozzle) > 144 ? nozzle : trail.emittedNozzle;
-                    double spacing = setting == ParticleStatus.MINIMAL ? 1.4 : pixels < 4 ? 1.3 : .55;
+                    // The booster lays a thick white column; the turbofan sustainer leaves
+                    // little more than a faint thread of exhaust behind it.
+                    // Close enough together that the trail reads as one continuous ribbon.
+                    double spacing = sustainer(missile)
+                            ? (setting == ParticleStatus.MINIMAL ? 3.0 : 1.1)
+                            : sustainGrain(missile)
+                                    ? (setting == ParticleStatus.MINIMAL ? 2.0 : .8)
+                                    : setting == ParticleStatus.MINIMAL ? 1.0 : pixels < 4 ? .8 : .45;
                     int samples =
-                            Math.min(budget, Math.clamp((int) Math.ceil(nozzle.distanceTo(previous) / spacing), 1, 8));
+                            Math.min(budget, Math.clamp((int) Math.ceil(nozzle.distanceTo(previous) / spacing), 1, 16));
                     Vec3 back = heading(missile, 1).scale(-1);
                     for (int i = 0; i < samples; i++) {
                         Vec3 at = previous.lerp(nozzle, (i + 1.0) / samples);
@@ -128,16 +138,48 @@ public final class MissileExhaustLights {
                         emit(
                                 mc.level,
                                 ModParticles.MISSILE_SMOKE.get(),
-                                at.add(back.scale(powered ? missile instanceof Aim9Projectile ? 2.5 : 3.3 : .2)),
+                                at.add(back.scale(
+                                        powered
+                                                ? missile instanceof Aim9Projectile
+                                                        ? 2.5
+                                                        : sustainer(missile) ? 1.4 : 3.3
+                                                : .2)),
                                 back.scale(.075),
                                 .065);
-                        if (powered && !detailedVolume) {
+                        if (powered && !detailedVolume && !sustainer(missile)) {
                             emit(mc.level, ModParticles.MISSILE_EXHAUST.get(), at, back.scale(.18), .06);
                         }
                     }
                     budget -= samples;
                     trail.emittedNozzle = nozzle;
                 }
+                if (missile instanceof CruiseMissileProjectile cruise && setting != ParticleStatus.MINIMAL) {
+                    budget -= airframeEffects(mc.level, cruise, trail, nozzle, distance);
+                }
+                if (powered && !sustainer(missile) && !sustainGrain(missile) && setting != ParticleStatus.MINIMAL) {
+                    budget -= jetImpingement(mc.level, missile, nozzle);
+                }
+            }
+            if (missile instanceof CruiseMissileProjectile cruise
+                    && !wet
+                    && distance <= effectRange
+                    && setting != ParticleStatus.MINIMAL) {
+                if (powered && !trail.powered && trail.phase == CruiseMissileProjectile.PHASE_EJECT) {
+                    launchBlast(mc.level, cruise, nozzle);
+                }
+                if (powered && sustainer(cruise)) {
+                    contrail(mc.level, cruise, trail, nozzle);
+                }
+                vapourRings(mc.level, cruise, trail, nozzle, distance);
+            }
+            if (missile instanceof CruiseMissileProjectile cruise) {
+                if (trail.phase == CruiseMissileProjectile.PHASE_BOOST
+                        && cruise.phase() != CruiseMissileProjectile.PHASE_BOOST
+                        && !wet
+                        && distance <= effectRange) {
+                    separationPuff(mc.level, cruise, nozzle);
+                }
+                trail.phase = cruise.phase();
             }
             trail.cooldown = Math.max(0, trail.cooldown - 1);
             trail.nozzle = nozzle;
@@ -215,11 +257,21 @@ public final class MissileExhaustLights {
                 continue;
             }
             double distance = camera.distanceTo(nozzle);
-            if (!event.getFrustum().isVisible(missile.getBoundingBox().inflate(7))) {
+            // The plume runs nine blocks behind the airframe: keep drawing it while only
+            // the jet, not the missile itself, is on screen.
+            if (!event.getFrustum().isVisible(missile.getBoundingBox().inflate(10))) {
                 continue;
             }
             float age = missile.tickCount + partial - trail.ignitionTick;
             float strength = Mth.clamp(age / 3f, 0, 1) * (1 + .22f * (float) Math.exp(-age * .16));
+            boolean turbofan = sustainer(missile);
+            if (turbofan) {
+                // A turbofan, not a rocket: the shader draws only a faint shimmer.
+                strength *= .55f;
+            } else if (sustainGrain(missile)) {
+                // The interceptor's sustain grain: still a rocket, but half the boost flame.
+                strength *= .6f;
+            }
             if (WarnauticsClientConfig.missileLights() && distance <= 64) {
                 com.cbc_more_content.client.veil.VeilMissileFx.follow(
                         missile, nozzle, strength * (.94f + .06f * Mth.sin((missile.tickCount + partial) * 2.1f)));
@@ -234,7 +286,7 @@ public final class MissileExhaustLights {
             // Beyond the detail budget, other missiles retain the cheap core.
             int samples = mc.options.particles().get() == ParticleStatus.MINIMAL || detailed++ >= MAX_DETAILED_MISSILES
                     ? 8
-                    : pixels < 2.5f ? 8 : pixels > 18 ? 36 : pixels > 7 ? 24 : 12;
+                    : pixels < 2.5f ? 10 : pixels > 18 ? 40 : pixels > 7 ? 28 : 16;
             Vec3 relative = nozzle.subtract(camera);
             var matrix = new Matrix4f(event.getModelViewMatrix())
                     .translate((float) relative.x, (float) relative.y, (float) relative.z)
@@ -248,8 +300,297 @@ public final class MissileExhaustLights {
                     samples,
                     terrainFogStart,
                     terrainFogEnd,
-                    missile instanceof Aim9Projectile ? 1 : 0);
+                    missile instanceof Aim9Projectile
+                            ? com.cbc_more_content.client.veil.VeilMissilePlume.INTERCEPTOR
+                            : turbofan
+                                    ? com.cbc_more_content.client.veil.VeilMissilePlume.TURBOFAN
+                                    : com.cbc_more_content.client.veil.VeilMissilePlume.BOOSTER,
+                    WarnauticsClientConfig.plasmaPlume() ? 1 : 0);
         }
+    }
+
+    /** A cruise missile past booster burnout, running on its turbofan. */
+    static boolean sustainer(Entity missile) {
+        return missile instanceof CruiseMissileProjectile cruise
+                && (cruise.phase() == CruiseMissileProjectile.PHASE_CRUISE
+                        || cruise.phase() == CruiseMissileProjectile.PHASE_TERMINAL);
+    }
+
+    /**
+     * Where the rocket jet strikes the ground or a wall: smoke boils out across the surface
+     * and the flame splashes back off it, as on a launch pad or a test stand.
+     *
+     * @return particles spent from the shared budget
+     */
+    private static int jetImpingement(ClientLevel level, Entity missile, Vec3 nozzle) {
+        Vec3 back = heading(missile, 1).scale(-1);
+        double reach = missile instanceof Aim9Projectile ? 5.0 : 8.5;
+        var hit = level.clip(new net.minecraft.world.level.ClipContext(
+                nozzle,
+                nozzle.add(back.scale(reach)),
+                net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE,
+                missile));
+        if (hit.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) {
+            return 0;
+        }
+        Vec3 at = hit.getLocation();
+        double strength = 1 - at.distanceTo(nozzle) / reach;
+        Vec3 normal = Vec3.atLowerCornerOf(hit.getDirection().getNormal());
+        // Two directions across the struck surface, for the outward roll of smoke.
+        Vec3 across = Math.abs(normal.y) > .5 ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
+        Vec3 u = normal.cross(across).normalize();
+        Vec3 w = normal.cross(u).normalize();
+        Vec3 surface = at.add(normal.scale(.3));
+        int puffs = 2 + (int) Math.round(strength * 3);
+        for (int i = 0; i < puffs; i++) {
+            double angle = level.random.nextDouble() * Math.PI * 2;
+            Vec3 out = u.scale(Math.cos(angle)).add(w.scale(Math.sin(angle)));
+            double speed = .18 + level.random.nextDouble() * .25 * (.4 + strength);
+            Vec3 velocity = out.scale(speed).add(normal.scale(.03 + level.random.nextDouble() * .05));
+            level.addParticle(
+                    ModParticles.MISSILE_SMOKE.get(),
+                    true,
+                    surface.x,
+                    surface.y,
+                    surface.z,
+                    velocity.x,
+                    velocity.y,
+                    velocity.z);
+        }
+        if (level.random.nextFloat() < .35f + strength * .4f) {
+            level.addParticle(
+                    new com.cbc_more_content.effects.BlastSmokeData((float) (1.1 + strength * 1.3)),
+                    true,
+                    surface.x,
+                    surface.y,
+                    surface.z,
+                    normal.x * .04,
+                    normal.y * .04,
+                    normal.z * .04);
+        }
+        if (strength > .45) {
+            // The flame splashing back off the surface.
+            emit(level, ModParticles.MISSILE_EXHAUST.get(), surface, normal.scale(.06), .25);
+        }
+        return puffs + 1;
+    }
+
+    /** An interceptor past its boost grain, on the weaker sustain burn. */
+    static boolean sustainGrain(Entity missile) {
+        return missile instanceof Aim9Projectile aim9 && aim9.isPowered() && !aim9.isBoosting();
+    }
+
+    /**
+     * Ignition of the booster just off the rail. Near the ground the blast hits it: a ring
+     * of dust and smoke rolls out across the surface, with the soil itself thrown up.
+     */
+    private static void launchBlast(ClientLevel level, CruiseMissileProjectile missile, Vec3 nozzle) {
+        Vec3 back = heading(missile, 1).scale(-1);
+        for (int i = 0; i < 10; i++) {
+            emit(level, ModParticles.MISSILE_GAS.get(), nozzle.add(back.scale(.8)), back.scale(.12), .3);
+        }
+        int x = Mth.floor(nozzle.x), z = Mth.floor(nozzle.z);
+        if (!level.hasChunk(x >> 4, z >> 4)) {
+            return;
+        }
+        int surface = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
+        double height = nozzle.y - surface;
+        if (height < -1 || height > 12) {
+            return;
+        }
+        float strength = (float) Mth.clamp(1 - height / 12, .25, 1);
+        var ground = level.getBlockState(new BlockPos(x, surface - 1, z));
+        int puffs = 10 + Math.round(strength * 8);
+        for (int i = 0; i < puffs; i++) {
+            double angle = i * Math.PI * 2 / puffs + level.random.nextDouble() * .3;
+            double reach = .9 + level.random.nextDouble() * .6;
+            Vec3 out = new Vec3(Math.cos(angle), 0, Math.sin(angle));
+            Vec3 at = new Vec3(nozzle.x, surface + .4, nozzle.z).add(out.scale(.8));
+            level.addParticle(
+                    new com.cbc_more_content.effects.BlastSmokeData(1.2f + strength * 1.4f),
+                    true,
+                    at.x,
+                    at.y,
+                    at.z,
+                    out.x * reach * .45 * strength,
+                    .02 + level.random.nextDouble() * .04,
+                    out.z * reach * .45 * strength);
+            if (!ground.isAir()) {
+                level.addParticle(
+                        new net.minecraft.core.particles.BlockParticleOption(
+                                net.minecraft.core.particles.ParticleTypes.BLOCK, ground),
+                        at.x,
+                        at.y,
+                        at.z,
+                        out.x * reach * .6,
+                        .2 + level.random.nextDouble() * .3 * strength,
+                        out.z * reach * .6);
+            }
+        }
+    }
+
+    /**
+     * A turbofan high up leaves a condensation trail: white, thin at first, spreading and
+     * hanging in the sky long after the missile has passed.
+     */
+    private static void contrail(ClientLevel level, CruiseMissileProjectile missile, Trail trail, Vec3 nozzle) {
+        double contrailFloor = level.getSeaLevel() + CONTRAIL_ABOVE_SEA;
+        if (nozzle.y < contrailFloor) {
+            trail.contrailFrom = nozzle;
+            return;
+        }
+        // Fades in over the first blocks of altitude instead of switching on at a line.
+        double thickness = Mth.clamp((nozzle.y - contrailFloor) / 12, .15, 1);
+        Vec3 from = trail.contrailFrom == null || trail.contrailFrom.distanceToSqr(nozzle) > 144
+                ? nozzle
+                : trail.contrailFrom;
+        Vec3 back = heading(missile, 1).scale(-1);
+        int samples = Math.clamp((int) Math.ceil(from.distanceTo(nozzle) / 1.6), 1, 6);
+        for (int i = 0; i < samples; i++) {
+            if (level.random.nextDouble() > thickness) {
+                continue;
+            }
+            Vec3 at = from.lerp(nozzle, (i + 1.0) / samples).add(back.scale(2.2));
+            emit(level, ModParticles.MISSILE_CONTRAIL.get(), at, back.scale(.02), .02);
+        }
+        trail.contrailFrom = nozzle;
+    }
+
+    /**
+     * Condensation rings around the body: a vapour collar when the missile tips over into
+     * its terminal dive, and in hard, high-speed turns, a ring every few ticks.
+     */
+    private static void vapourRings(
+            ClientLevel level, CruiseMissileProjectile missile, Trail trail, Vec3 nozzle, double distance) {
+        if (distance > 140 || !missile.isPowered()) {
+            return;
+        }
+        boolean diving = missile.phase() == CruiseMissileProjectile.PHASE_TERMINAL
+                && trail.phase == CruiseMissileProjectile.PHASE_CRUISE;
+        boolean pulling = sustainer(missile)
+                && Math.abs(missile.roll(1)) > .95f
+                && missile.getDeltaMovement().length() > 3.6
+                && missile.tickCount % 3 == 0;
+        if (!diving && !pulling) {
+            return;
+        }
+        Vec3 forward = heading(missile, 1);
+        Vec3 side = forward.cross(new Vec3(0, 1, 0));
+        if (side.lengthSqr() < 1.0E-4) {
+            side = forward.cross(new Vec3(1, 0, 0));
+        }
+        side = side.normalize();
+        Vec3 up = side.cross(forward).normalize();
+        Vec3 collar = nozzle.add(forward.scale(NOZZLE_OFFSET + .3));
+        int count = diving ? 16 : 7;
+        double radius = diving ? .75 : .55;
+        for (int i = 0; i < count; i++) {
+            double angle = i * Math.PI * 2 / count;
+            Vec3 at = collar.add(side.scale(Math.cos(angle) * radius)).add(up.scale(Math.sin(angle) * radius));
+            Vec3 streak = forward.scale(-.7);
+            level.addParticle(ModParticles.MISSILE_VAPOR.get(), true, at.x, at.y, at.z, streak.x, streak.y, streak.z);
+        }
+    }
+
+    /** Burnout: a cloud of booster gas and a few smoke puffs where the casing let go. */
+    private static void separationPuff(ClientLevel level, CruiseMissileProjectile missile, Vec3 nozzle) {
+        Vec3 back = heading(missile, 1).scale(-1);
+        for (int i = 0; i < 12; i++) {
+            emit(level, ModParticles.MISSILE_GAS.get(), nozzle.add(back.scale(.6)), back.scale(.05), .22);
+        }
+        for (int i = 0; i < 5; i++) {
+            emit(level, ModParticles.MISSILE_SMOKE.get(), nozzle.add(back.scale(1.2 + i * .5)), back.scale(.03), .1);
+        }
+        emit(level, ModParticles.MISSILE_EXHAUST.get(), nozzle, back.scale(.05), .05);
+    }
+
+    /**
+     * Effects of the airframe moving through the air rather than of its motor: vapour from
+     * the wingtips in a hard turn, and the sea or ground torn up when it skims low.
+     *
+     * @return particles spent from the shared budget
+     */
+    private static int airframeEffects(
+            ClientLevel level, CruiseMissileProjectile missile, Trail trail, Vec3 nozzle, double distance) {
+        if (!missile.isPowered() || missile.isEjecting() || distance > 160) {
+            return 0;
+        }
+        int spent = 0;
+        Vec3 forward = heading(missile, 1);
+        Vec3 centre = nozzle.add(forward.scale(NOZZLE_OFFSET));
+        float roll = missile.roll(1);
+        if (Math.abs(roll) > .55f && sustainer(missile)) {
+            // Wings sit across the middle cell. Tilt the span with the bank.
+            Vec3 side = forward.cross(new Vec3(0, 1, 0));
+            if (side.lengthSqr() > 1.0E-4) {
+                side = side.normalize();
+                Vec3 up = side.cross(forward).normalize();
+                // side is the right wing; a positive (left) bank raises it.
+                Vec3 span =
+                        side.scale(Mth.cos(roll)).add(up.scale(Mth.sin(roll))).scale(.95);
+                Vec3 streak = forward.scale(-.9);
+                for (int sign = -1; sign <= 1; sign += 2) {
+                    Vec3 tip = centre.add(span.scale(sign));
+                    level.addParticle(
+                            ModParticles.MISSILE_VAPOR.get(), true, tip.x, tip.y, tip.z, streak.x, streak.y, streak.z);
+                    spent++;
+                }
+            }
+        }
+        // Skimming: read the surface straight below and throw up spray or dust.
+        int x = Mth.floor(centre.x), z = Mth.floor(centre.z);
+        if (!level.hasChunk(x >> 4, z >> 4)) {
+            return spent;
+        }
+        int surface = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, x, z);
+        double height = centre.y - surface;
+        if (height < 0 || height > 7) {
+            return spent;
+        }
+        float strength = (float) (1 - height / 7);
+        BlockPos below = new BlockPos(x, surface - 1, z);
+        var fluid = level.getFluidState(below);
+        int count = 1 + Math.round(strength * 3);
+        for (int i = 0; i < count; i++) {
+            double ox = (level.random.nextDouble() - .5) * 1.6, oz = (level.random.nextDouble() - .5) * 1.6;
+            if (fluid.is(FluidTags.WATER)) {
+                level.addParticle(
+                        net.minecraft.core.particles.ParticleTypes.SPLASH,
+                        centre.x + ox,
+                        surface + .1,
+                        centre.z + oz,
+                        -forward.x * .2,
+                        .15 + strength * .25,
+                        -forward.z * .2);
+                if (i == 0) {
+                    level.addParticle(
+                            net.minecraft.core.particles.ParticleTypes.CLOUD,
+                            centre.x + ox,
+                            surface + .3,
+                            centre.z + oz,
+                            -forward.x * .05,
+                            .02,
+                            -forward.z * .05);
+                }
+            } else {
+                var state = level.getBlockState(below);
+                if (state.isAir()) {
+                    break;
+                }
+                level.addParticle(
+                        new net.minecraft.core.particles.BlockParticleOption(
+                                net.minecraft.core.particles.ParticleTypes.BLOCK, state),
+                        centre.x + ox,
+                        surface + .1,
+                        centre.z + oz,
+                        ox * .2 - forward.x * .1,
+                        .12 + strength * .2,
+                        oz * .2 - forward.z * .1);
+            }
+            spent++;
+        }
+        return spent;
     }
 
     private static boolean powered(Entity missile) {
@@ -291,6 +632,8 @@ public final class MissileExhaustLights {
         boolean powered;
         int cooldown;
         int ignitionTick;
+        byte phase = -1;
+        Vec3 contrailFrom;
 
         Trail(Entity missile, Vec3 nozzle) {
             this.missile = missile;

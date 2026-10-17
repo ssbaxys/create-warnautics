@@ -3,11 +3,13 @@ package com.cbc_more_content.client;
 import com.cbc_more_content.CBCMoreContent;
 import com.cbc_more_content.block.CruiseMissileBlock;
 import com.cbc_more_content.block.CruiseMissileBlockEntity;
+import com.cbc_more_content.client.gui.kit.Ui;
 import com.cbc_more_content.compat.MissileDesignatorTargeting;
 import com.cbc_more_content.compat.SableTrackCompat;
 import com.cbc_more_content.item.TargetDesignatorItem;
 import com.cbc_more_content.network.MissileFirePayload;
 import com.cbc_more_content.registry.ModSounds;
+import com.cbc_more_content.ui.UiTone;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -15,7 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.LocalPlayer;
@@ -373,10 +374,15 @@ public final class TargetLockClient {
                 .setNormal(pose.last(), dx / length, dy / length, dz / length);
     }
 
+    /**
+     * The designator's readout under the crosshair, on the same plate as the notices: one
+     * line saying what the operator can do right now, with the lock's progress filling
+     * the plate's foot while use is held.
+     */
     @SubscribeEvent
     public static void onRenderGui(RenderGuiEvent.Post event) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null || mc.options.hideGui) {
+        if (mc.player == null || mc.level == null || mc.options.hideGui || mc.screen != null) {
             return;
         }
         BlockPos missile = boundMissile(mc.player);
@@ -386,56 +392,58 @@ public final class TargetLockClient {
 
         GuiGraphics graphics = event.getGuiGraphics();
         int x = graphics.guiWidth() / 2;
-        int y = graphics.guiHeight() / 2 + 22;
+        int y = graphics.guiHeight() / 2 + 14;
+        float time = mc.player.tickCount + event.getPartialTick().getGameTimeDeltaPartialTick(false);
+        int maxWidth = graphics.guiWidth() - 40;
 
         // Old saved bindings may still point at a missile configured before pairing auto-armed it.
         if (mc.level.getBlockEntity(missile) instanceof CruiseMissileBlockEntity guidance
                 && guidance.guidance() != CruiseMissileBlockEntity.Guidance.REMOTE) {
-            graphics.drawCenteredString(
+            Ui.hudPlate(
+                    graphics,
                     mc.font,
-                    Component.translatable("gui.cbc_more_content.designator.not_remote")
-                            .withStyle(ChatFormatting.RED),
                     x,
                     y,
-                    0xFFFFFFFF);
+                    Component.translatable("gui.cbc_more_content.designator.not_remote"),
+                    UiTone.DANGER.argb(),
+                    1,
+                    -1,
+                    0,
+                    maxWidth);
             return;
         }
+
+        Component line;
+        int tone;
+        float progressShown = -1;
+        float flare = 0;
+        if (locked != null) {
+            line = Component.translatable("gui.cbc_more_content.designator.locked");
+            tone = UiTone.DANGER.argb();
+            flare = 0.5f + 0.5f * Mth.sin(time * 0.3f);
+        } else if (progress > 0) {
+            int percent = Math.min(99, progress * 100 / LOCK_TICKS);
+            line = Component.translatable("gui.cbc_more_content.designator.locking", percent);
+            tone = UiTone.ACCENT.argb();
+            progressShown = progress / (float) LOCK_TICKS;
+        } else if (aimed != null) {
+            line = Component.translatable("gui.cbc_more_content.designator.hold");
+            tone = UiTone.INFO.argb();
+        } else {
+            line = Component.translatable(
+                    "gui.cbc_more_content.designator.minimum_range", (int) MissileDesignatorTargeting.MIN_TARGET_RANGE);
+            tone = UiTone.MUTED.argb();
+        }
+        Ui.hudPlate(graphics, mc.font, x, y, line, tone, 1, progressShown, flare, maxWidth);
         int groupSize = TargetDesignatorItem.boundCount(designatorStack(mc.player));
-        graphics.drawCenteredString(
+        Ui.fitCentered(
+                graphics,
                 mc.font,
                 Component.translatable("gui.cbc_more_content.designator.group", groupSize),
                 x,
-                y - 12,
-                0xFFB8D9D2);
-
-        if (locked != null) {
-            graphics.drawCenteredString(
-                    mc.font, Component.translatable("gui.cbc_more_content.designator.locked"), x, y, 0xFFFF5A46);
-            return;
-        }
-        graphics.drawCenteredString(
-                mc.font,
-                Component.translatable("gui.cbc_more_content.designator.minimum_range", (int)
-                        MissileDesignatorTargeting.MIN_TARGET_RANGE),
-                x,
-                y + 12,
-                0xFFAAA79C);
-        if (progress > 0) {
-            int percent = Math.min(99, progress * 100 / LOCK_TICKS);
-            graphics.drawCenteredString(
-                    mc.font,
-                    Component.translatable("gui.cbc_more_content.designator.locking", percent),
-                    x,
-                    y,
-                    0xFFFFB036);
-            return;
-        }
-        if (confirm > 0) {
-            return;
-        }
-        if (aimed != null) {
-            graphics.drawCenteredString(
-                    mc.font, Component.translatable("gui.cbc_more_content.designator.hold"), x, y, 0xFFE8E2CF);
-        }
+                y + 18,
+                maxWidth,
+                Ui.TEXT_MUTED,
+                true);
     }
 }
