@@ -76,6 +76,16 @@ public final class ModItems {
     public static final DeferredItem<CruiseMissileItem> AIM9 = ITEMS.register(
             "aim9", () -> new CruiseMissileItem(ModBlocks.AIM9.get(), new Item.Properties().stacksTo(8)));
 
+    public static final DeferredItem<BlockItem> BOMBSIGHT = ITEMS.register(
+            "bombsight", () -> new BlockItem(ModBlocks.BOMBSIGHT.get(), new Item.Properties().stacksTo(16)));
+
+    public static final DeferredItem<BlockItem> ROCKET_POD = ITEMS.register(
+            "rocket_pod", () -> new BlockItem(ModBlocks.ROCKET_POD.get(), new Item.Properties().stacksTo(4)));
+
+    /** S-8 unguided rocket, the pod's ammunition. */
+    public static final DeferredItem<Item> S8_ROCKET =
+            ITEMS.register("s8_rocket", () -> new Item(new Item.Properties().stacksTo(16)));
+
     public static final DeferredItem<Item> MUSIC_DISC_BREAKER_OF_SKIES = ITEMS.register(
             "music_disc_breaker_of_skies",
             () -> new Item(new Item.Properties()

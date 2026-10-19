@@ -20,6 +20,18 @@ public final class ModBlockEntities {
             BLOCK_ENTITIES.register("aim9", () -> BlockEntityType.Builder.of(Aim9BlockEntity::new, ModBlocks.AIM9.get())
                     .build(null));
 
+    public static final DeferredHolder<
+                    BlockEntityType<?>, BlockEntityType<com.cbc_more_content.block.RocketPodBlockEntity>>
+            ROCKET_POD = BLOCK_ENTITIES.register("rocket_pod", () -> BlockEntityType.Builder.of(
+                    com.cbc_more_content.block.RocketPodBlockEntity::new, ModBlocks.ROCKET_POD.get())
+            .build(null));
+
+    public static final DeferredHolder<
+                    BlockEntityType<?>, BlockEntityType<com.cbc_more_content.bombsight.BombsightBlockEntity>>
+            BOMBSIGHT = BLOCK_ENTITIES.register("bombsight", () -> BlockEntityType.Builder.of(
+                    com.cbc_more_content.bombsight.BombsightBlockEntity::new, ModBlocks.BOMBSIGHT.get())
+            .build(null));
+
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<RopeConnectorBlockEntity>> CHAIN_CONNECTOR =
             BLOCK_ENTITIES.register("chain_connector", () -> BlockEntityType.Builder.of(
                             (pos, state) ->

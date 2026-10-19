@@ -189,6 +189,10 @@ public class SeaBombProjectile extends DropBombProjectile {
 
     @Override
     public void tick() {
+        if (this.level() instanceof net.minecraft.server.level.ServerLevel ticketLevel && !this.isRemoved()) {
+            // Finish the flight and go off where it lands, players nearby or not.
+            com.cbc_more_content.munitions.FlightTicket.keepLoaded(ticketLevel, this);
+        }
         // Swim/sink skip AbstractCannonProjectile.tick(), so honour CBC's removeNextTick here.
         if (this.removeNextTick) {
             this.discard();

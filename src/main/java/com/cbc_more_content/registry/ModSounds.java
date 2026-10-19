@@ -44,6 +44,8 @@ public final class ModSounds {
     /** Solid booster burning, looped by the client while the missile is in its boost phase. */
     public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_MISSILE_BOOSTER =
             register("cruise_missile_booster");
+    /** One S-8 leaving its tube: ignition crack and a motor roar going downrange. */
+    public static final DeferredHolder<SoundEvent, SoundEvent> ROCKET_POD_LAUNCH = register("rocket_pod_launch");
     /** Turbofan sustainer, looped by the client for the cruise. */
     public static final DeferredHolder<SoundEvent, SoundEvent> CRUISE_MISSILE_TURBOFAN =
             register("cruise_missile_turbofan");

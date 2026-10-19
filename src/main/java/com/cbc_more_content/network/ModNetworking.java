@@ -28,10 +28,24 @@ public final class ModNetworking {
     private ModNetworking() {}
 
     public static void register(RegisterPayloadHandlersEvent event) {
-        event.registrar("5")
+        event.registrar("11")
                 .playToServer(
                         Aim9SettingsPayload.TYPE, Aim9SettingsPayload.STREAM_CODEC, ModNetworking::handleAim9Settings)
+                .playBidirectional(
+                        Aim9StatusPayload.TYPE, Aim9StatusPayload.STREAM_CODEC, ModNetworking::handleAim9Status)
+                .playToServer(
+                        RocketPodSettingsPayload.TYPE,
+                        RocketPodSettingsPayload.STREAM_CODEC,
+                        ModNetworking::handleRocketPodSettings)
                 .playToClient(BombFlashPayload.TYPE, BombFlashPayload.STREAM_CODEC, ModNetworking::handleClient)
+                .playToClient(
+                        BombsightSolutionPayload.TYPE,
+                        BombsightSolutionPayload.STREAM_CODEC,
+                        ModNetworking::handleBombsightSolution)
+                .playToServer(
+                        BombsightSettingsPayload.TYPE,
+                        BombsightSettingsPayload.STREAM_CODEC,
+                        ModNetworking::handleBombsightSettings)
                 .playToClient(WaterBlastPayload.TYPE, WaterBlastPayload.STREAM_CODEC, ModNetworking::handleWater)
                 .playToClient(ConcussionPayload.TYPE, ConcussionPayload.STREAM_CODEC, ModNetworking::handleConcussion)
                 .playToClient(
@@ -56,6 +70,11 @@ public final class ModNetworking {
                 .playToServer(C4CodePayload.TYPE, C4CodePayload.STREAM_CODEC, ModNetworking::handleC4Code)
                 .playToServer(
                         ConfigureC4Payload.TYPE, ConfigureC4Payload.STREAM_CODEC, ModNetworking::handleConfigureC4)
+                .playToServer(C4PresetPayload.TYPE, C4PresetPayload.STREAM_CODEC, ModNetworking::handleC4Preset)
+                .playToServer(
+                        BombsightCommandPayload.TYPE,
+                        BombsightCommandPayload.STREAM_CODEC,
+                        ModNetworking::handleBombsightCommand)
                 .playToServer(
                         ConfigureBombPayload.TYPE,
                         ConfigureBombPayload.STREAM_CODEC,
@@ -154,6 +173,74 @@ public final class ModNetworking {
         });
     }
 
+    /**
+     * A player at the eyepiece: only someone standing at the sight (on the ship, if it is on
+     * one) can work it, the same reach as a block.
+     */
+    private static void handleBombsightCommand(BombsightCommandPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)
+                    || !(player.level() instanceof net.minecraft.server.level.ServerLevel level)
+                    || !level.isLoaded(payload.sight())
+                    || !(level.getBlockEntity(payload.sight())
+                            instanceof com.cbc_more_content.bombsight.BombsightBlockEntity sight)) {
+                return;
+            }
+            var at = com.cbc_more_content.compat.SableDropCompat.resolveWorldBlastChecked(
+                            level, payload.sight().getCenter())
+                    .pos();
+            if (player.distanceToSqr(at) > 16 * 16) {
+                return;
+            }
+            switch (payload.action()) {
+                case BombsightCommandPayload.MARK -> {
+                    sight.markTarget(payload.x(), payload.z());
+                    level.playSound(
+                            null, payload.sight(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 0.8f, 1.4f);
+                }
+                case BombsightCommandPayload.RELEASE -> sight.releaseNow(level);
+                case BombsightCommandPayload.TOGGLE_AUTO -> {
+                    sight.setAutoRelease(!sight.autoRelease());
+                    level.playSound(null, payload.sight(), SoundEvents.LEVER_CLICK, SoundSource.BLOCKS, 0.6f, 1.3f);
+                }
+                case BombsightCommandPayload.CLEAR -> sight.clearTarget();
+                default -> {}
+            }
+        });
+    }
+
+    /** The preset is kept on the C4 stack itself; the server only checks the stack really is C4. */
+    private static void handleC4Preset(C4PresetPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)
+                    || !com.cbc_more_content.config.WarnauticsConfig.c4PresetsAllowed()) {
+                return;
+            }
+            var stack = player.getItemInHand(
+                    payload.offhand()
+                            ? net.minecraft.world.InteractionHand.OFF_HAND
+                            : net.minecraft.world.InteractionHand.MAIN_HAND);
+            if (!(stack.getItem() instanceof com.cbc_more_content.item.C4Item)) {
+                return;
+            }
+            byte activation = payload.activation();
+            if (activation == com.cbc_more_content.item.C4Preset.ON_THROW
+                    && !com.cbc_more_content.config.WarnauticsConfig.c4ArmOnThrowAllowed()) {
+                activation = com.cbc_more_content.item.C4Preset.MANUAL;
+            }
+            new com.cbc_more_content.item.C4Preset(activation, payload.remote(), payload.seconds(), payload.code())
+                    .store(stack);
+            player.level()
+                    .playSound(
+                            null,
+                            player.blockPosition(),
+                            com.cbc_more_content.registry.ModSounds.C4_BUTTON.get(),
+                            SoundSource.PLAYERS,
+                            0.7f,
+                            1.2f);
+        });
+    }
+
     private static void handleCodeResult(C4CodeResultPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             ReflectiveDispatcher.invoke(
@@ -189,14 +276,25 @@ public final class ModNetworking {
                 return;
             }
 
-            boolean accepted = c4.isArmed() && c4.matchesCode(payload.code());
-            if (accepted) {
-                c4.disarm();
-                level.playSound(null, pos, SoundEvents.LEVER_CLICK, SoundSource.BLOCKS, 0.8f, 1.4f);
-            } else {
-                level.playSound(null, pos, SoundEvents.NOTE_BLOCK_DIDGERIDOO.value(), SoundSource.BLOCKS, 0.7f, 0.6f);
+            if (!c4.isArmed()) {
+                PacketDistributor.sendToPlayer(player, new C4CodeResultPayload((byte) 1, -1));
+                return;
             }
-            PacketDistributor.sendToPlayer(player, new C4CodeResultPayload(accepted));
+            // Attempts are limited server-side: a modified client cannot guess its way past.
+            var verdict = c4.tryCode(player.getUUID(), payload.code());
+            switch (verdict.outcome()) {
+                case ACCEPTED -> {
+                    c4.disarm();
+                    level.playSound(null, pos, SoundEvents.LEVER_CLICK, SoundSource.BLOCKS, 0.8f, 1.4f);
+                }
+                case LOCKED -> level.playSound(
+                        null, pos, SoundEvents.IRON_TRAPDOOR_CLOSE, SoundSource.BLOCKS, 0.9f, 0.6f);
+                case WRONG -> level.playSound(
+                        null, pos, SoundEvents.NOTE_BLOCK_DIDGERIDOO.value(), SoundSource.BLOCKS, 0.7f, 0.6f);
+                case DETONATED -> {}
+            }
+            PacketDistributor.sendToPlayer(
+                    player, new C4CodeResultPayload((byte) verdict.outcome().ordinal(), verdict.value()));
         });
     }
 
@@ -454,6 +552,90 @@ public final class ModNetworking {
                         "message.cbc_more_content.designator.fired",
                         fired.size());
             }
+        });
+    }
+
+    private static void handleBombsightSolution(BombsightSolutionPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> ReflectiveDispatcher.invoke(
+                "com.cbc_more_content.client.BombsightClient",
+                "receive",
+                new Class<?>[] {BombsightSolutionPayload.class},
+                payload));
+    }
+
+    private static void handleBombsightSettings(BombsightSettingsPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)
+                    || !holdsSettingsKey(player)
+                    || !canAccess(player, payload.pos())
+                    || !(player.level().getBlockEntity(payload.pos())
+                            instanceof com.cbc_more_content.bombsight.BombsightBlockEntity sight)) {
+                return;
+            }
+            sight.configure(
+                    payload.mode(),
+                    payload.hasTarget(),
+                    payload.targetX(),
+                    payload.targetZ(),
+                    payload.autoRelease(),
+                    payload.seriesTicks(),
+                    payload.centred());
+            player.level()
+                    .playSound(null, payload.pos(), SoundEvents.ITEM_FRAME_ROTATE_ITEM, SoundSource.BLOCKS, .5f, 1.25f);
+        });
+    }
+
+    /** Server: answer with the rack's readiness worked out now. Client: show it. */
+    private static void handleAim9Status(Aim9StatusPayload packet, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)) {
+                ReflectiveDispatcher.invoke(
+                        "com.cbc_more_content.client.gui.Aim9SettingsClient",
+                        "status",
+                        new Class<?>[] {Aim9StatusPayload.class},
+                        packet);
+                return;
+            }
+            if (!canAccess(player, packet.pos())
+                    || !(player.level() instanceof ServerLevel server)
+                    || !(server.getBlockEntity(packet.pos()) instanceof com.cbc_more_content.block.Aim9BlockEntity be)
+                    || !be.isLiveAirframe()) {
+                return;
+            }
+            var state = server.getBlockState(packet.pos());
+            var readiness = state.getValue(com.cbc_more_content.block.Aim9Block.WATERLOGGED)
+                    ? com.cbc_more_content.block.Aim9Block.Readiness.FLOODED
+                    : com.cbc_more_content.block.Aim9Block.skyCheck(server, packet.pos());
+            if (readiness == com.cbc_more_content.block.Aim9Block.Readiness.READY
+                    && be.readiness() == com.cbc_more_content.block.Aim9Block.Readiness.NO_SIGHT) {
+                readiness = be.readiness();
+            }
+            PacketDistributor.sendToPlayer(
+                    player,
+                    new Aim9StatusPayload(
+                            packet.pos(), readiness.ordinal(), be.enabled(), be.interceptCruise(), be.range()));
+        });
+    }
+
+    private static void handleRocketPodSettings(RocketPodSettingsPayload packet, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)
+                    || !holdsSettingsKey(player)
+                    || !canAccess(player, packet.pos())) {
+                return;
+            }
+            var state = player.level().getBlockState(packet.pos());
+            if (!(state.getBlock() instanceof com.cbc_more_content.block.RocketPodBlock)
+                    || !com.cbc_more_content.block.RocketPodBlock.formed(state)
+                    || !(player.level()
+                                    .getBlockEntity(
+                                            com.cbc_more_content.block.RocketPodBlock.bodyOf(state, packet.pos()))
+                            instanceof com.cbc_more_content.block.RocketPodBlockEntity pod)) {
+                return;
+            }
+            pod.configure(packet.ripple(), packet.salvo());
+            player.level()
+                    .playSound(null, packet.pos(), SoundEvents.ITEM_FRAME_ROTATE_ITEM, SoundSource.BLOCKS, .5f, 1.25f);
         });
     }
 

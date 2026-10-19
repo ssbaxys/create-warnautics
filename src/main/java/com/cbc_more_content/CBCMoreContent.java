@@ -43,11 +43,24 @@ public class CBCMoreContent {
 
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(ModNetworking::register);
+        modEventBus.addListener(CBCMoreContent::registerCapabilities);
 
         if (ModList.get().isLoaded("sable")) {
             ReflectiveDispatcher.invoke(
                     "com.cbc_more_content.compat.sable.SableCollisionDetonationQueue", "register", new Class<?>[0]);
         }
+    }
+
+    /** Item pipes, hoppers and funnels load a rocket pod through any of its three blocks. */
+    private static void registerCapabilities(net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent event) {
+        event.registerBlock(
+                net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.BLOCK,
+                (level, pos, state, be, side) -> com.cbc_more_content.block.RocketPodBlock.formed(state)
+                                && level.getBlockEntity(com.cbc_more_content.block.RocketPodBlock.bodyOf(state, pos))
+                                        instanceof com.cbc_more_content.block.RocketPodBlockEntity pod
+                        ? pod.itemHandler()
+                        : null,
+                ModBlocks.ROCKET_POD.get());
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {

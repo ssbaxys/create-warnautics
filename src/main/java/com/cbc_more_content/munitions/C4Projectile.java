@@ -44,6 +44,11 @@ public class C4Projectile extends ThrowableItemProjectile {
     private int rotation;
 
     private int sinceLastBeep;
+    /** Landed from a preset throw: set up, but waiting to be started by hand. */
+    private boolean primed;
+    /** Who threw a preset detonator charge, so it can pair with their detonator on landing. */
+    @javax.annotation.Nullable
+    private java.util.UUID pairWith;
 
     public C4Projectile(EntityType<? extends C4Projectile> type, Level level) {
         super(type, level);
@@ -89,6 +94,28 @@ public class C4Projectile extends ThrowableItemProjectile {
         level.addFreshEntity(charge);
     }
 
+    /**
+     * Takes on the preset of the stack it was thrown from: live from the throw, or set up
+     * and idle to be started by hand. The fuse of a live timer charge runs from the throw.
+     */
+    public void applyPreset(com.cbc_more_content.item.C4Preset preset, LivingEntity thrower) {
+        if (!preset.active()) {
+            return;
+        }
+        this.fuseSeconds = preset.seconds();
+        this.code = preset.code();
+        this.remote = preset.remote();
+        if (preset.activation() == com.cbc_more_content.item.C4Preset.ON_THROW) {
+            this.armed = true;
+            this.remaining = this.remote ? -1 : this.fuseSeconds * 20;
+            if (this.remote) {
+                this.pairWith = thrower.getUUID();
+            }
+        } else {
+            this.primed = true;
+        }
+    }
+
     @Override
     protected double getDefaultGravity() {
         return GRAVITY;
@@ -112,6 +139,10 @@ public class C4Projectile extends ThrowableItemProjectile {
 
     @Override
     public void tick() {
+        if (this.level() instanceof net.minecraft.server.level.ServerLevel ticketLevel && !this.isRemoved()) {
+            // Finish the flight and go off where it lands, players nearby or not.
+            com.cbc_more_content.munitions.FlightTicket.keepLoaded(ticketLevel, this);
+        }
         super.tick();
         if (this.level().isClientSide || !this.armed || this.isRemoved()) {
             return;
@@ -199,12 +230,31 @@ public class C4Projectile extends ThrowableItemProjectile {
         this.level().setBlock(target, charge, 3);
         if (this.level().getBlockEntity(target) instanceof C4BlockEntity be) {
             be.restore(this.fuseSeconds, this.remaining, this.code, this.armed, this.remote);
+            if (this.primed && !this.armed) {
+                be.setPrimed(true);
+            }
+            if (this.armed && this.remote && this.pairWith != null) {
+                net.minecraft.world.entity.player.Player thrower =
+                        this.getOwner() instanceof net.minecraft.world.entity.player.Player owner
+                                ? owner
+                                : ((ServerLevel) this.level())
+                                        .getServer()
+                                        .getPlayerList()
+                                        .getPlayer(this.pairWith);
+                if (thrower != null) {
+                    com.cbc_more_content.item.DetonatorItem.pairFromInventory(thrower, target, be);
+                }
+            }
         }
         this.level().playSound(null, target, ModSounds.C4_PLACE.get(), SoundSource.BLOCKS, 1.0f, 1.0f);
     }
 
     private void dropAsItem() {
-        this.spawnAtLocation(this.getDefaultItem());
+        // The stack it was thrown from, so a preset survives a throw that did not stick.
+        ItemStack stack = this.getItem().isEmpty()
+                ? new ItemStack(this.getDefaultItem())
+                : this.getItem().copyWithCount(1);
+        this.spawnAtLocation(stack);
     }
 
     @Override
@@ -217,6 +267,10 @@ public class C4Projectile extends ThrowableItemProjectile {
         tag.putBoolean("Remote", this.remote);
         tag.putInt("Rotation", this.rotation);
         tag.putInt("SinceLastBeep", this.sinceLastBeep);
+        tag.putBoolean("Primed", this.primed);
+        if (this.pairWith != null) {
+            tag.putUUID("PairWith", this.pairWith);
+        }
     }
 
     @Override
@@ -229,5 +283,7 @@ public class C4Projectile extends ThrowableItemProjectile {
         this.remote = tag.getBoolean("Remote");
         this.rotation = tag.getInt("Rotation");
         this.sinceLastBeep = tag.getInt("SinceLastBeep");
+        this.primed = tag.getBoolean("Primed");
+        this.pairWith = tag.hasUUID("PairWith") ? tag.getUUID("PairWith") : null;
     }
 }

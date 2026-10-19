@@ -72,6 +72,25 @@ public final class ModBlocks {
     public static final DeferredBlock<Aim9Block> AIM9 =
             BLOCKS.register("aim9", () -> new Aim9Block(bombProps(MapColor.METAL, 1.0f)));
 
+    /** Bombsight: shows where bombs land, and drops on a target by itself. */
+    public static final DeferredBlock<com.cbc_more_content.bombsight.BombsightBlock> BOMBSIGHT = BLOCKS.register(
+            "bombsight",
+            () -> new com.cbc_more_content.bombsight.BombsightBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(1.5f, 6.0f)
+                    .sound(SoundType.COPPER)
+                    .noOcclusion()));
+
+    /** B-8 style rocket pod: three blocks, fired by redstone. */
+    public static final DeferredBlock<com.cbc_more_content.block.RocketPodBlock> ROCKET_POD = BLOCKS.register(
+            "rocket_pod",
+            () -> new com.cbc_more_content.block.RocketPodBlock(BlockBehaviour.Properties.of()
+                    .mapColor(MapColor.METAL)
+                    .strength(2.5f, 6.0f)
+                    .sound(SoundType.NETHERITE_BLOCK)
+                    .requiresCorrectToolForDrops()
+                    .pushReaction(PushReaction.BLOCK)));
+
     public static final DeferredBlock<C4Block> C4 = BLOCKS.register(
             "c4",
             () -> new C4Block(BlockBehaviour.Properties.of()

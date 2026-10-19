@@ -63,6 +63,17 @@ public final class ModEntityTypes {
                     .updateInterval(1)
                     .build("c4"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<com.cbc_more_content.munitions.RocketProjectile>>
+            ROCKET = ENTITY_TYPES.register(
+                    "s8_rocket", () -> EntityType.Builder.<com.cbc_more_content.munitions.RocketProjectile>of(
+                                    com.cbc_more_content.munitions.RocketProjectile::new, MobCategory.MISC)
+                            .sized(.2f, .2f)
+                            .fireImmune()
+                            .clientTrackingRange(10)
+                            .updateInterval(2)
+                            .setShouldReceiveVelocityUpdates(true)
+                            .build("s8_rocket"));
+
     public static final DeferredHolder<EntityType<?>, EntityType<com.cbc_more_content.munitions.Aim9Projectile>> AIM9 =
             ENTITY_TYPES.register("aim9", () -> EntityType.Builder.<com.cbc_more_content.munitions.Aim9Projectile>of(
                             com.cbc_more_content.munitions.Aim9Projectile::new, MobCategory.MISC)

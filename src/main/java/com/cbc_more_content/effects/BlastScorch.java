@@ -79,7 +79,8 @@ public final class BlastScorch {
     }
 
     private static void scuffAt(ServerLevel level, Vec3 center, double radius, float strength) {
-        if (radius <= 0
+        if (!com.cbc_more_content.config.WarnauticsConfig.scorchGround()
+                || radius <= 0
                 || strength <= 0
                 || !rbasamoyai.createbigcannons.config.CBCConfigs.server()
                         .munitions
@@ -113,7 +114,7 @@ public final class BlastScorch {
             int cap,
             long seed) {
         Map<BlockPos, Change> result = new java.util.LinkedHashMap<>();
-        if (radius <= 0 || cap <= 0 || strength <= 0) {
+        if (radius <= 0 || cap <= 0 || strength <= 0 || !com.cbc_more_content.config.WarnauticsConfig.scorchGround()) {
             return result;
         }
         var removed = new java.util.HashSet<>(destroyed);

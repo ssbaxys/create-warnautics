@@ -71,7 +71,9 @@ public final class MissileExhaustLights {
         // used to turn off a still-burning motor halfway through a vertical launch.
         var missiles = new ArrayList<Entity>();
         for (var entity : mc.level.entitiesForRendering()) {
-            if ((entity instanceof CruiseMissileProjectile || entity instanceof Aim9Projectile)
+            if ((entity instanceof CruiseMissileProjectile
+                            || entity instanceof Aim9Projectile
+                            || entity instanceof com.cbc_more_content.munitions.RocketProjectile)
                     && !entity.isRemoved()) {
                 missiles.add(entity);
             }
@@ -124,11 +126,13 @@ public final class MissileExhaustLights {
                     // The booster lays a thick white column; the turbofan sustainer leaves
                     // little more than a faint thread of exhaust behind it.
                     // Close enough together that the trail reads as one continuous ribbon.
-                    double spacing = sustainer(missile)
-                            ? (setting == ParticleStatus.MINIMAL ? 3.0 : 1.1)
-                            : sustainGrain(missile)
-                                    ? (setting == ParticleStatus.MINIMAL ? 2.0 : .8)
-                                    : setting == ParticleStatus.MINIMAL ? 1.0 : pixels < 4 ? .8 : .45;
+                    double spacing = missile instanceof com.cbc_more_content.munitions.RocketProjectile
+                            ? (setting == ParticleStatus.MINIMAL ? 2.0 : .9)
+                            : sustainer(missile)
+                                    ? (setting == ParticleStatus.MINIMAL ? 3.0 : 1.1)
+                                    : sustainGrain(missile)
+                                            ? (setting == ParticleStatus.MINIMAL ? 2.0 : .8)
+                                            : setting == ParticleStatus.MINIMAL ? 1.0 : pixels < 4 ? .8 : .45;
                     int samples =
                             Math.min(budget, Math.clamp((int) Math.ceil(nozzle.distanceTo(previous) / spacing), 1, 16));
                     Vec3 back = heading(missile, 1).scale(-1);
@@ -140,9 +144,11 @@ public final class MissileExhaustLights {
                                 ModParticles.MISSILE_SMOKE.get(),
                                 at.add(back.scale(
                                         powered
-                                                ? missile instanceof Aim9Projectile
-                                                        ? 2.5
-                                                        : sustainer(missile) ? 1.4 : 3.3
+                                                ? missile instanceof com.cbc_more_content.munitions.RocketProjectile
+                                                        ? 1.2
+                                                        : missile instanceof Aim9Projectile
+                                                                ? 2.5
+                                                                : sustainer(missile) ? 1.4 : 3.3
                                                 : .2)),
                                 back.scale(.075),
                                 .065);
@@ -156,7 +162,11 @@ public final class MissileExhaustLights {
                 if (missile instanceof CruiseMissileProjectile cruise && setting != ParticleStatus.MINIMAL) {
                     budget -= airframeEffects(mc.level, cruise, trail, nozzle, distance);
                 }
-                if (powered && !sustainer(missile) && !sustainGrain(missile) && setting != ParticleStatus.MINIMAL) {
+                if (powered
+                        && !sustainer(missile)
+                        && !sustainGrain(missile)
+                        && !(missile instanceof com.cbc_more_content.munitions.RocketProjectile)
+                        && setting != ParticleStatus.MINIMAL) {
                     budget -= jetImpingement(mc.level, missile, nozzle);
                 }
             }
@@ -265,7 +275,11 @@ public final class MissileExhaustLights {
             float age = missile.tickCount + partial - trail.ignitionTick;
             float strength = Mth.clamp(age / 3f, 0, 1) * (1 + .22f * (float) Math.exp(-age * .16));
             boolean turbofan = sustainer(missile);
-            if (turbofan) {
+            boolean rocket = missile instanceof com.cbc_more_content.munitions.RocketProjectile;
+            if (rocket) {
+                // An 80 mm motor: a short, bright tongue rather than a missile's long jet.
+                strength *= .7f;
+            } else if (turbofan) {
                 // A turbofan, not a rocket: the shader draws only a faint shimmer.
                 strength *= .55f;
             } else if (sustainGrain(missile)) {
@@ -292,6 +306,9 @@ public final class MissileExhaustLights {
                     .translate((float) relative.x, (float) relative.y, (float) relative.z)
                     .rotateY((90 - Mth.rotLerp(partial, missile.yRotO, missile.getYRot())) * Mth.DEG_TO_RAD)
                     .rotateZ(Mth.lerp(partial, missile.xRotO, missile.getXRot()) * Mth.DEG_TO_RAD);
+            if (rocket) {
+                matrix.scale(.4f);
+            }
             com.cbc_more_content.client.veil.VeilMissilePlume.render(
                     matrix,
                     event.getProjectionMatrix(),
@@ -300,7 +317,7 @@ public final class MissileExhaustLights {
                     samples,
                     terrainFogStart,
                     terrainFogEnd,
-                    missile instanceof Aim9Projectile
+                    missile instanceof Aim9Projectile || rocket
                             ? com.cbc_more_content.client.veil.VeilMissilePlume.INTERCEPTOR
                             : turbofan
                                     ? com.cbc_more_content.client.veil.VeilMissilePlume.TURBOFAN
@@ -324,7 +341,9 @@ public final class MissileExhaustLights {
      */
     private static int jetImpingement(ClientLevel level, Entity missile, Vec3 nozzle) {
         Vec3 back = heading(missile, 1).scale(-1);
-        double reach = missile instanceof Aim9Projectile ? 5.0 : 8.5;
+        double reach = missile instanceof com.cbc_more_content.munitions.RocketProjectile
+                ? 2.5
+                : missile instanceof Aim9Projectile ? 5.0 : 8.5;
         var hit = level.clip(new net.minecraft.world.level.ClipContext(
                 nozzle,
                 nozzle.add(back.scale(reach)),
@@ -594,12 +613,18 @@ public final class MissileExhaustLights {
     }
 
     private static boolean powered(Entity missile) {
+        if (missile instanceof com.cbc_more_content.munitions.RocketProjectile rocket) {
+            return rocket.isBurning();
+        }
         return missile instanceof CruiseMissileProjectile cruise
                 ? cruise.isPowered()
                 : ((Aim9Projectile) missile).isPowered();
     }
 
     private static boolean ejecting(Entity missile) {
+        if (missile instanceof com.cbc_more_content.munitions.RocketProjectile) {
+            return false;
+        }
         return missile instanceof CruiseMissileProjectile cruise
                 ? cruise.isEjecting()
                 : ((Aim9Projectile) missile).isEjecting();
@@ -622,7 +647,8 @@ public final class MissileExhaustLights {
                 Mth.lerp(partial, missile.xOld, missile.getX()),
                 Mth.lerp(partial, missile.yOld, missile.getY()),
                 Mth.lerp(partial, missile.zOld, missile.getZ()));
-        return renderedPosition.subtract(heading(missile, partial).scale(NOZZLE_OFFSET));
+        double offset = missile instanceof com.cbc_more_content.munitions.RocketProjectile ? .45 : NOZZLE_OFFSET;
+        return renderedPosition.subtract(heading(missile, partial).scale(offset));
     }
 
     private static final class Trail {

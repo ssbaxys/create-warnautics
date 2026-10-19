@@ -97,6 +97,10 @@ public class DropBombProjectile extends FuzedBigCannonProjectile {
 
     @Override
     public void tick() {
+        if (this.level() instanceof net.minecraft.server.level.ServerLevel ticketLevel && !this.isRemoved()) {
+            // Finish the flight and go off where it lands, players nearby or not.
+            com.cbc_more_content.munitions.FlightTicket.keepLoaded(ticketLevel, this);
+        }
         super.tick();
         if (!this.level().isClientSide && !this.detonated && !this.isRemoved() && this.isInGround()) {
             // Failed / lingering stick in dirt — still cook off immediately for bombs.
@@ -253,6 +257,23 @@ public class DropBombProjectile extends FuzedBigCannonProjectile {
     @Override
     protected BallisticPropertiesComponent getBallisticProperties() {
         return this.getAllProperties().ballistics();
+    }
+
+    /** Gravity per tick this bomb falls with (negative), exactly as CBC applies it here. */
+    public double ballisticGravity() {
+        return this.getDefaultGravity();
+    }
+
+    /** Linear drag factor per tick, including the dimension's multiplier. */
+    public double ballisticDrag() {
+        return this.getBallisticProperties().drag()
+                * rbasamoyai.createbigcannons.munitions.config.DimensionMunitionPropertiesHandler.getProperties(
+                                this.level())
+                        .dragMultiplier();
+    }
+
+    public boolean ballisticQuadraticDrag() {
+        return this.getBallisticProperties().isQuadraticDrag();
     }
 
     protected BigCannonCommonShellProperties getAllProperties() {

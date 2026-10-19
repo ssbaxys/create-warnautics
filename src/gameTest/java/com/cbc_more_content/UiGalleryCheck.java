@@ -50,8 +50,11 @@ public final class UiGalleryCheck {
     private static final BlockPos C4 = new BlockPos(0, -60, 4);
     private static final BlockPos SIREN = new BlockPos(2, -60, 4);
     private static final BlockPos AIM9 = new BlockPos(-2, -59, 4);
+    private static final BlockPos POD = new BlockPos(4, -60, 6);
     private static final BlockPos MISSILE = new BlockPos(-4, -59, 4);
     private static final BlockPos BOMB = new BlockPos(4, -60, 4);
+    private static final BlockPos SIGHT = new BlockPos(5, -60, 4);
+    private static final BlockPos SIGHT_HIGH = new BlockPos(3, -52, 2);
     private static final String[] LANGUAGES = {"ru_ru", "en_us"};
 
     private static final Runnable NOOP = () -> {};
@@ -104,13 +107,32 @@ public final class UiGalleryCheck {
             new Shot("radar", () -> new RadarSettingsScreen(BOMB, new InterceptSettings(0.6f, 160, false))),
             new Shot("siren", () -> new SirenSettingsScreen(SIREN, SirenSettings.DEFAULT)),
             new Shot("aim9", () -> new Aim9SettingsScreen(AIM9, true, true, 140)),
+            new Shot("rocket-pod", () -> new com.cbc_more_content.client.gui.RocketPodSettingsScreen(POD, 6, 0, 5)),
+            new Shot(
+                    "bombsight",
+                    () -> new com.cbc_more_content.client.gui.BombsightScreen(
+                            SIGHT, com.cbc_more_content.client.BombsightClient.latest(SIGHT))),
+            new Shot("bombsight-hud", () -> null, () -> {}),
+            new Shot("bombsight-view", () -> null, () -> com.cbc_more_content.client.BombsightView.enter(SIGHT_HIGH)),
             new Shot("missile", () -> new MissileTargetScreen(MISSILE, new BlockPos(120, 64, -300), 0, 1)),
             new Shot("missile-remote", () -> new MissileTargetScreen(MISSILE, null, 1, 0)),
             new Shot("tooltips", TooltipBoard::new),
             new Shot("notices", () -> null, UiGalleryCheck::notices),
-            new Shot("models", () -> null, UiGalleryCheck::models));
+            new Shot("models", () -> null, UiGalleryCheck::models),
+            new Shot("pod-model", () -> null, UiGalleryCheck::podModel));
 
     /** Lays both airframes on their sides and hands the player the items, for a look at the models. */
+    /** The assembled rocket pod from a front quarter, with a section in hand. */
+    private static void podModel() {
+        var server = Minecraft.getInstance().getSingleplayerServer();
+        server.execute(() -> {
+            var player = server.getPlayerList().getPlayers().getFirst();
+            player.getInventory().setItem(2, new ItemStack(ModBlocks.ROCKET_POD.get()));
+            player.getInventory().selected = 2;
+            player.connection.teleport(7.2, -59.2, 1.6, 40, 14);
+        });
+    }
+
     private static void models() {
         var server = Minecraft.getInstance().getSingleplayerServer();
         server.execute(() -> {
@@ -209,6 +231,31 @@ public final class UiGalleryCheck {
                     level.setBlockAndUpdate(C4, ModBlocks.C4.get().defaultBlockState());
                     level.setBlockAndUpdate(SIREN, ModBlocks.SIREN.get().defaultBlockState());
                     level.setBlockAndUpdate(BOMB, ModBlocks.SMALL_BOMB.get().defaultBlockState());
+                    level.setBlockAndUpdate(SIGHT, ModBlocks.BOMBSIGHT.get().defaultBlockState());
+                    if (level.getBlockEntity(SIGHT)
+                            instanceof com.cbc_more_content.bombsight.BombsightBlockEntity sight) {
+                        sight.markTarget(18, 22);
+                    }
+                    level.setBlockAndUpdate(
+                            SIGHT_HIGH.above(), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+                    level.setBlockAndUpdate(
+                            SIGHT_HIGH,
+                            ModBlocks.BOMBSIGHT
+                                    .get()
+                                    .defaultBlockState()
+                                    .setValue(
+                                            com.cbc_more_content.bombsight.BombsightBlock.FACE,
+                                            net.minecraft.world.level.block.state.properties.AttachFace.CEILING));
+                    level.setBlockAndUpdate(
+                            SIGHT_HIGH.east(),
+                            ModBlocks.SMALL_BOMB
+                                    .get()
+                                    .defaultBlockState()
+                                    .setValue(com.cbc_more_content.block.DropBombBlock.FACING, Direction.DOWN));
+                    if (level.getBlockEntity(SIGHT_HIGH)
+                            instanceof com.cbc_more_content.bombsight.BombsightBlockEntity high) {
+                        high.markTarget(9, 12);
+                    }
                     var aim9 = (Aim9Block) ModBlocks.AIM9.get();
                     aim9.setPlacedBy(
                             level,
@@ -216,6 +263,17 @@ public final class UiGalleryCheck {
                             aim9.defaultBlockState().setValue(Aim9Block.FACING, Direction.UP),
                             player,
                             ItemStack.EMPTY);
+                    var podBlock = (com.cbc_more_content.block.RocketPodBlock) ModBlocks.ROCKET_POD.get();
+                    for (int i = -1; i <= 1; i++) {
+                        var at = POD.relative(Direction.NORTH, i);
+                        var section = podBlock.defaultBlockState()
+                                .setValue(com.cbc_more_content.block.RocketPodBlock.FACING, Direction.NORTH);
+                        level.setBlockAndUpdate(at, section);
+                        podBlock.setPlacedBy(level, at, section, null, ItemStack.EMPTY);
+                    }
+                    if (level.getBlockEntity(POD) instanceof com.cbc_more_content.block.RocketPodBlockEntity pod) {
+                        pod.load(5);
+                    }
                     var missile = (CruiseMissileBlock) ModBlocks.CRUISE_MISSILE.get();
                     missile.setPlacedBy(
                             level,
@@ -245,6 +303,13 @@ public final class UiGalleryCheck {
             return;
         }
         ticks++;
+        if (SHOTS.get(index).name().equals("pod-model") && ticks > 4) {
+            mc.player.setYRot(40);
+            mc.player.yRotO = 40;
+            mc.player.setXRot(14);
+            mc.player.xRotO = 14;
+            mc.player.getInventory().selected = 2;
+        }
         if (SHOTS.get(index).name().equals("models") && ticks > 4) {
             mc.player.setYRot(0);
             mc.player.yRotO = 0;

@@ -235,6 +235,84 @@ public class ClaymoreGameTests {
         helper.succeed();
     }
 
+    /**
+     * Pressed while the claymore is still arming, the detonator does not fire it and does not
+     * forget it either: it stays paired and goes off on the next press once armed.
+     */
+    @GameTest(template = "empty", batch = "claymore_detonator_arming", timeoutTicks = 120)
+    public static void detonatorKeepsAClaymoreThatIsStillArming(GameTestHelper helper) {
+        ground(helper);
+        helper.setBlock(
+                MINE, ModBlocks.CLAYMORE.get().defaultBlockState().setValue(ClaymoreBlock.FACING, Direction.EAST));
+        BlockPos at = helper.absolutePos(MINE);
+        FakePlayer player = new FakePlayer(helper.getLevel(), new GameProfile(UUID.randomUUID(), "early-clacker"));
+        player.setGameMode(GameType.SURVIVAL);
+        player.setPos(helper.absoluteVec(MINE.west(4).getCenter()));
+        ItemStack detonator = new ItemStack(ModItems.DETONATOR.get());
+        player.setItemInHand(InteractionHand.MAIN_HAND, detonator);
+        detonator.useOn(new UseOnContext(
+                player, InteractionHand.MAIN_HAND, new BlockHitResult(at.getCenter(), Direction.UP, at, false)));
+        detonator.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+        helper.assertBlockPresent(ModBlocks.CLAYMORE.get(), MINE);
+        helper.assertTrue(DetonatorItem.boundCharges(detonator).contains(at), "Still paired while it arms");
+        helper.runAfterDelay(ClaymoreBlock.ARM_DELAY_TICKS + 5, () -> {
+            player.getCooldowns().removeCooldown(detonator.getItem());
+            detonator.use(helper.getLevel(), player, InteractionHand.MAIN_HAND);
+            helper.assertBlockNotPresent(ModBlocks.CLAYMORE.get(), MINE);
+            helper.succeed();
+        });
+    }
+
+    /**
+     * Someone in a full suit of iron fifteen blocks in front of it does not walk away: the
+     * balls land as one blow, which armour only takes a little off.
+     */
+    @GameTest(template = "empty", batch = "claymore_armour", timeoutTicks = 100)
+    public static void ironArmourDoesNotSaveYouAtFifteenBlocks(GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        BlockPos at = helper.absolutePos(FIELD);
+        for (int x = -1; x <= 2; x++) {
+            for (int z = -1; z <= 1; z++) {
+                level.setChunkForced((at.getX() >> 4) + x, (at.getZ() >> 4) + z, true);
+            }
+        }
+        for (BlockPos pos : BlockPos.betweenClosed(FIELD.offset(-4, -1, -6), FIELD.offset(20, -1, 6))) {
+            helper.setBlock(pos, Blocks.STONE);
+        }
+        net.minecraft.world.entity.monster.Zombie[] soldier = {null};
+        helper.runAfterDelay(8, () -> {
+            helper.setBlock(FIELD, armed(Direction.EAST));
+            var zombie = helper.spawn(EntityType.ZOMBIE, FIELD.east(15));
+            zombie.setNoAi(true);
+            zombie.setNoGravity(true);
+            zombie.setItemSlot(
+                    net.minecraft.world.entity.EquipmentSlot.HEAD,
+                    new ItemStack(net.minecraft.world.item.Items.IRON_HELMET));
+            zombie.setItemSlot(
+                    net.minecraft.world.entity.EquipmentSlot.CHEST,
+                    new ItemStack(net.minecraft.world.item.Items.IRON_CHESTPLATE));
+            zombie.setItemSlot(
+                    net.minecraft.world.entity.EquipmentSlot.LEGS,
+                    new ItemStack(net.minecraft.world.item.Items.IRON_LEGGINGS));
+            zombie.setItemSlot(
+                    net.minecraft.world.entity.EquipmentSlot.FEET,
+                    new ItemStack(net.minecraft.world.item.Items.IRON_BOOTS));
+            soldier[0] = zombie;
+        });
+        helper.runAfterDelay(14, () -> helper.setBlock(FIELD.north(), Blocks.REDSTONE_BLOCK));
+        helper.runAfterDelay(50, () -> {
+            helper.assertTrue(
+                    !soldier[0].isAlive() || soldier[0].getHealth() <= 0,
+                    "An armoured man at fifteen blocks is killed, health left " + soldier[0].getHealth());
+            for (int x = -1; x <= 2; x++) {
+                for (int z = -1; z <= 1; z++) {
+                    level.setChunkForced((at.getX() >> 4) + x, (at.getZ() >> 4) + z, false);
+                }
+            }
+            helper.succeed();
+        });
+    }
+
     /** A line of claymores set and then fired together has to stay inside a tick budget. */
     @GameTest(template = "empty", batch = "claymore_cost", timeoutTicks = 120)
     public static void aRowFiredTogetherStaysCheap(GameTestHelper helper) {

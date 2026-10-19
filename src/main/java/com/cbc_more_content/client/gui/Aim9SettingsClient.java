@@ -7,6 +7,13 @@ import net.minecraft.core.BlockPos;
 public final class Aim9SettingsClient {
     private Aim9SettingsClient() {}
 
+    /** The server's answer to the panel's status question. */
+    public static void status(com.cbc_more_content.network.Aim9StatusPayload payload) {
+        if (Minecraft.getInstance().screen instanceof Aim9SettingsScreen screen) {
+            screen.onStatus(payload);
+        }
+    }
+
     public static void open(BlockPos pos) {
         var mc = Minecraft.getInstance();
         if (mc.level != null && mc.level.getBlockEntity(pos) instanceof Aim9BlockEntity be) {

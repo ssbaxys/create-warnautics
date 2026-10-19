@@ -1,0 +1,110 @@
+{
+  "variants": {
+    "face=floor,facing=north,releasing=false": {
+      "model": "cbc_more_content:block/bombsight"
+    },
+    "face=floor,facing=north,releasing=true": {
+      "model": "cbc_more_content:block/bombsight"
+    },
+    "face=floor,facing=east,releasing=false": {
+      "model": "cbc_more_content:block/bombsight",
+      "y": 90
+    },
+    "face=floor,facing=east,releasing=true": {
+      "model": "cbc_more_content:block/bombsight",
+      "y": 90
+    },
+    "face=floor,facing=south,releasing=false": {
+      "model": "cbc_more_content:block/bombsight",
+      "y": 180
+    },
+    "face=floor,facing=south,releasing=true": {
+      "model": "cbc_more_content:block/bombsight",
+      "y": 180
+    },
+    "face=floor,facing=west,releasing=false": {
+      "model": "cbc_more_content:block/bombsight",
+      "y": 270
+    },
+    "face=floor,facing=west,releasing=true": {
+      "model": "cbc_more_content:block/bombsight",
+      "y": 270
+    },
+    "face=wall,facing=north,releasing=false": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 90
+    },
+    "face=wall,facing=north,releasing=true": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 90
+    },
+    "face=wall,facing=east,releasing=false": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 90,
+      "y": 90
+    },
+    "face=wall,facing=east,releasing=true": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 90,
+      "y": 90
+    },
+    "face=wall,facing=south,releasing=false": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 90,
+      "y": 180
+    },
+    "face=wall,facing=south,releasing=true": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 90,
+      "y": 180
+    },
+    "face=wall,facing=west,releasing=false": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 90,
+      "y": 270
+    },
+    "face=wall,facing=west,releasing=true": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 90,
+      "y": 270
+    },
+    "face=ceiling,facing=north,releasing=false": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 180,
+      "y": 180
+    },
+    "face=ceiling,facing=north,releasing=true": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 180,
+      "y": 180
+    },
+    "face=ceiling,facing=east,releasing=false": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 180,
+      "y": 270
+    },
+    "face=ceiling,facing=east,releasing=true": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 180,
+      "y": 270
+    },
+    "face=ceiling,facing=south,releasing=false": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 180
+    },
+    "face=ceiling,facing=south,releasing=true": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 180
+    },
+    "face=ceiling,facing=west,releasing=false": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 180,
+      "y": 90
+    },
+    "face=ceiling,facing=west,releasing=true": {
+      "model": "cbc_more_content:block/bombsight",
+      "x": 180,
+      "y": 90
+    }
+  }
+}

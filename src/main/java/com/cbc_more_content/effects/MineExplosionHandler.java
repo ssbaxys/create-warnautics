@@ -1,5 +1,7 @@
 package com.cbc_more_content.effects;
 
+import com.cbc_more_content.config.WarnauticsConfig;
+import com.cbc_more_content.damage.MineDamageSource;
 import com.cbc_more_content.event.WarnauticsBlockChipEvent;
 import com.cbc_more_content.registry.ModParticles;
 import javax.annotation.Nullable;
@@ -66,6 +68,8 @@ public final class MineExplosionHandler {
 
     public static void detonateSmallShrapnel(
             ServerLevel level, @Nullable Entity source, DamageSource damageSource, Vec3 pos, float entityPower) {
+        entityPower = com.cbc_more_content.config.WarnauticsConfig.entityPower(
+                entityPower, com.cbc_more_content.config.WarnauticsConfig.Munition.MINE);
         var target = com.cbc_more_content.compat.SableDropCompat.resolveWorldBlastChecked(level, pos);
         level = target.level();
         pos = target.pos();
@@ -96,12 +100,6 @@ public final class MineExplosionHandler {
     }
 
     /**
-     * Steel balls a Claymore throws. The real one carries seven hundred; each of these stands
-     * for about six. Every one is traced for its whole flight, so a row of claymores fired at
-     * once is paid for here.
-     */
-    public static final int CLAYMORE_BALLS = 120;
-    /**
      * Hit size of one ball, blocks. CBC sizes its fragments for shell splinters at 0.8, which
      * let the nearest body soak up half the fan; a pellet this size leaves the rest of the
      * field to the balls that miss it.
@@ -109,12 +107,8 @@ public final class MineExplosionHandler {
     public static final double CLAYMORE_BALL_SIZE = 0.3D;
     /** Marks the claymore's own burst, for the ball size. */
     public static final String CLAYMORE_BURST_TAG = "warnautics_claymore_burst";
-    /** Half the fan: sixty degrees in all, as on the real one. */
-    public static final double CLAYMORE_HALF_ANGLE = Math.toRadians(30.0D);
-    /** Blocks/tick. With CBC's twenty-tick fragment life this carries about sixty blocks. */
-    private static final double CLAYMORE_SPEED_MIN = 2.8D;
-
-    private static final double CLAYMORE_SPEED_MAX = 3.2D;
+    /** Spread of ball speeds, blocks/tick, around the configured speed. */
+    private static final double CLAYMORE_SPEED_SPREAD = 0.2D;
     /** Level to a few degrees up: the fan stands about a man high out to its lethal range. */
     private static final double CLAYMORE_PITCH_MIN = Math.toRadians(-0.5D);
 
@@ -147,7 +141,9 @@ public final class MineExplosionHandler {
             Vec3 forward,
             Vec3 carrierVelocity) {
         Vec3 ahead = forward.lengthSqr() < 1.0E-6D ? new Vec3(0.0D, 0.0D, 1.0D) : forward.normalize();
-        float backBlast = com.cbc_more_content.mine.MineType.CLAYMORE.entityBlastPower;
+        float backBlast = com.cbc_more_content.config.WarnauticsConfig.entityPower(
+                com.cbc_more_content.mine.MineType.CLAYMORE.entityBlastPower,
+                com.cbc_more_content.config.WarnauticsConfig.Munition.MINE);
         // CBC's explosion hurts out to twice its power on the vanilla curve, which made a
         // back-blast as dangerous five blocks behind as a grenade. It is kept small, for the
         // shove and the ship push; the damage comes from the mine's own pressure curve.
@@ -164,9 +160,122 @@ public final class MineExplosionHandler {
         CreateBigCannons.handleCustomExplosion(level, pressure);
         applyPressure(level, damageSource, pos, backBlast);
 
-        spawnClaymoreFan(level, pos.add(0.0D, CLAYMORE_MUZZLE_HEIGHT - 0.5D, 0.0D), ahead, carrierVelocity);
+        Vec3 muzzle = pos.add(0.0D, CLAYMORE_MUZZLE_HEIGHT - 0.5D, 0.0D);
+        spawnClaymoreFan(level, muzzle, ahead, carrierVelocity);
+        strikeFan(level, muzzle, ahead);
         // It stands above the ground and digs nothing, so there is no scorch to leave.
-        BombBlastFx.playClaymore(level, pos, ahead, CLAYMORE_HALF_ANGLE, CLAYMORE_EFFECT_RANGE);
+        BombBlastFx.playClaymore(
+                level,
+                pos,
+                ahead,
+                com.cbc_more_content.config.WarnauticsConfig.claymoreHalfAngle(),
+                Math.min(
+                        CLAYMORE_EFFECT_RANGE,
+                        com.cbc_more_content.config.WarnauticsConfig.claymoreBallSpeed() * 12.0D));
+    }
+
+    /**
+     * Who the fan strikes, and how hard, worked out for each body in front instead of left to
+     * individual balls finding a two-pixel-wide player.
+     * <p>
+     * For each living thing within the balls' reach: it has to be inside the sixty degrees
+     * (allowing for its own width) and the fan, which rises a few degrees, has to reach its
+     * height there. The balls that strike it are the share of the fan its body fills: dozens
+     * point-blank, a handful at twenty blocks, one or two at the edge of reach. Five lines are
+     * traced from the plate to points across the body; each one a wall, a hull or the ground
+     * stops takes its share away, so cover works and half cover half works. The total lands
+     * as a single blow when the balls arrive, so armour reduces it once rather than shrugging
+     * off a stream of small hits.
+     */
+    private static void strikeFan(ServerLevel level, Vec3 muzzle, Vec3 ahead) {
+        double perBall = WarnauticsConfig.claymoreBallDamage();
+        if (perBall <= 0) {
+            return;
+        }
+        Vec3 flat = new Vec3(ahead.x, 0, ahead.z);
+        flat = flat.lengthSqr() < 1.0E-6 ? new Vec3(0, 0, 1) : flat.normalize();
+        int balls = WarnauticsConfig.claymoreBalls();
+        double halfAngle = WarnauticsConfig.claymoreHalfAngle();
+        double speed = WarnauticsConfig.claymoreBallSpeed();
+        double reach = speed * 20.0D;
+        double tilt = Math.asin(Mth.clamp(ahead.y, -1.0D, 1.0D));
+        double low = Math.tan(tilt + CLAYMORE_PITCH_MIN);
+        double high = Math.tan(tilt + CLAYMORE_PITCH_MAX);
+        var server = level.getServer();
+        RandomSource random = level.getRandom();
+        DamageSource source = MineDamageSource.claymoreBalls(level);
+        AABB area = new AABB(muzzle, muzzle).inflate(reach);
+        for (LivingEntity target : level.getEntitiesOfClass(LivingEntity.class, area, LivingEntity::isAlive)) {
+            if (target.isSpectator()) {
+                continue;
+            }
+            AABB box = target.getBoundingBox();
+            Vec3 centre = box.getCenter();
+            Vec3 toward = new Vec3(centre.x - muzzle.x, 0, centre.z - muzzle.z);
+            double range = toward.length();
+            if (range < 0.3D || range > reach || toward.dot(flat) <= 0) {
+                continue;
+            }
+            // Inside the fan, counting the body's own width.
+            double off = Math.acos(Mth.clamp(toward.dot(flat) / range, -1.0D, 1.0D));
+            double halfWidth = Math.atan((box.getXsize() * 0.5D + CLAYMORE_BALL_SIZE * 0.5D) / range);
+            if (off > halfAngle + halfWidth) {
+                continue;
+            }
+            // How much of the fan's height the body covers out there.
+            double bandBottom = muzzle.y + range * low - CLAYMORE_BALL_SIZE * 0.5D;
+            double bandTop = muzzle.y + range * high + CLAYMORE_BALL_SIZE * 0.5D;
+            double vertical = Math.max(0.0D, Math.min(bandTop, box.maxY) - Math.max(bandBottom, box.minY))
+                    / Math.max(0.05D, bandTop - bandBottom);
+            if (vertical <= 0) {
+                continue;
+            }
+            // How much of the fan's width: the body's angular width over the fan's, only the
+            // part of it that is actually inside the fan.
+            double inside =
+                    Math.max(0.0D, Math.min(halfAngle, off + halfWidth) - Math.max(-halfAngle, off - halfWidth));
+            double horizontal = Math.min(1.0D, inside / (2.0D * halfAngle));
+            double exposure = exposure(level, muzzle, box);
+            if (exposure <= 0) {
+                continue;
+            }
+            double expected = balls * horizontal * vertical * exposure;
+            // Whole balls: the fractional part is a chance of one more.
+            int hits = (int) Math.floor(expected + random.nextDouble());
+            if (hits <= 0) {
+                continue;
+            }
+            float damage = (float) (hits * perBall);
+            int delay = (int) Math.max(1, Math.ceil(range / Math.max(0.1D, speed)));
+            Runnable blow = () -> {
+                if (target.isAlive()) {
+                    target.invulnerableTime = 0;
+                    target.hurt(source, damage);
+                    target.invulnerableTime = 0;
+                }
+            };
+            if (server == null) {
+                blow.run();
+            } else {
+                server.tell(new net.minecraft.server.TickTask(server.getTickCount() + delay, blow));
+            }
+        }
+    }
+
+    /** Share of five lines from the plate to points across the body that nothing stops. */
+    private static double exposure(ServerLevel level, Vec3 muzzle, AABB box) {
+        Vec3 c = box.getCenter();
+        double dx = box.getXsize() * 0.3D;
+        double dz = box.getZsize() * 0.3D;
+        double dy = box.getYsize() * 0.3D;
+        Vec3[] points = {c, c.add(dx, -dy, dz), c.add(-dx, -dy, -dz), c.add(dx, dy, -dz), c.add(-dx, dy, dz)};
+        int open = 0;
+        for (Vec3 point : points) {
+            if (com.cbc_more_content.compat.SableDropCompat.clearRay(level, muzzle, point, java.util.Set.of())) {
+                open++;
+            }
+        }
+        return open / (double) points.length;
     }
 
     private static void spawnClaymoreFan(ServerLevel level, Vec3 muzzle, Vec3 ahead, Vec3 carrier) {
@@ -180,14 +289,18 @@ public final class MineExplosionHandler {
         double tilt = Math.asin(Mth.clamp(ahead.y, -1.0D, 1.0D));
 
         RandomSource random = level.getRandom();
-        double[] velocities = new double[CLAYMORE_BALLS * 3];
-        double sector = 2.0D * CLAYMORE_HALF_ANGLE / CLAYMORE_BALLS;
-        for (int i = 0; i < CLAYMORE_BALLS; i++) {
+        int balls = com.cbc_more_content.config.WarnauticsConfig.claymoreBalls();
+        double halfAngle = com.cbc_more_content.config.WarnauticsConfig.claymoreHalfAngle();
+        double speedMin = com.cbc_more_content.config.WarnauticsConfig.claymoreBallSpeed() - CLAYMORE_SPEED_SPREAD;
+        double speedMax = com.cbc_more_content.config.WarnauticsConfig.claymoreBallSpeed() + CLAYMORE_SPEED_SPREAD;
+        double[] velocities = new double[balls * 3];
+        double sector = 2.0D * halfAngle / balls;
+        for (int i = 0; i < balls; i++) {
             // Even across the fan, jittered within each slice, so there are no lanes to
             // walk through and no clumps.
-            double yaw = heading - CLAYMORE_HALF_ANGLE + (i + random.nextDouble()) * sector;
+            double yaw = heading - halfAngle + (i + random.nextDouble()) * sector;
             double pitch = tilt + Mth.lerp(random.nextDouble(), CLAYMORE_PITCH_MIN, CLAYMORE_PITCH_MAX);
-            double speed = Mth.lerp(random.nextDouble(), CLAYMORE_SPEED_MIN, CLAYMORE_SPEED_MAX);
+            double speed = Mth.lerp(random.nextDouble(), speedMin, speedMax);
             double horizontal = Math.cos(pitch) * speed;
             double vx = Math.cos(yaw) * horizontal + carrier.x;
             double vy = Math.sin(pitch) * speed + carrier.y;
@@ -213,8 +326,8 @@ public final class MineExplosionHandler {
         burst.setNoGravity(true);
         level.addFreshEntity(burst);
         // One ball in four as a visible streak is enough to read the fan.
-        double[] tracers = new double[(CLAYMORE_BALLS / 4) * 3];
-        for (int i = 0; i < CLAYMORE_BALLS / 4; i++) {
+        double[] tracers = new double[(balls / 4) * 3];
+        for (int i = 0; i < balls / 4; i++) {
             System.arraycopy(velocities, i * 12, tracers, i * 3, 3);
         }
         sendFragmentTrails(level, muzzle, tracers);

@@ -454,7 +454,7 @@ public class TripwireEntity extends Entity {
 
     /** True if this post already carries as many wires as it can. */
     public static boolean full(ServerLevel server, BlockPos post) {
-        return wiresAt(server, post).size() >= MAX_WIRES_PER_POST;
+        return wiresAt(server, post).size() >= com.cbc_more_content.config.WarnauticsConfig.tripwiresPerPost();
     }
 
     /** True if these two posts are already joined by a wire, in either direction. */

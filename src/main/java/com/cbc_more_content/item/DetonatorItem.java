@@ -33,7 +33,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 public class DetonatorItem extends Item {
+    /** Default reach; the server config decides the real one. */
     public static final double RANGE = 250.0D;
+
     private static final String LINKED_VEST = "LinkedVest";
     public static final int MAX_CHARGES = 12;
 
@@ -89,7 +91,7 @@ public class DetonatorItem extends Item {
             say(player, "message.cbc_more_content.detonator.already_paired", UiTone.MUTED);
             return InteractionResult.CONSUME;
         }
-        if (ring.size() >= MAX_CHARGES) {
+        if (ring.size() >= com.cbc_more_content.config.WarnauticsConfig.detonatorMaxCharges()) {
             say(player, "message.cbc_more_content.detonator.full", UiTone.DANGER);
             return InteractionResult.CONSUME;
         }
@@ -150,31 +152,55 @@ public class DetonatorItem extends Item {
 
         level.playSound(null, player.blockPosition(), SoundEvents.LEVER_CLICK, SoundSource.PLAYERS, 0.9f, 1.6f);
 
-        List<BlockPos> reached = new ArrayList<>();
-        List<BlockPos> left = new ArrayList<>();
+        // Every paired charge is accounted for, and the player is told what became of each
+        // kind: fired, out of reach, not ready yet, or gone. Only those that went off or are
+        // gone leave the ring; the rest stay paired for the next press.
+        double range = com.cbc_more_content.config.WarnauticsConfig.detonatorRange();
+        List<BlockPos> keep = new ArrayList<>();
+        List<BlockPos> c4Live = new ArrayList<>();
+        List<BlockPos> claymores = new ArrayList<>();
+        int outOfRange = 0;
+        int notReady = 0;
+        int gone = 0;
         for (BlockPos charge : ring) {
             // A charge on a ship lives in the ship's plot, far out in the storage grid: the
             // radio reaches where the ship is, not where its blocks are filed.
             Vec3 where = com.cbc_more_content.compat.SableDropCompat.resolveWorldBlastChecked(
                             server, charge.getCenter())
                     .pos();
-            double distanceSqr = player.distanceToSqr(where);
-            if (distanceSqr > RANGE * RANGE || !level.isLoaded(charge)) {
-                left.add(charge);
+            if (player.distanceToSqr(where) > range * range || !level.isLoaded(charge)) {
+                outOfRange++;
+                keep.add(charge);
+                continue;
+            }
+            BlockState state = level.getBlockState(charge);
+            if (state.getBlock() instanceof ClaymoreBlock) {
+                claymores.add(charge);
+            } else if (level.getBlockEntity(charge) instanceof C4BlockEntity c4) {
+                if (c4.isWaitingOnRemote()) {
+                    c4Live.add(charge);
+                } else {
+                    // Disarmed, or set to its own timer: the radio has nothing to trigger.
+                    notReady++;
+                    keep.add(charge);
+                }
             } else {
-                reached.add(charge);
+                gone++;
             }
         }
         // Claymores first: a charge going off beside one would otherwise set it off itself.
         int fired = 0;
-        for (BlockPos at : reached) {
+        for (BlockPos at : claymores) {
             if (ClaymoreBlock.fireRemote(server, at)) {
                 fired++;
+            } else {
+                // Still arming: it will take the signal in a moment.
+                notReady++;
+                keep.add(at);
             }
         }
-        fired += C4BlockEntity.fireRing(server, reached);
-        int unreachable = left.size();
-        store(stack, left);
+        fired += C4BlockEntity.fireRing(server, c4Live);
+        store(stack, keep);
 
         int firedVests = 0;
         java.util.UUID vestId = boundVest(stack);
@@ -192,14 +218,46 @@ public class DetonatorItem extends Item {
         if (firedVests > 0) {
             say(player, "message.cbc_more_content.detonator.vest_fired", UiTone.SUCCESS);
         }
-        if (fired > 0) {
-            Notices.send(player, UiTone.SUCCESS, "message.cbc_more_content.detonator.fired", fired);
-        } else if (unreachable > 0) {
-            say(player, "message.cbc_more_content.detonator.out_of_range", UiTone.DANGER);
-        } else if (firedVests == 0) {
-            say(player, "message.cbc_more_content.detonator.no_signal", UiTone.DANGER);
-        }
+        report(player, fired, outOfRange, notReady, gone, (int) range, firedVests > 0);
         return InteractionResultHolder.success(stack);
+    }
+
+    /**
+     * One line saying what the press did: how many went off, and plainly why any did not.
+     * The tone follows the outcome: green if anything fired, amber if something just was not
+     * ready, red if nothing could be reached.
+     */
+    private static void report(
+            Player player, int fired, int outOfRange, int notReady, int gone, int range, boolean vest) {
+        String p = "message.cbc_more_content.detonator.";
+        var parts = new ArrayList<Component>();
+        if (fired > 0) {
+            parts.add(Component.translatable(p + "fired", fired));
+        }
+        if (outOfRange > 0) {
+            parts.add(Component.translatable(p + "report.out_of_range", outOfRange, range));
+        }
+        if (notReady > 0) {
+            parts.add(Component.translatable(p + "report.not_ready", notReady));
+        }
+        if (gone > 0) {
+            parts.add(Component.translatable(p + "report.gone", gone));
+        }
+        if (parts.isEmpty()) {
+            if (!vest) {
+                Notices.send(player, UiTone.MUTED, p + "unbound");
+            }
+            return;
+        }
+        var line = Component.empty();
+        for (int i = 0; i < parts.size(); i++) {
+            if (i > 0) {
+                line.append(" · ");
+            }
+            line.append(parts.get(i));
+        }
+        UiTone tone = fired > 0 ? UiTone.SUCCESS : notReady > 0 && outOfRange == 0 ? UiTone.ACCENT : UiTone.DANGER;
+        Notices.send(player, tone, line);
     }
 
     @Override
@@ -243,6 +301,39 @@ public class DetonatorItem extends Item {
             }
         }
         return ring;
+    }
+
+    /**
+     * A preset charge landing live pairs itself with the first detonator in its thrower's
+     * inventory that has room, and says so; with none, the thrower is told to pair by hand.
+     */
+    public static void pairFromInventory(Player player, BlockPos pos, C4BlockEntity charge) {
+        if (!com.cbc_more_content.config.WarnauticsConfig.c4PresetAutoPair() || !charge.isWaitingOnRemote()) {
+            return;
+        }
+        boolean full = false;
+        for (ItemStack stack : player.getInventory().items) {
+            if (!(stack.getItem() instanceof DetonatorItem)) {
+                continue;
+            }
+            List<BlockPos> ring = boundCharges(stack);
+            if (ring.contains(pos)) {
+                return;
+            }
+            if (ring.size() >= com.cbc_more_content.config.WarnauticsConfig.detonatorMaxCharges()) {
+                full = true;
+                continue;
+            }
+            ring.add(pos.immutable());
+            store(stack, ring);
+            charge.setPaired(true);
+            Notices.send(player, UiTone.SUCCESS, "message.cbc_more_content.c4.preset.paired", ring.size());
+            return;
+        }
+        say(
+                player,
+                full ? "message.cbc_more_content.detonator.full" : "message.cbc_more_content.c4.preset.no_detonator",
+                UiTone.DANGER);
     }
 
     public static boolean unbind(ItemStack stack, BlockPos charge) {
@@ -347,7 +438,10 @@ public class DetonatorItem extends Item {
             ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         List<BlockPos> ring = boundCharges(stack);
         if (!ring.isEmpty()) {
-            tooltip.add(UiTone.ACCENT.text("tooltip.cbc_more_content.detonator.bound", ring.size(), MAX_CHARGES));
+            tooltip.add(UiTone.ACCENT.text(
+                    "tooltip.cbc_more_content.detonator.bound",
+                    ring.size(),
+                    com.cbc_more_content.config.WarnauticsConfig.detonatorMaxCharges()));
             for (BlockPos charge : ring) {
                 tooltip.add(Component.literal(" %d, %d, %d".formatted(charge.getX(), charge.getY(), charge.getZ()))
                         .withStyle(UiTone.MUTED.style()));

@@ -690,4 +690,80 @@ public class Aim9FlightGameTests {
             target[0].discard();
         });
     }
+
+    /**
+     * A small ship with one rack standing on its deck and one hanging under it. Upright, the
+     * top one is clear and the hanging one has the deck over it; turned upside down it is
+     * the other way round. The rack must judge by the world's up, not the ship's.
+     */
+    @GameTest(template = "empty", batch = "aim9_ship_flipped", timeoutTicks = 100)
+    public static void flippedShipJudgesTheSkyByWorldUp(GameTestHelper h) {
+        var level = h.getLevel();
+        var center = h.absolutePos(new BlockPos(50, 30, 650));
+        clearSkies(level, center);
+        level.getChunkSource()
+                .addRegionTicket(FIXTURE, new net.minecraft.world.level.ChunkPos(center), 2, center.asLong(), true);
+        loadFlightChunks(level, center);
+        var cells = new ArrayList<BlockPos>();
+        for (var p : BlockPos.betweenClosed(center.offset(-1, 0, -1), center.offset(1, 0, 1))) {
+            level.setBlock(p, Blocks.DIRT.defaultBlockState(), Block.UPDATE_CLIENTS);
+            cells.add(p.immutable());
+        }
+        var ship = SubLevelAssemblyHelper.assembleBlocks(
+                level, center, cells, new BoundingBox3i(center.offset(-1, 0, -1), center.offset(1, 0, 1)));
+        var deck = ship.getPlot().getCenterBlock();
+        var block = (Aim9Block) ModBlocks.AIM9.get();
+        BlockPos onTop = deck.above(2);
+        BlockPos hanging = deck.below(2);
+        block.setPlacedBy(
+                level,
+                onTop,
+                block.defaultBlockState().setValue(Aim9Block.FACING, Direction.UP),
+                null,
+                ItemStack.EMPTY);
+        block.setPlacedBy(
+                level,
+                hanging,
+                block.defaultBlockState().setValue(Aim9Block.FACING, Direction.DOWN),
+                null,
+                ItemStack.EMPTY);
+        h.runAfterDelay(2, () -> {
+            var top = Aim9Block.skyCheck(level, onTop);
+            var under = Aim9Block.skyCheck(level, hanging);
+            h.assertTrue(
+                    top == Aim9Block.Readiness.READY && under == Aim9Block.Readiness.SHIP_ABOVE,
+                    "Upright: top " + top + ", hanging " + under);
+            var at = ship.logicalPose().transformPosition(deck.getCenter());
+            RigidBodyHandle.of(ship).teleport(new Vector3d(at.x, at.y, at.z), new Quaterniond().rotateX(Math.PI));
+        });
+        h.runAfterDelay(1, () -> {
+            for (var rack : List.of(onTop, hanging)) {
+                if (level.getBlockEntity(rack) instanceof Aim9BlockEntity be) {
+                    be.configure(true, true, 220);
+                }
+            }
+        });
+        h.runAfterDelay(40, () -> {
+            // The racks' own scans, not just the check: they must keep scanning on a turned ship.
+            var topBe = (Aim9BlockEntity) level.getBlockEntity(onTop);
+            var underBe = (Aim9BlockEntity) level.getBlockEntity(hanging);
+            h.assertTrue(
+                    topBe.readiness() == Aim9Block.Readiness.SHIP_ABOVE
+                            && underBe.readiness() == Aim9Block.Readiness.READY,
+                    "Racks report after the flip: top " + topBe.readiness() + ", hanging " + underBe.readiness());
+        });
+        h.runAfterDelay(5, () -> {
+            var top = Aim9Block.skyCheck(level, onTop);
+            var under = Aim9Block.skyCheck(level, hanging);
+            var worldTop = ship.logicalPose().transformPosition(onTop.getCenter());
+            var worldUnder = ship.logicalPose().transformPosition(hanging.getCenter());
+            var up = ship.logicalPose().transformNormalInverse(new Vec3(0, 1, 0));
+            h.assertTrue(
+                    top == Aim9Block.Readiness.SHIP_ABOVE && under == Aim9Block.Readiness.READY,
+                    "Upside down: deck-top rack (now at y " + Math.round(worldTop.y) + ") " + top
+                            + ", hanging rack (now at y " + Math.round(worldUnder.y) + ") " + under
+                            + ", world up in ship space " + up);
+        });
+        h.runAfterDelay(45, h::succeed);
+    }
 }

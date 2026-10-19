@@ -40,7 +40,20 @@ public final class BombExplosionHandler {
         var target = SableDropCompat.resolveWorldBlastChecked(level, pos);
         level = target.level();
         pos = target.pos();
-        detonateInternal(level, source, damageSource, pos, blockPower, entityPower, size, FxStyle.NORMAL);
+        var kind = source instanceof com.cbc_more_content.munitions.CruiseMissileProjectile
+                ? com.cbc_more_content.config.WarnauticsConfig.Munition.MISSILE
+                : source instanceof com.cbc_more_content.munitions.RocketProjectile
+                        ? com.cbc_more_content.config.WarnauticsConfig.Munition.ROCKET
+                        : com.cbc_more_content.config.WarnauticsConfig.Munition.BOMB;
+        detonateInternal(
+                level,
+                source,
+                damageSource,
+                pos,
+                com.cbc_more_content.config.WarnauticsConfig.blockPower(blockPower, kind),
+                com.cbc_more_content.config.WarnauticsConfig.entityPower(entityPower, kind),
+                size,
+                FxStyle.NORMAL);
     }
 
     /** Breaching charge: same blast everywhere, hull or ground. */
@@ -49,7 +62,17 @@ public final class BombExplosionHandler {
         var target = SableDropCompat.resolveWorldBlastChecked(level, pos);
         level = target.level();
         pos = target.pos();
-        detonateInternal(level, null, damageSource, pos, blockPower, entityPower, BombSize.MEDIUM, FxStyle.BREACHING);
+        detonateInternal(
+                level,
+                null,
+                damageSource,
+                pos,
+                com.cbc_more_content.config.WarnauticsConfig.blockPower(
+                        blockPower, com.cbc_more_content.config.WarnauticsConfig.Munition.C4),
+                com.cbc_more_content.config.WarnauticsConfig.entityPower(
+                        entityPower, com.cbc_more_content.config.WarnauticsConfig.Munition.C4),
+                BombSize.MEDIUM,
+                FxStyle.BREACHING);
     }
 
     /** Compact anti-vehicle mine profile: same impulse, far fewer visual emitters. */
@@ -63,7 +86,17 @@ public final class BombExplosionHandler {
         var target = SableDropCompat.resolveWorldBlastChecked(level, pos);
         level = target.level();
         pos = target.pos();
-        detonateInternal(level, source, damageSource, pos, blockPower, entityPower, BombSize.LARGE, FxStyle.COMPACT);
+        detonateInternal(
+                level,
+                source,
+                damageSource,
+                pos,
+                com.cbc_more_content.config.WarnauticsConfig.blockPower(
+                        blockPower, com.cbc_more_content.config.WarnauticsConfig.Munition.MINE),
+                com.cbc_more_content.config.WarnauticsConfig.entityPower(
+                        entityPower, com.cbc_more_content.config.WarnauticsConfig.Munition.MINE),
+                BombSize.LARGE,
+                FxStyle.COMPACT);
     }
 
     /** Underwater charge using the same damage rules for terrain and sub-levels. */
@@ -77,7 +110,17 @@ public final class BombExplosionHandler {
         var target = SableDropCompat.resolveWorldBlastChecked(level, pos);
         level = target.level();
         pos = target.pos();
-        detonateInternal(level, source, damageSource, pos, blockPower, entityPower, BombSize.SEA, FxStyle.NORMAL);
+        detonateInternal(
+                level,
+                source,
+                damageSource,
+                pos,
+                com.cbc_more_content.config.WarnauticsConfig.blockPower(
+                        blockPower, com.cbc_more_content.config.WarnauticsConfig.Munition.MINE),
+                com.cbc_more_content.config.WarnauticsConfig.entityPower(
+                        entityPower, com.cbc_more_content.config.WarnauticsConfig.Munition.MINE),
+                BombSize.SEA,
+                FxStyle.NORMAL);
     }
 
     private static void detonateInternal(

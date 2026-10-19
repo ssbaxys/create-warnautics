@@ -34,6 +34,9 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.BOMB_VEST.get());
                         output.accept(ModItems.CRUISE_MISSILE.get());
                         output.accept(ModItems.AIM9.get());
+                        output.accept(ModItems.BOMBSIGHT.get());
+                        output.accept(ModItems.ROCKET_POD.get());
+                        output.accept(ModItems.S8_ROCKET.get());
                         output.accept(ModItems.TRIPWIRE_COIL.get());
                         output.accept(ModItems.CHAIN_COIL.get());
                         output.accept(ModItems.CHAIN_CONNECTOR.get());

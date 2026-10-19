@@ -129,6 +129,148 @@ public final class BombBlastFx {
     }
 
     /**
+     * One rocket leaving a pod's tube. The motor lights inside the tube, so the muzzle spits a
+     * short tongue of flame and a ball of smoke, the open rear of the tube blows a jet of hot
+     * gas and smoke backwards, and low over the ground that jet kicks up dust. A brief flash
+     * lights the surroundings and anyone right beside it feels the blast.
+     */
+    public static void playRocketLaunch(ServerLevel level, Vec3 muzzle, Vec3 rear, Vec3 heading, boolean full) {
+        RandomSource random = level.random;
+        BombBurstBudget.Snapshot budget = BombBurstBudget.begin(level);
+        int detail =
+                switch (budget.lod()) {
+                    case FULL -> 3;
+                    case REDUCED -> 2;
+                    case MINIMAL, ESSENTIAL -> 1;
+                };
+        level.playSound(
+                null,
+                muzzle.x,
+                muzzle.y,
+                muzzle.z,
+                ModSounds.ROCKET_POD_LAUNCH.get(),
+                SoundSource.BLOCKS,
+                4.0f,
+                0.92f + random.nextFloat() * 0.16f);
+
+        // Flame out of the tube, thrown forward and fading fast.
+        var flame = com.cbc_more_content.registry.ModParticles.MISSILE_EXHAUST.get();
+        var smoke = com.cbc_more_content.registry.ModParticles.MISSILE_SMOKE.get();
+        emitNear(level, flame, muzzle, 2 * detail, 0.05D, 0.02D, 64.0D);
+        for (int i = 0; i < 2 * detail; i++) {
+            double speed = 0.25D + random.nextDouble() * 0.45D;
+            directedNear(
+                    level,
+                    flame,
+                    muzzle.x,
+                    muzzle.y,
+                    muzzle.z,
+                    heading.x * speed + (random.nextDouble() - 0.5D) * 0.08D,
+                    heading.y * speed + (random.nextDouble() - 0.5D) * 0.08D,
+                    heading.z * speed + (random.nextDouble() - 0.5D) * 0.08D);
+        }
+        // Smoke ball at the muzzle, rolling forward a little and then hanging.
+        for (int i = 0; i < detail; i++) {
+            directed(
+                    level,
+                    smoke,
+                    muzzle.x,
+                    muzzle.y,
+                    muzzle.z,
+                    heading.x * 0.12D + (random.nextDouble() - 0.5D) * 0.05D,
+                    heading.y * 0.12D + 0.02D,
+                    heading.z * 0.12D + (random.nextDouble() - 0.5D) * 0.05D);
+        }
+        // Back-blast: hot gas and smoke jetting out of the rear of the tubes.
+        for (int i = 0; i < (full ? 2 : 1) * detail; i++) {
+            double speed = 0.2D + random.nextDouble() * 0.25D;
+            Vec3 spread = new Vec3(
+                    (random.nextDouble() - 0.5D) * 0.25D,
+                    (random.nextDouble() - 0.5D) * 0.25D,
+                    (random.nextDouble() - 0.5D) * 0.25D);
+            Vec3 v = heading.scale(-speed).add(spread);
+            directed(level, smoke, rear.x, rear.y, rear.z, v.x, v.y, v.z);
+            if (i % 2 == 0) {
+                directedNear(level, flame, rear.x, rear.y, rear.z, v.x * 0.6D, v.y * 0.6D, v.z * 0.6D);
+            }
+        }
+        if (!full) {
+            return;
+        }
+        // Low over the ground the jet raises dust and grit behind the pod.
+        var below = net.minecraft.core.BlockPos.containing(rear.x, rear.y - 1.0D, rear.z);
+        for (int drop = 0; drop < 3; drop++) {
+            var ground = level.getBlockState(below.below(drop));
+            if (ground.isAir()) {
+                continue;
+            }
+            if (ground.getFluidState().isEmpty()) {
+                var soil = new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, ground);
+                double y = below.getY() - drop + 1.05D;
+                for (int i = 0; i < 4 * detail; i++) {
+                    double angle = random.nextDouble() * Math.PI * 2;
+                    directedNear(
+                            level,
+                            soil,
+                            rear.x + Math.cos(angle) * 0.6D,
+                            y,
+                            rear.z + Math.sin(angle) * 0.6D,
+                            Math.cos(angle) * 0.15D - heading.x * 0.15D,
+                            0.12D + random.nextDouble() * 0.15D,
+                            Math.sin(angle) * 0.15D - heading.z * 0.15D);
+                }
+            }
+            break;
+        }
+
+        BombFlashPayload flash = new BombFlashPayload(
+                muzzle.x, muzzle.y, muzzle.z, budget.lod().flashScale() * 0.25f, (byte) BombSize.SMALL.ordinal());
+        for (ServerPlayer player : level.players()) {
+            double distSqr = player.distanceToSqr(muzzle);
+            if (distSqr <= 64.0D * 64.0D) {
+                PacketDistributor.sendToPlayer(player, flash);
+            }
+            if (distSqr <= 10.0D * 10.0D) {
+                float proximity = (float) Mth.clamp(1.0D - Math.sqrt(distSqr) / 10.0D, 0.0D, 1.0D);
+                budget.offerShake(player, 2.5f * proximity, muzzle);
+            }
+        }
+    }
+
+    /** Count-mode particles, only to players within {@code range} blocks. */
+    private static void emitNear(
+            ServerLevel level,
+            net.minecraft.core.particles.ParticleOptions type,
+            Vec3 at,
+            int count,
+            double spread,
+            double speed,
+            double range) {
+        for (ServerPlayer player : level.players()) {
+            if (player.distanceToSqr(at) <= range * range) {
+                level.sendParticles(player, type, true, at.x, at.y, at.z, count, spread, spread, spread, speed);
+            }
+        }
+    }
+
+    /** One particle with an exact velocity, only to players within 64 blocks: small detail. */
+    private static void directedNear(
+            ServerLevel level,
+            net.minecraft.core.particles.ParticleOptions type,
+            double x,
+            double y,
+            double z,
+            double vx,
+            double vy,
+            double vz) {
+        for (ServerPlayer player : level.players()) {
+            if (player.distanceToSqr(x, y, z) <= 64.0D * 64.0D) {
+                level.sendParticles(player, type, true, x, y, z, 0, vx, vy, vz, 1.0D);
+            }
+        }
+    }
+
+    /**
      * A Claymore going off. Unlike every other charge here the blast has a direction: a
      * pound and a half of explosive behind a curved plate of steel balls throws almost all
      * of it forward. What you see is a hard white-orange flash, a jet of grey smoke punched

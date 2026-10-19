@@ -9,6 +9,8 @@ import net.minecraft.world.damagesource.DamageType;
 public final class ModDamageTypes {
     public static final ResourceKey<DamageType> AERIAL_BOMBING = key("aerial_bombing");
     public static final ResourceKey<DamageType> LAND_MINE = key("land_mine");
+    /** Claymore steel balls: projectiles, so armour and Projectile Protection apply, not Blast Protection. */
+    public static final ResourceKey<DamageType> CLAYMORE = key("claymore");
 
     private static ResourceKey<DamageType> key(String path) {
         return ResourceKey.create(

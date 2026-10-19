@@ -70,6 +70,11 @@ public class C4BlockEntity extends BlockEntity {
     private int cutMask;
     /** Waiting on a detonator instead of counting down. */
     private boolean remote;
+    /**
+     * Landed from a preset throw already set up (code, trigger, fuse), but idle: one click
+     * of the settings key starts it. Synced, so the key knows to skip the keypad.
+     */
+    private boolean primed;
 
     public C4BlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.C4.get(), pos, state);
@@ -104,7 +109,31 @@ public class C4BlockEntity extends BlockEntity {
         // one, so it lands still waiting on a set instead of quietly going inert. Not
         // paired, though: it moved, and whatever set held it is holding the old cell.
         if (armed && (remote || remaining > 0)) {
+            // A charge armed in the air never went through arm(), so its wires are
+            // drawn here, or the cutting puzzle would have no answer.
+            if (this.defuseWire < 0 && this.level != null) {
+                this.rollWires(this.level.random);
+            }
             this.setFuseState(Fuse.ARMED);
+        }
+    }
+
+    /** Set up by a preset but not started; see {@link #primed}. */
+    public boolean isPrimed() {
+        // The code never reaches a client, so only the server can check it is there.
+        boolean coded = this.level == null || this.level.isClientSide || this.code >= 0;
+        return this.primed && !this.isArmed() && coded;
+    }
+
+    public void setPrimed(boolean value) {
+        if (this.primed == value) {
+            return;
+        }
+        this.primed = value;
+        this.setChanged();
+        if (this.level != null) {
+            this.level.sendBlockUpdated(
+                    this.worldPosition, this.getBlockState(), this.getBlockState(), Block.UPDATE_CLIENTS);
         }
     }
 
@@ -282,6 +311,76 @@ public class C4BlockEntity extends BlockEntity {
         return this.code >= 0 && this.code == attempt;
     }
 
+    /** Keypad bookkeeping for one guesser, or for everyone when the charge locks as a whole. */
+    private static final class Keypad {
+        int failures;
+        int lockouts;
+        long lockedUntil;
+        long lastFailure;
+    }
+
+    /** Key for the shared keypad when lockouts are per charge rather than per player. */
+    private static final java.util.UUID EVERYONE = new java.util.UUID(0L, 0L);
+
+    private final java.util.Map<java.util.UUID, Keypad> keypads = new java.util.HashMap<>();
+
+    public enum Outcome {
+        ACCEPTED,
+        /** Wrong; {@code value} is the attempts left before a lockout, or -1 with no limit. */
+        WRONG,
+        /** Locked; {@code value} is the seconds left, rounded up. */
+        LOCKED,
+        DETONATED
+    }
+
+    public record CodeVerdict(Outcome outcome, int value) {}
+
+    /**
+     * Judges a disarm code under the keypad rules in the server config. A locked keypad
+     * refuses even the right code, so the limit cannot be beaten by guessing faster.
+     */
+    public CodeVerdict tryCode(java.util.UUID who, int attempt) {
+        if (!(this.level instanceof ServerLevel server)) {
+            return new CodeVerdict(Outcome.WRONG, -1);
+        }
+        long now = server.getGameTime();
+        var keypad = this.keypads.computeIfAbsent(
+                com.cbc_more_content.config.WarnauticsConfig.c4LockoutPerPlayer() ? who : EVERYONE, k -> new Keypad());
+        if (keypad.lockedUntil > now) {
+            return new CodeVerdict(Outcome.LOCKED, (int) Math.ceil((keypad.lockedUntil - now) / 20.0D));
+        }
+        long forget = com.cbc_more_content.config.WarnauticsConfig.c4ForgetFailuresTicks();
+        if (forget > 0 && keypad.lastFailure > 0 && now - keypad.lastFailure > forget) {
+            keypad.failures = 0;
+            keypad.lockouts = 0;
+        }
+        if (this.matchesCode(attempt)) {
+            this.keypads.clear();
+            this.setChanged();
+            return new CodeVerdict(Outcome.ACCEPTED, 0);
+        }
+        keypad.failures++;
+        keypad.lastFailure = now;
+        this.setChanged();
+        int allowed = com.cbc_more_content.config.WarnauticsConfig.c4CodeAttempts();
+        if (allowed <= 0) {
+            return new CodeVerdict(Outcome.WRONG, -1);
+        }
+        if (keypad.failures < allowed) {
+            return new CodeVerdict(Outcome.WRONG, allowed - keypad.failures);
+        }
+        keypad.failures = 0;
+        keypad.lockouts++;
+        int fatal = com.cbc_more_content.config.WarnauticsConfig.c4DetonateAfterLockouts();
+        if (fatal > 0 && keypad.lockouts >= fatal) {
+            this.blow(server, this.worldPosition);
+            return new CodeVerdict(Outcome.DETONATED, 0);
+        }
+        long lock = com.cbc_more_content.config.WarnauticsConfig.c4LockoutTicks(keypad.lockouts - 1);
+        keypad.lockedUntil = now + lock;
+        return new CodeVerdict(Outcome.LOCKED, (int) Math.ceil(lock / 20.0D));
+    }
+
     /** Stops the countdown and clears the code, leaving the charge placed and inert. */
     public void disarm() {
         this.remaining = 0;
@@ -290,6 +389,8 @@ public class C4BlockEntity extends BlockEntity {
         this.code = -1;
         this.sinceLastBeep = START_INTERVAL;
         this.cutMask = 0;
+        this.keypads.clear();
+        this.primed = false;
         this.setChanged();
         this.setFuseState(Fuse.IDLE);
     }
@@ -303,6 +404,7 @@ public class C4BlockEntity extends BlockEntity {
         // for a detonator rather than for its own clock to run out.
         this.remaining = this.remote ? -1 : this.fuseSeconds * 20;
         this.sinceLastBeep = START_INTERVAL;
+        this.primed = false;
         this.setChanged();
         this.rollWires(this.level.random);
         // A remote charge comes up on the lamp alone: live, but with a dark screen and a
@@ -401,6 +503,21 @@ public class C4BlockEntity extends BlockEntity {
         this.detonateWire = tag.contains("DetonateWire") ? tag.getInt("DetonateWire") : -1;
         this.cutMask = tag.getInt("CutWires");
         this.remote = tag.getBoolean("Remote");
+        this.primed = tag.getBoolean("Primed");
+        this.keypads.clear();
+        var keypads = tag.getList("Keypads", net.minecraft.nbt.Tag.TAG_COMPOUND);
+        for (int i = 0; i < keypads.size(); i++) {
+            CompoundTag entry = keypads.getCompound(i);
+            if (!entry.hasUUID("Who")) {
+                continue;
+            }
+            var keypad = new Keypad();
+            keypad.failures = entry.getInt("Failures");
+            keypad.lockouts = entry.getInt("Lockouts");
+            keypad.lockedUntil = entry.getLong("LockedUntil");
+            keypad.lastFailure = entry.getLong("LastFailure");
+            this.keypads.put(entry.getUUID("Who"), keypad);
+        }
     }
 
     @Override
@@ -415,6 +532,20 @@ public class C4BlockEntity extends BlockEntity {
         tag.putInt("DetonateWire", this.detonateWire);
         tag.putInt("CutWires", this.cutMask);
         tag.putBoolean("Remote", this.remote);
+        tag.putBoolean("Primed", this.primed);
+        if (!this.keypads.isEmpty()) {
+            var keypads = new net.minecraft.nbt.ListTag();
+            this.keypads.forEach((who, keypad) -> {
+                CompoundTag entry = new CompoundTag();
+                entry.putUUID("Who", who);
+                entry.putInt("Failures", keypad.failures);
+                entry.putInt("Lockouts", keypad.lockouts);
+                entry.putLong("LockedUntil", keypad.lockedUntil);
+                entry.putLong("LastFailure", keypad.lastFailure);
+                keypads.add(entry);
+            });
+            tag.put("Keypads", keypads);
+        }
     }
 
     /**
@@ -430,6 +561,7 @@ public class C4BlockEntity extends BlockEntity {
         tag.putIntArray("WireColours", this.wireColours);
         tag.putInt("CutWires", this.cutMask);
         tag.putBoolean("Remote", this.remote);
+        tag.putBoolean("Primed", this.primed);
         return tag;
     }
 

@@ -550,6 +550,19 @@ public class DropBombBlock extends Block implements IWrenchable, ChainExplosiveB
         return bestSignal > 0 ? best : null;
     }
 
+    /** The size of bomb this rack holds. */
+    public BombSize bombSize() {
+        return this.size;
+    }
+
+    /**
+     * Where and how fast a bomb would leave this rack if released now, in world space: the
+     * same start a real release gets, for a bombsight to predict from.
+     */
+    public SableDropCompat.LaunchFrame predictLaunch(ServerLevel level, BlockPos pos, BlockState state) {
+        return this.prepareLaunchAlongNose(level, pos, state.getValue(FACING), this.size);
+    }
+
     /**
      * Releases the bomb into free space and lets gravity do the rest. UP is never a
      * release direction — nothing here may push a live bomb into the airframe above.

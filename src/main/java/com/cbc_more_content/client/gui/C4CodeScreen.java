@@ -53,6 +53,10 @@ public class C4CodeScreen extends WarnauticsScreen {
     private boolean sent;
     /** Set when the charge vanished, so closing does not chain into the timer. */
     private boolean abandoned;
+    /** Wrong codes left before the keypad locks, as the server last said; -1 when unlimited. */
+    private int attemptsLeft = -1;
+    /** Screen age at which a lockout ends; the keys are dead until then. */
+    private float lockedUntil;
 
     public C4CodeScreen(BlockPos pos, boolean disarming) {
         super(
@@ -65,14 +69,27 @@ public class C4CodeScreen extends WarnauticsScreen {
     }
 
     /** Called from the network handler when the server has judged a disarm attempt. */
-    public void onVerdict(boolean accepted) {
+    public void onVerdict(C4BlockEntity.Outcome outcome, int value) {
+        boolean accepted = outcome == C4BlockEntity.Outcome.ACCEPTED;
         this.verdict = accepted ? 1 : -1;
         this.verdictTime = this.age;
+        switch (outcome) {
+            case WRONG -> this.attemptsLeft = value;
+            case LOCKED -> {
+                this.attemptsLeft = -1;
+                this.lockedUntil = this.age + value * 20.0f;
+            }
+            default -> {}
+        }
         if (accepted) {
             UiSounds.press(1.6f);
         } else {
             UiSounds.deny();
         }
+    }
+
+    private boolean locked() {
+        return this.age < this.lockedUntil;
     }
 
     @Override
@@ -156,7 +173,8 @@ public class C4CodeScreen extends WarnauticsScreen {
     private void renderKeys(GuiGraphics graphics, int mouseX, int mouseY, float now) {
         for (int key = 0; key <= 9; key++) {
             int[] box = this.keyBox(key);
-            boolean hot = this.verdict == 0 && this.over(mouseX, mouseY, box[0], box[1], KEY_W, KEY_H);
+            boolean hot =
+                    this.verdict == 0 && !this.locked() && this.over(mouseX, mouseY, box[0], box[1], KEY_W, KEY_H);
             boolean pressed = key == this.pressedKey && now - this.pressedTime < 3.0f;
             Ui.plate(
                     graphics,
@@ -189,8 +207,14 @@ public class C4CodeScreen extends WarnauticsScreen {
         if (this.verdict == 1) {
             return Component.translatable("gui.cbc_more_content.c4.code.accepted");
         }
+        if (this.locked()) {
+            return Component.translatable(
+                    "gui.cbc_more_content.c4.code.locked", (int) Math.ceil((this.lockedUntil - this.age) / 20.0f));
+        }
         if (this.verdict == -1) {
-            return Component.translatable("gui.cbc_more_content.c4.code.wrong");
+            return this.attemptsLeft >= 0
+                    ? Component.translatable("gui.cbc_more_content.c4.code.wrong_left", this.attemptsLeft)
+                    : Component.translatable("gui.cbc_more_content.c4.code.wrong");
         }
         return Component.translatable(
                 this.disarming
@@ -200,6 +224,9 @@ public class C4CodeScreen extends WarnauticsScreen {
 
     @Override
     protected int statusColour() {
+        if (this.locked()) {
+            return Ui.RED;
+        }
         return this.verdict == 1 ? Ui.GREEN : this.verdict == -1 ? Ui.RED : Ui.AMBER;
     }
 
@@ -255,6 +282,10 @@ public class C4CodeScreen extends WarnauticsScreen {
     }
 
     private void press(int digit) {
+        if (this.locked()) {
+            UiSounds.deny();
+            return;
+        }
         if (this.verdict != 0 || this.entered >= C4BlockEntity.CODE_LENGTH) {
             return;
         }

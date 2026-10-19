@@ -18,7 +18,7 @@ public final class C4CodeClient {
     /** Routed here from the network handler; ignored if the player closed the keypad. */
     public static void handle(C4CodeResultPayload payload) {
         if (Minecraft.getInstance().screen instanceof C4CodeScreen screen) {
-            screen.onVerdict(payload.accepted());
+            screen.onVerdict(payload.verdict(), payload.value());
         }
     }
 }

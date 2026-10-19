@@ -57,6 +57,10 @@ public class BoundingMineEntity extends Entity {
 
     @Override
     public void tick() {
+        if (this.level() instanceof net.minecraft.server.level.ServerLevel ticketLevel && !this.isRemoved()) {
+            // Finish the flight and go off where it lands, players nearby or not.
+            com.cbc_more_content.munitions.FlightTicket.keepLoaded(ticketLevel, this);
+        }
         this.baseTick();
 
         Vec3 motion = this.getDeltaMovement().subtract(0.0D, GRAVITY, 0.0D);

@@ -71,6 +71,11 @@ public final class DropBombUtil {
         bomb.discard();
     }
 
+    /** An unspawned bomb of this size, for reading its ballistics. Never added to the world. */
+    public static DropBombProjectile probe(BombSize size, ServerLevel level) {
+        return createBomb(size, level);
+    }
+
     private static DropBombProjectile createBomb(BombSize size, ServerLevel level) {
         DropBombProjectile bomb;
         if (size == BombSize.SEA) {

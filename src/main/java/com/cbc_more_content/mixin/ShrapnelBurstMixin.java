@@ -30,6 +30,18 @@ public class ShrapnelBurstMixin {
     }
 
     /**
+     * A claymore's balls still stop at whoever they strike, so bodies shade those behind,
+     * but the damage is dealt by {@code MineExplosionHandler} as one worked-out blow.
+     */
+    @Inject(method = "onSubProjectileHitEntity", at = @At("HEAD"), cancellable = true)
+    private void cbc_more_content$claymoreHitsAreCounted(
+            net.minecraft.world.phys.EntityHitResult hit, SubProjectile subProjectile, CallbackInfo ci) {
+        if (((ShrapnelBurst) (Object) this).getPersistentData().getBoolean(MineExplosionHandler.CLAYMORE_BURST_TAG)) {
+            ci.cancel();
+        }
+    }
+
+    /**
      * A claymore's steel balls are pellets, not shell splinters. At CBC's shell-fragment
      * size the first body in front caught half the fan and shaded everyone behind it.
      */

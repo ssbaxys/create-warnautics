@@ -115,7 +115,7 @@ public class ClaymoreBlock extends HorizontalDirectionalBlock implements ChainEx
     @Override
     protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
         if (!level.isClientSide && !state.getValue(ARMED)) {
-            level.scheduleTick(pos, this, ARM_DELAY_TICKS);
+            level.scheduleTick(pos, this, Math.max(1, com.cbc_more_content.config.WarnauticsConfig.claymoreArmTicks()));
         }
     }
 
@@ -140,9 +140,14 @@ public class ClaymoreBlock extends HorizontalDirectionalBlock implements ChainEx
     protected void neighborChanged(
             BlockState state, Level level, BlockPos pos, Block neighbor, BlockPos neighborPos, boolean moving) {
         super.neighborChanged(state, level, pos, neighbor, neighborPos, moving);
-        if (level instanceof ServerLevel server && state.getValue(ARMED) && signalled(level, pos)) {
+        if (level instanceof ServerLevel server && live(state) && signalled(level, pos)) {
             detonate(server, pos, state);
         }
+    }
+
+    /** Armed, or the server lets it fire before the arming delay has run out. */
+    private static boolean live(BlockState state) {
+        return state.getValue(ARMED) || !com.cbc_more_content.config.WarnauticsConfig.claymoreOnlyWhenArmed();
     }
 
     private static boolean signalled(Level level, BlockPos pos) {
@@ -157,7 +162,7 @@ public class ClaymoreBlock extends HorizontalDirectionalBlock implements ChainEx
     /** A tripwire tied to the claymore itself has parted. */
     public static void tripped(ServerLevel level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        if (state.getBlock() instanceof ClaymoreBlock && state.getValue(ARMED)) {
+        if (state.getBlock() instanceof ClaymoreBlock && live(state)) {
             detonate(level, pos, state);
         }
     }
@@ -168,7 +173,7 @@ public class ClaymoreBlock extends HorizontalDirectionalBlock implements ChainEx
             return false;
         }
         BlockState state = level.getBlockState(pos);
-        if (!(state.getBlock() instanceof ClaymoreBlock) || !state.getValue(ARMED)) {
+        if (!(state.getBlock() instanceof ClaymoreBlock) || !live(state)) {
             return false;
         }
         detonate(level, pos, state);

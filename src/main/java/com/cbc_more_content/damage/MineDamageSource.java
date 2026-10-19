@@ -66,6 +66,14 @@ public class MineDamageSource extends DamageSource {
         this.type = type;
     }
 
+    /** The claymore's balls, as opposed to its back-blast. */
+    public static MineDamageSource claymoreBalls(Level level) {
+        Holder<DamageType> damageType = level.registryAccess()
+                .registryOrThrow(Registries.DAMAGE_TYPE)
+                .getHolderOrThrow(ModDamageTypes.CLAYMORE);
+        return new MineDamageSource(damageType, MineType.CLAYMORE);
+    }
+
     public static MineDamageSource create(Level level, MineType type) {
         Holder<DamageType> damageType = level.registryAccess()
                 .registryOrThrow(Registries.DAMAGE_TYPE)

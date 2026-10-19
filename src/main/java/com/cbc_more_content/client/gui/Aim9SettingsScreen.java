@@ -41,6 +41,8 @@ public class Aim9SettingsScreen extends WarnauticsScreen {
     private int range;
     private float glow;
     private boolean sent;
+    /** What the server last said about the rack; null until it has answered. */
+    private com.cbc_more_content.block.Aim9Block.Readiness live;
 
     public Aim9SettingsScreen(BlockPos pos, boolean enabled, boolean interceptCruise, int range) {
         super(Component.translatable("gui.cbc_more_content.aim9.title"), PANEL_WIDTH, PANEL_HEIGHT);
@@ -96,9 +98,30 @@ public class Aim9SettingsScreen extends WarnauticsScreen {
         return top + PANEL_HEIGHT - Ui.STATUS_H - 6 - Ui.BUTTON_H - 5 + Ui.BUTTON_H / 2.0;
     }
 
+    /** The server's answer: the rack's readiness as it stands right now. */
+    public void onStatus(com.cbc_more_content.network.Aim9StatusPayload payload) {
+        var all = com.cbc_more_content.block.Aim9Block.Readiness.values();
+        if (!payload.pos().equals(this.pos) || payload.readiness() < 0 || payload.readiness() >= all.length) {
+            return;
+        }
+        if (this.live == null) {
+            // The first answer also carries the rack's real settings: on a ship the client's
+            // copy can be out of date, and the switches should open showing the truth.
+            this.enabled = payload.enabled();
+            this.interceptCruise = payload.interceptCruise();
+            this.range = Mth.clamp(payload.range(), Aim9BlockEntity.MIN_RANGE, Aim9BlockEntity.MAX_RANGE);
+        }
+        this.live = all[payload.readiness()];
+    }
+
     @Override
     public void tick() {
         super.tick();
+        // Ask every half second while the panel is open, so a ship turned over or a roof
+        // built over the rack shows up at once.
+        if (((int) this.age) % 10 == 0) {
+            PacketDistributor.sendToServer(com.cbc_more_content.network.Aim9StatusPayload.ask(this.pos));
+        }
         this.glow = Mth.lerp(.2f, this.glow, this.enabled && this.interceptCruise ? 1 : 0);
         var mc = Minecraft.getInstance();
         if (mc.level == null
@@ -193,6 +216,9 @@ public class Aim9SettingsScreen extends WarnauticsScreen {
 
     /** What the rack itself last reported, so a silent rack says why it is silent. */
     private com.cbc_more_content.block.Aim9Block.Readiness readiness() {
+        if (this.live != null) {
+            return this.live;
+        }
         var mc = Minecraft.getInstance();
         return mc.level != null && mc.level.getBlockEntity(this.pos) instanceof Aim9BlockEntity be
                 ? be.readiness()

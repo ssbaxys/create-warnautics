@@ -225,5 +225,26 @@
         "stream": false
       }
     ]
+  },
+  "rocket_pod_launch": {
+    "subtitle": "subtitles.cbc_more_content.rocket_pod_launch",
+    "sounds": [
+      {
+        "name": "cbc_more_content:rocket_pod_launch_1",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "cbc_more_content:rocket_pod_launch_2",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "cbc_more_content:rocket_pod_launch_3",
+        "attenuation_distance": 96
+      },
+      {
+        "name": "cbc_more_content:rocket_pod_launch_4",
+        "attenuation_distance": 96
+      }
+    ]
   }
 }

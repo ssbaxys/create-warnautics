@@ -45,6 +45,9 @@ public final class AirframeMovement {
         if (state.getBlock() instanceof MoabBlock) {
             return MoabBlock.bodyOf(state, pos);
         }
+        if (state.getBlock() instanceof com.cbc_more_content.block.RocketPodBlock) {
+            return com.cbc_more_content.block.RocketPodBlock.bodyOf(state, pos);
+        }
         return null;
     }
 

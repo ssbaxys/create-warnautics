@@ -40,6 +40,8 @@ public class CBCMoreContentClient {
         com.cbc_more_content.client.ChainModels.init();
         modEventBus.addListener(this::registerRenderers);
         modEventBus.addListener(com.cbc_more_content.client.hud.NoticeHud::registerLayer);
+        modEventBus.addListener(com.cbc_more_content.client.BombsightClient::registerLayer);
+        modEventBus.addListener(com.cbc_more_content.client.BombsightView::registerLayer);
         modEventBus.addListener(this::addBombVestLayers);
         modEventBus.addListener(this::registerParticles);
         modEventBus.addListener(this::registerExtraModels);
@@ -78,6 +80,7 @@ public class CBCMoreContentClient {
         event.register(com.cbc_more_content.client.CruiseMissileRenderer.BODY);
         event.register(com.cbc_more_content.client.CruiseMissileRenderer.TAIL_FINS);
         event.register(com.cbc_more_content.client.CruiseMissileRenderer.CANARDS);
+        event.register(com.cbc_more_content.client.RocketRenderer.MODEL);
     }
 
     private void registerItemExtensions(RegisterClientExtensionsEvent event) {
@@ -141,6 +144,7 @@ public class CBCMoreContentClient {
         event.registerEntityRenderer(
                 ModEntityTypes.CRUISE_MISSILE.get(), com.cbc_more_content.client.CruiseMissileRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.AIM9.get(), com.cbc_more_content.client.Aim9Renderer::new);
+        event.registerEntityRenderer(ModEntityTypes.ROCKET.get(), com.cbc_more_content.client.RocketRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.C4.get(), C4Renderer::new);
         // The turning stub of shaft in the socket under a post.
         event.registerBlockEntityRenderer(ModBlockEntities.SIREN.get(), com.cbc_more_content.client.SirenRenderer::new);

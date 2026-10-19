@@ -1,0 +1,96 @@
+{
+  "variants": {
+    "facing=north,part=single": {
+      "model": "cbc_more_content:block/rocket_pod_single"
+    },
+    "facing=north,part=front": {
+      "model": "cbc_more_content:block/rocket_pod_single"
+    },
+    "facing=north,part=body": {
+      "model": "cbc_more_content:block/rocket_pod_single"
+    },
+    "facing=north,part=rear": {
+      "model": "cbc_more_content:block/rocket_pod_single"
+    },
+    "facing=east,part=single": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "y": 90
+    },
+    "facing=east,part=front": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "y": 90
+    },
+    "facing=east,part=body": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "y": 90
+    },
+    "facing=east,part=rear": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "y": 90
+    },
+    "facing=south,part=single": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "y": 180
+    },
+    "facing=south,part=front": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "y": 180
+    },
+    "facing=south,part=body": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "y": 180
+    },
+    "facing=south,part=rear": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "y": 180
+    },
+    "facing=west,part=single": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "y": 270
+    },
+    "facing=west,part=front": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "y": 270
+    },
+    "facing=west,part=body": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "y": 270
+    },
+    "facing=west,part=rear": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "y": 270
+    },
+    "facing=up,part=single": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "x": 270
+    },
+    "facing=up,part=front": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "x": 270
+    },
+    "facing=up,part=body": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "x": 270
+    },
+    "facing=up,part=rear": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "x": 270
+    },
+    "facing=down,part=single": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "x": 90
+    },
+    "facing=down,part=front": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "x": 90
+    },
+    "facing=down,part=body": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "x": 90
+    },
+    "facing=down,part=rear": {
+      "model": "cbc_more_content:block/rocket_pod_single",
+      "x": 90
+    }
+  }
+}

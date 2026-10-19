@@ -161,6 +161,10 @@ public final class FlightFxCheck {
             mineStage(mc);
             return;
         }
+        if (stage == 5) {
+            podStage(mc);
+            return;
+        }
         if (stage == 2 || stage == 3) {
             if (flightTicks == 1) {
                 com.cbc_more_content.munitions.ClientFlightSmoother.enabled = stage == 2;
@@ -232,6 +236,60 @@ public final class FlightFxCheck {
             }
         }
         if (flightTicks >= 90) {
+            stage = 5;
+            flightTicks = 0;
+        }
+    }
+
+    /** A rocket pod on the ground rippling off its eight rockets downrange. */
+    private static void podStage(Minecraft mc) {
+        var server = mc.getSingleplayerServer();
+        if (flightTicks == 1) {
+            server.execute(() -> {
+                var level = server.overworld();
+                var player = server.getPlayerList().getPlayers().getFirst();
+                player.connection.teleport(-8.5, TOP + 2, 3992.5, -66, 4);
+                var block = (com.cbc_more_content.block.RocketPodBlock)
+                        com.cbc_more_content.registry.ModBlocks.ROCKET_POD.get();
+                for (int x = -1; x <= 1; x++) {
+                    var at = new BlockPos(x, TOP + 1, 4000);
+                    var state = block.defaultBlockState()
+                            .setValue(
+                                    com.cbc_more_content.block.RocketPodBlock.FACING,
+                                    net.minecraft.core.Direction.EAST);
+                    level.setBlockAndUpdate(
+                            at.below(), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+                    level.setBlockAndUpdate(at, state);
+                    block.setPlacedBy(level, at, state, null, net.minecraft.world.item.ItemStack.EMPTY);
+                }
+                if (level.getBlockEntity(new BlockPos(0, TOP + 1, 4000))
+                        instanceof com.cbc_more_content.block.RocketPodBlockEntity pod) {
+                    pod.load(8);
+                    pod.configure(4, 0);
+                }
+            });
+        }
+        if (flightTicks > 2) {
+            mc.player.setYRot(-66);
+            mc.player.yRotO = -66;
+            mc.player.setXRot(4);
+            mc.player.xRotO = 4;
+        }
+        if (flightTicks == 40) {
+            server.execute(() -> {
+                if (server.overworld().getBlockEntity(new BlockPos(0, TOP + 1, 4000))
+                        instanceof com.cbc_more_content.block.RocketPodBlockEntity pod) {
+                    pod.fireSalvo();
+                }
+            });
+        }
+        for (int at : new int[] {42, 46, 52, 60, 72, 90}) {
+            if (flightTicks == at) {
+                capture = "pod-" + (at - 40);
+                frames = 0;
+            }
+        }
+        if (flightTicks >= 100) {
             finish(null);
         }
     }

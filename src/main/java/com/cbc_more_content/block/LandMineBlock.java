@@ -168,7 +168,7 @@ public class LandMineBlock extends Block implements IWrenchable, ChainExplosiveB
     @Override
     protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
         if (!level.isClientSide && !state.getValue(ARMED)) {
-            level.scheduleTick(pos, this, ARM_DELAY_TICKS);
+            level.scheduleTick(pos, this, Math.max(1, com.cbc_more_content.config.WarnauticsConfig.mineArmTicks()));
         }
     }
 

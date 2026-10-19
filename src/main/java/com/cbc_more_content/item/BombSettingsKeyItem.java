@@ -122,6 +122,35 @@ public class BombSettingsKeyItem extends Item {
             }
             return InteractionResult.sidedSuccess(level.isClientSide);
         }
+        if (state.getBlock() instanceof com.cbc_more_content.bombsight.BombsightBlock) {
+            if (level.isClientSide) {
+                ReflectiveDispatcher.invoke(
+                        "com.cbc_more_content.client.gui.BombsightScreen",
+                        "open",
+                        new Class<?>[] {BlockPos.class},
+                        pos);
+            } else {
+                // The key remembers this sight, so a target can be marked with it from the air.
+                setBombsight(key, pos);
+            }
+            return InteractionResult.sidedSuccess(level.isClientSide);
+        }
+        if (state.getBlock() instanceof com.cbc_more_content.block.RocketPodBlock) {
+            if (!com.cbc_more_content.block.RocketPodBlock.formed(state)) {
+                if (!level.isClientSide) {
+                    say(context.getPlayer(), "message.cbc_more_content.rocket_pod.unassembled", UiTone.MUTED);
+                }
+                return InteractionResult.sidedSuccess(level.isClientSide);
+            }
+            if (level.isClientSide) {
+                ReflectiveDispatcher.invoke(
+                        "com.cbc_more_content.client.gui.RocketPodSettingsClient",
+                        "open",
+                        new Class<?>[] {BlockPos.class},
+                        com.cbc_more_content.block.RocketPodBlock.bodyOf(state, pos));
+            }
+            return InteractionResult.sidedSuccess(level.isClientSide);
+        }
         if (state.getBlock() instanceof com.cbc_more_content.block.SirenBlock) {
             if (level.isClientSide) {
                 openSirenScreen(pos);
@@ -129,6 +158,24 @@ public class BombSettingsKeyItem extends Item {
             return InteractionResult.sidedSuccess(level.isClientSide);
         }
         if (state.getBlock() instanceof C4Block) {
+            Player who = context.getPlayer();
+            // A charge that landed set up from a preset starts with one click; sneaking
+            // goes through the keypad as usual, to set it up afresh.
+            if (who != null
+                    && !who.isShiftKeyDown()
+                    && level.getBlockEntity(pos) instanceof com.cbc_more_content.block.C4BlockEntity c4
+                    && c4.isPrimed()) {
+                if (!level.isClientSide) {
+                    c4.arm();
+                    if (c4.isWaitingOnRemote()) {
+                        com.cbc_more_content.item.DetonatorItem.pairFromInventory(who, pos, c4);
+                    } else {
+                        Notices.send(
+                                who, UiTone.DANGER, "message.cbc_more_content.c4.preset.started", c4.fuseSeconds());
+                    }
+                }
+                return InteractionResult.sidedSuccess(level.isClientSide);
+            }
             // The keypad comes first either way: on an idle charge it sets the arming
             // code, on a live one it is the only way to stop the fuse.
             if (level.isClientSide) {
@@ -153,8 +200,12 @@ public class BombSettingsKeyItem extends Item {
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
         ItemStack key = player.getItemInHand(hand);
         if (!level.isClientSide && player.isShiftKeyDown() && bindingSet(key) != null) {
-            key.remove(DataComponents.CUSTOM_DATA);
+            CompoundTag root = key.get(DataComponents.CUSTOM_DATA).copyTag();
+            root.remove("BindingSet");
+            key.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
             say(player, "message.cbc_more_content.key.bind_cancel", UiTone.MUTED);
+        } else if (!level.isClientSide && player.isShiftKeyDown() && bombsight(key) != null) {
+            markBombsightTarget(level, player, bombsight(key));
         }
         return InteractionResultHolder.sidedSuccess(key, level.isClientSide());
     }
@@ -180,6 +231,66 @@ public class BombSettingsKeyItem extends Item {
         }
         CompoundTag tag = data.copyTag().getCompound("BindingSet");
         return tag.contains("X") ? new BlockPos(tag.getInt("X"), tag.getInt("Y"), tag.getInt("Z")) : null;
+    }
+
+    /** The bombsight this key last opened, for marking its target from the air. */
+    @Nullable
+    public static BlockPos bombsight(ItemStack stack) {
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null) {
+            return null;
+        }
+        CompoundTag tag = data.copyTag().getCompound("Bombsight");
+        return tag.contains("X") ? new BlockPos(tag.getInt("X"), tag.getInt("Y"), tag.getInt("Z")) : null;
+    }
+
+    private static void setBombsight(ItemStack stack, BlockPos sight) {
+        CompoundTag inner = new CompoundTag();
+        inner.putInt("X", sight.getX());
+        inner.putInt("Y", sight.getY());
+        inner.putInt("Z", sight.getZ());
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        CompoundTag root = data == null ? new CompoundTag() : data.copyTag();
+        root.put("Bombsight", inner);
+        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
+    }
+
+    /**
+     * Sneak and use the key in the air: the spot on the ground the player is looking at, up
+     * to half a kilometre off, becomes the target of the bombsight the key last opened.
+     */
+    private static void markBombsightTarget(Level level, Player player, BlockPos sightPos) {
+        if (!(level instanceof net.minecraft.server.level.ServerLevel server)) {
+            return;
+        }
+        if (!server.isLoaded(sightPos)
+                || !(server.getBlockEntity(sightPos)
+                        instanceof com.cbc_more_content.bombsight.BombsightBlockEntity sight)) {
+            say(player, "message.cbc_more_content.bombsight.lost", UiTone.DANGER);
+            return;
+        }
+        var where = com.cbc_more_content.compat.SableDropCompat.resolveWorldBlastChecked(server, sightPos.getCenter())
+                .pos();
+        if (player.distanceToSqr(where) > 256 * 256) {
+            say(player, "message.cbc_more_content.bombsight.too_far", UiTone.DANGER);
+            return;
+        }
+        var hit = player.pick(512.0D, 1.0F, false);
+        if (hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
+            say(player, "message.cbc_more_content.bombsight.no_point", UiTone.MUTED);
+            return;
+        }
+        var at = net.minecraft.core.BlockPos.containing(hit.getLocation());
+        sight.markTarget(at.getX(), at.getZ());
+        level.playSound(
+                null, player.blockPosition(), SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 0.8f, 1.4f);
+        Notices.send(
+                player,
+                UiTone.SUCCESS,
+                "message.cbc_more_content.bombsight.marked",
+                at.getX(),
+                at.getZ(),
+                Math.round(Math.sqrt(player.distanceToSqr(hit.getLocation()))));
     }
 
     private static void setBindingSet(ItemStack stack, BlockPos set) {
